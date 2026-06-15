@@ -10,6 +10,18 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: agents
+    description: Synthetic population agents
+  - name: surveys
+    description: Survey instruments used to train the attitude model
+  - name: simulations
+    description: Policy simulation runs
+  - name: calibration
+    description: Calibration and validation records
+  - name: products
+    description: Product lines (Lumen / Seraph / Dynamo)
+  - name: dashboard
+    description: Dashboard aggregates
 paths:
   /healthz:
     get:
@@ -24,6 +36,301 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /agents:
+    get:
+      operationId: listAgents
+      tags: [agents]
+      summary: List synthetic agents
+      parameters:
+        - name: district
+          in: query
+          required: false
+          schema: { type: string }
+        - name: gender
+          in: query
+          required: false
+          schema: { type: string }
+        - name: ageBracket
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Agent"
+
+  /agents/summary:
+    get:
+      operationId: getAgentSummary
+      tags: [agents]
+      summary: Aggregate demographic and attitude breakdown of the population
+      responses:
+        "200":
+          description: Population summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSummary"
+
+  /agents/{id}:
+    get:
+      operationId: getAgent
+      tags: [agents]
+      summary: Get a single agent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /surveys:
+    get:
+      operationId: listSurveys
+      tags: [surveys]
+      summary: List survey instruments used to train the attitude model
+      responses:
+        "200":
+          description: List of surveys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Survey"
+
+  /surveys/{id}:
+    get:
+      operationId: getSurvey
+      tags: [surveys]
+      summary: Get a single survey with its learned attitude drivers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Survey
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Survey"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /simulations:
+    get:
+      operationId: listSimulations
+      tags: [simulations]
+      summary: List simulation runs
+      responses:
+        "200":
+          description: List of simulations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Simulation"
+    post:
+      operationId: createSimulation
+      tags: [simulations]
+      summary: Create a simulation (draft) and get a cost estimate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulationInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Simulation"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /simulations/estimate:
+    post:
+      operationId: estimateSimulation
+      tags: [simulations]
+      summary: Estimate the cost of a simulation before creating it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EstimateInput"
+      responses:
+        "200":
+          description: Cost estimate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostEstimate"
+
+  /simulations/{id}:
+    get:
+      operationId: getSimulation
+      tags: [simulations]
+      summary: Get a simulation with aggregated results
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Simulation detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteSimulation
+      tags: [simulations]
+      summary: Delete a simulation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /simulations/{id}/run:
+    post:
+      operationId: runSimulation
+      tags: [simulations]
+      summary: Start the LLM run for a simulation (asynchronous; poll the simulation for progress)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "202":
+          description: Run started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Simulation"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /simulations/{id}/responses:
+    get:
+      operationId: listSimulationResponses
+      tags: [simulations]
+      summary: Per-agent responses for a simulation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Responses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SimulationResponse"
+
+  /calibration:
+    get:
+      operationId: listCalibrations
+      tags: [calibration]
+      summary: Calibration / validation records against virtual past results
+      responses:
+        "200":
+          description: Calibration records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Calibration"
+
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: Product lines mapped to audiences
+      responses:
+        "200":
+          description: Products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Top-level KPIs for the dashboard home
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +341,332 @@ components:
       required:
         - status
 
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+
+    Agent:
+      type: object
+      required:
+        - id
+        - name
+        - age
+        - ageBracket
+        - gender
+        - district
+        - lat
+        - lng
+        - education
+        - incomeBracket
+        - occupation
+        - householdType
+        - politicalLeaning
+        - partyAffinity
+        - turnoutPropensity
+        - issueStances
+        - mediaDiet
+        - values
+        - personaSummary
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        age: { type: integer }
+        ageBracket: { type: string }
+        gender: { type: string }
+        district: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        education: { type: string }
+        incomeBracket: { type: string }
+        occupation: { type: string }
+        householdType: { type: string }
+        politicalLeaning: { type: integer }
+        partyAffinity: { type: string }
+        turnoutPropensity: { type: integer }
+        issueStances:
+          $ref: "#/components/schemas/IssueStances"
+        mediaDiet: { type: string }
+        values:
+          type: array
+          items: { type: string }
+        personaSummary: { type: string }
+
+    IssueStances:
+      type: object
+      required: [economy, welfare, security, environment, housing]
+      properties:
+        economy: { type: integer }
+        welfare: { type: integer }
+        security: { type: integer }
+        environment: { type: integer }
+        housing: { type: integer }
+
+    BreakdownItem:
+      type: object
+      required: [key, count]
+      properties:
+        key: { type: string }
+        count: { type: integer }
+        avgLeaning: { type: ["number", "null"] }
+
+    AgentSummary:
+      type: object
+      required:
+        - total
+        - byDistrict
+        - byAgeBracket
+        - byGender
+        - byLeaning
+        - avgTurnout
+        - avgLeaning
+      properties:
+        total: { type: integer }
+        byDistrict:
+          type: array
+          items: { $ref: "#/components/schemas/BreakdownItem" }
+        byAgeBracket:
+          type: array
+          items: { $ref: "#/components/schemas/BreakdownItem" }
+        byGender:
+          type: array
+          items: { $ref: "#/components/schemas/BreakdownItem" }
+        byLeaning:
+          type: array
+          items: { $ref: "#/components/schemas/BreakdownItem" }
+        avgTurnout: { type: number }
+        avgLeaning: { type: number }
+
+    SurveyDriver:
+      type: object
+      required: [factor, issue, weight, direction]
+      properties:
+        factor: { type: string }
+        issue: { type: string }
+        weight: { type: number }
+        direction: { type: string }
+
+    Survey:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - methodology
+        - sampleSize
+        - fieldedDate
+        - status
+        - reliability
+        - drivers
+        - createdAt
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        methodology: { type: string }
+        sampleSize: { type: integer }
+        fieldedDate: { type: string }
+        status: { type: string }
+        reliability: { type: number }
+        drivers:
+          type: array
+          items: { $ref: "#/components/schemas/SurveyDriver" }
+        createdAt: { type: string }
+
+    Simulation:
+      type: object
+      required:
+        - id
+        - title
+        - audience
+        - product
+        - policyText
+        - model
+        - status
+        - progress
+        - totalAgents
+        - costEstimateUsd
+        - createdAt
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        audience: { type: string }
+        product: { type: string }
+        policyText: { type: string }
+        model: { type: string }
+        status: { type: string }
+        progress: { type: integer }
+        totalAgents: { type: integer }
+        costEstimateUsd: { type: number }
+        costActualUsd: { type: ["number", "null"] }
+        overallSupport: { type: ["number", "null"] }
+        supportPct: { type: ["number", "null"] }
+        opposePct: { type: ["number", "null"] }
+        neutralPct: { type: ["number", "null"] }
+        summary: { type: ["string", "null"] }
+        createdAt: { type: string }
+        completedAt: { type: ["string", "null"] }
+
+    SimulationInput:
+      type: object
+      required: [title, audience, product, policyText]
+      properties:
+        title: { type: string, minLength: 1 }
+        audience: { type: string }
+        product: { type: string }
+        policyText: { type: string, minLength: 1 }
+        model: { type: string }
+
+    EstimateInput:
+      type: object
+      required: [model]
+      properties:
+        model: { type: string }
+        totalAgents: { type: integer }
+
+    CostEstimate:
+      type: object
+      required:
+        - model
+        - totalAgents
+        - inputTokensPerAgent
+        - outputTokensPerAgent
+        - estimatedCostUsd
+        - estimatedLowUsd
+        - estimatedHighUsd
+        - estimatedSeconds
+      properties:
+        model: { type: string }
+        totalAgents: { type: integer }
+        inputTokensPerAgent: { type: integer }
+        outputTokensPerAgent: { type: integer }
+        estimatedCostUsd: { type: number }
+        estimatedLowUsd: { type: number }
+        estimatedHighUsd: { type: number }
+        estimatedSeconds: { type: integer }
+
+    GroupResult:
+      type: object
+      required: [key, count, supportPct, opposePct, neutralPct, avgScore]
+      properties:
+        key: { type: string }
+        count: { type: integer }
+        supportPct: { type: number }
+        opposePct: { type: number }
+        neutralPct: { type: number }
+        avgScore: { type: number }
+
+    SimulationResults:
+      type: object
+      required: [byDistrict, byAgeBracket, byGender, byLeaning]
+      properties:
+        byDistrict:
+          type: array
+          items: { $ref: "#/components/schemas/GroupResult" }
+        byAgeBracket:
+          type: array
+          items: { $ref: "#/components/schemas/GroupResult" }
+        byGender:
+          type: array
+          items: { $ref: "#/components/schemas/GroupResult" }
+        byLeaning:
+          type: array
+          items: { $ref: "#/components/schemas/GroupResult" }
+
+    SimulationDetail:
+      type: object
+      required: [simulation, results]
+      properties:
+        simulation:
+          $ref: "#/components/schemas/Simulation"
+        results:
+          $ref: "#/components/schemas/SimulationResults"
+
+    SimulationResponse:
+      type: object
+      required:
+        - id
+        - simulationId
+        - agentId
+        - agentName
+        - district
+        - ageBracket
+        - gender
+        - stance
+        - score
+        - confidence
+        - reasoning
+      properties:
+        id: { type: integer }
+        simulationId: { type: integer }
+        agentId: { type: integer }
+        agentName: { type: string }
+        district: { type: string }
+        ageBracket: { type: string }
+        gender: { type: string }
+        stance: { type: string }
+        score: { type: integer }
+        confidence: { type: integer }
+        reasoning: { type: string }
+
+    Calibration:
+      type: object
+      required:
+        - id
+        - title
+        - eventType
+        - targetDate
+        - metric
+        - actualValue
+        - rawPrediction
+        - calibratedPrediction
+        - rawError
+        - calibratedError
+        - method
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        eventType: { type: string }
+        targetDate: { type: string }
+        metric: { type: string }
+        actualValue: { type: number }
+        rawPrediction: { type: number }
+        calibratedPrediction: { type: number }
+        rawError: { type: number }
+        calibratedError: { type: number }
+        method: { type: string }
+
+    Product:
+      type: object
+      required: [id, name, audience, tagline, description, useCases]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        audience: { type: string }
+        tagline: { type: string }
+        description: { type: string }
+        useCases:
+          type: array
+          items: { type: string }
+
+    DashboardSummary:
+      type: object
+      required:
+        - totalAgents
+        - totalSimulations
+        - completedSimulations
+        - avgCalibratedAccuracy
+        - avgRawAccuracy
+        - totalSpendUsd
+        - recentSimulations
+      properties:
+        totalAgents: { type: integer }
+        totalSimulations: { type: integer }
+        completedSimulations: { type: integer }
+        avgCalibratedAccuracy: { type: number }
+        avgRawAccuracy: { type: number }
+        totalSpendUsd: { type: number }
+        recentSimulations:
+          type: array
+          items: { $ref: "#/components/schemas/Simulation" }

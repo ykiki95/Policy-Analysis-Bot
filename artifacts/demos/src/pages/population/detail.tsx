@@ -1,0 +1,178 @@
+import { useGetAgent, getGetAgentQueryKey } from "@workspace/api-client-react";
+import { useParams, Link } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft, MapPin, Briefcase, GraduationCap, DollarSign, Home, Heart, Tv } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+
+export default function AgentDetail() {
+  const params = useParams();
+  const id = parseInt(params.id || "0", 10);
+
+  const { data: agent, isLoading } = useGetAgent(id, {
+    query: { enabled: !!id, queryKey: getGetAgentQueryKey(id) }
+  });
+
+  if (isLoading || !agent) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="h-24 w-full" />
+        <div className="grid grid-cols-2 gap-4">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  const getLeaningColor = (val: number) => {
+    if (val < -20) return "text-blue-500 bg-blue-500/10";
+    if (val > 20) return "text-red-500 bg-red-500/10";
+    return "text-gray-500 bg-gray-500/10";
+  };
+
+  return (
+    <div className="space-y-6">
+      <Link href="/population" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground w-fit transition-colors">
+        <ArrowLeft className="h-4 w-4" />
+        인구 목록으로 돌아가기
+      </Link>
+
+      <div className="flex flex-col md:flex-row gap-6 items-start">
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">{agent.name}</h1>
+            <Badge variant="outline" className={getLeaningColor(agent.politicalLeaning)}>
+              정치 성향: {agent.politicalLeaning > 0 ? '+' : ''}{agent.politicalLeaning}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground text-lg">
+            {agent.age}세 • {agent.gender === 'Male' ? '남성' : '여성'} • {agent.district}
+          </p>
+          <div className="pt-4 text-sm leading-relaxed border-t border-border mt-4">
+            {agent.personaSummary}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>인구통계 프로필</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">직업</p>
+                <p className="font-medium">{agent.occupation}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <GraduationCap className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">학력</p>
+                <p className="font-medium">{agent.education}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">소득 분위</p>
+                <p className="font-medium">{agent.incomeBracket}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Home className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">가구 형태</p>
+                <p className="font-medium">{agent.householdType}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Heart className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">정당 지지도</p>
+                <p className="font-medium">{agent.partyAffinity}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>주요 이슈 입장 (0-100)</CardTitle>
+            <CardDescription>높을수록 해당 이슈에 대한 긍정적/적극적 태도를 의미합니다.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium">경제 성향</span>
+                <span>{agent.issueStances.economy}</span>
+              </div>
+              <Progress value={agent.issueStances.economy} className="h-2" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium">복지 정책</span>
+                <span>{agent.issueStances.welfare}</span>
+              </div>
+              <Progress value={agent.issueStances.welfare} className="h-2" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium">안보/외교</span>
+                <span>{agent.issueStances.security}</span>
+              </div>
+              <Progress value={agent.issueStances.security} className="h-2" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium">환경 문제</span>
+                <span>{agent.issueStances.environment}</span>
+              </div>
+              <Progress value={agent.issueStances.environment} className="h-2" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium">주거/부동산</span>
+                <span>{agent.issueStances.housing}</span>
+              </div>
+              <Progress value={agent.issueStances.housing} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle>추가 정보</CardTitle>
+          </CardHeader>
+          <CardContent className="grid md:grid-cols-2 gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-3 text-sm font-semibold">
+                <Tv className="h-4 w-4" />
+                미디어 소비
+              </div>
+              <p className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-md">
+                {agent.mediaDiet}
+              </p>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-3 text-sm font-semibold">
+                <Heart className="h-4 w-4" />
+                핵심 가치관
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {agent.values.map((v, i) => (
+                  <Badge key={i} variant="secondary">{v}</Badge>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Demos — Synthetic Electorate Intelligence"
+version = "1.0.0"
+id = "artifacts/demos"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22743
+
+[services.development]
+run = "pnpm --filter @workspace/demos run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/demos", "run", "build" ]
+publicDir = "artifacts/demos/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22743"
+BASE_PATH = "/"
