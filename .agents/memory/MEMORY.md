@@ -1,0 +1,1 @@
+- [Simulation result preservation](simulation-result-preservation.md) — sim aggregates must read snapshot columns on simulation_responses, never join live agents (regenerate resets agent IDs).

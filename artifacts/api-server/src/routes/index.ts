@@ -6,6 +6,7 @@ import simulationsRouter from "./simulations";
 import calibrationRouter from "./calibration";
 import productsRouter from "./products";
 import dashboardRouter from "./dashboard";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(simulationsRouter);
 router.use(calibrationRouter);
 router.use(productsRouter);
 router.use(dashboardRouter);
+router.use(adminRouter);
 
 export default router;

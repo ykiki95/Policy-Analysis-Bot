@@ -23,18 +23,25 @@ import type {
   Agent,
   AgentSummary,
   Calibration,
+  CalibrationSettings,
+  CalibrationSettingsInput,
   CostEstimate,
   DashboardSummary,
+  DataSource,
   Error,
   EstimateInput,
   HealthStatus,
   ListAgentsParams,
   Product,
+  RegeneratePopulationInput,
+  RegeneratePopulationResult,
   Simulation,
   SimulationDetail,
   SimulationInput,
   SimulationResponse,
-  Survey
+  Survey,
+  SurveyUpload,
+  SurveyUploadInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1262,4 +1269,448 @@ export function useGetDashboardSummary<TData = Awaited<ReturnType<typeof getDash
 
 
 
+
+export const getListDataSourcesUrl = () => {
+
+
+
+
+  return `/api/admin/data-sources`
+}
+
+/**
+ * @summary Public data sources the synthetic population is derived from
+ */
+export const listDataSources = async ( options?: RequestInit): Promise<DataSource[]> => {
+
+  return customFetch<DataSource[]>(getListDataSourcesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDataSourcesQueryKey = () => {
+    return [
+    `/api/admin/data-sources`
+    ] as const;
+    }
+
+
+export const getListDataSourcesQueryOptions = <TData = Awaited<ReturnType<typeof listDataSources>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDataSources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDataSourcesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDataSources>>> = ({ signal }) => listDataSources({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDataSources>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDataSourcesQueryResult = NonNullable<Awaited<ReturnType<typeof listDataSources>>>
+export type ListDataSourcesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Public data sources the synthetic population is derived from
+ */
+
+export function useListDataSources<TData = Awaited<ReturnType<typeof listDataSources>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDataSources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDataSourcesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRegeneratePopulationUrl = () => {
+
+
+
+
+  return `/api/admin/population/regenerate`
+}
+
+/**
+ * @summary Regenerate the synthetic population with a new agent count
+ */
+export const regeneratePopulation = async (regeneratePopulationInput: RegeneratePopulationInput, options?: RequestInit): Promise<RegeneratePopulationResult> => {
+
+  return customFetch<RegeneratePopulationResult>(getRegeneratePopulationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      regeneratePopulationInput,)
+  }
+);}
+
+
+
+
+export const getRegeneratePopulationMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof regeneratePopulation>>, TError,{data: BodyType<RegeneratePopulationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof regeneratePopulation>>, TError,{data: BodyType<RegeneratePopulationInput>}, TContext> => {
+
+const mutationKey = ['regeneratePopulation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof regeneratePopulation>>, {data: BodyType<RegeneratePopulationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  regeneratePopulation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegeneratePopulationMutationResult = NonNullable<Awaited<ReturnType<typeof regeneratePopulation>>>
+    export type RegeneratePopulationMutationBody = BodyType<RegeneratePopulationInput>
+    export type RegeneratePopulationMutationError = ErrorType<Error>
+
+    /**
+ * @summary Regenerate the synthetic population with a new agent count
+ */
+export const useRegeneratePopulation = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof regeneratePopulation>>, TError,{data: BodyType<RegeneratePopulationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof regeneratePopulation>>,
+        TError,
+        {data: BodyType<RegeneratePopulationInput>},
+        TContext
+      > => {
+      return useMutation(getRegeneratePopulationMutationOptions(options));
+    }
+
+export const getListSurveyUploadsUrl = () => {
+
+
+
+
+  return `/api/admin/survey-uploads`
+}
+
+/**
+ * @summary List uploaded survey-criteria files
+ */
+export const listSurveyUploads = async ( options?: RequestInit): Promise<SurveyUpload[]> => {
+
+  return customFetch<SurveyUpload[]>(getListSurveyUploadsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSurveyUploadsQueryKey = () => {
+    return [
+    `/api/admin/survey-uploads`
+    ] as const;
+    }
+
+
+export const getListSurveyUploadsQueryOptions = <TData = Awaited<ReturnType<typeof listSurveyUploads>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSurveyUploads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSurveyUploadsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSurveyUploads>>> = ({ signal }) => listSurveyUploads({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSurveyUploads>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSurveyUploadsQueryResult = NonNullable<Awaited<ReturnType<typeof listSurveyUploads>>>
+export type ListSurveyUploadsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List uploaded survey-criteria files
+ */
+
+export function useListSurveyUploads<TData = Awaited<ReturnType<typeof listSurveyUploads>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSurveyUploads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSurveyUploadsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateSurveyUploadUrl = () => {
+
+
+
+
+  return `/api/admin/survey-uploads`
+}
+
+/**
+ * @summary Upload a survey-criteria file (parsed client-side to rows)
+ */
+export const createSurveyUpload = async (surveyUploadInput: SurveyUploadInput, options?: RequestInit): Promise<SurveyUpload> => {
+
+  return customFetch<SurveyUpload>(getCreateSurveyUploadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      surveyUploadInput,)
+  }
+);}
+
+
+
+
+export const getCreateSurveyUploadMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSurveyUpload>>, TError,{data: BodyType<SurveyUploadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSurveyUpload>>, TError,{data: BodyType<SurveyUploadInput>}, TContext> => {
+
+const mutationKey = ['createSurveyUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSurveyUpload>>, {data: BodyType<SurveyUploadInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSurveyUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSurveyUploadMutationResult = NonNullable<Awaited<ReturnType<typeof createSurveyUpload>>>
+    export type CreateSurveyUploadMutationBody = BodyType<SurveyUploadInput>
+    export type CreateSurveyUploadMutationError = ErrorType<Error>
+
+    /**
+ * @summary Upload a survey-criteria file (parsed client-side to rows)
+ */
+export const useCreateSurveyUpload = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSurveyUpload>>, TError,{data: BodyType<SurveyUploadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSurveyUpload>>,
+        TError,
+        {data: BodyType<SurveyUploadInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSurveyUploadMutationOptions(options));
+    }
+
+export const getGetCalibrationSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/calibration-settings`
+}
+
+/**
+ * @summary Current calibration & validation settings
+ */
+export const getCalibrationSettings = async ( options?: RequestInit): Promise<CalibrationSettings> => {
+
+  return customFetch<CalibrationSettings>(getGetCalibrationSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCalibrationSettingsQueryKey = () => {
+    return [
+    `/api/admin/calibration-settings`
+    ] as const;
+    }
+
+
+export const getGetCalibrationSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getCalibrationSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCalibrationSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCalibrationSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCalibrationSettings>>> = ({ signal }) => getCalibrationSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCalibrationSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCalibrationSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getCalibrationSettings>>>
+export type GetCalibrationSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Current calibration & validation settings
+ */
+
+export function useGetCalibrationSettings<TData = Awaited<ReturnType<typeof getCalibrationSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCalibrationSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCalibrationSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateCalibrationSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/calibration-settings`
+}
+
+/**
+ * @summary Update calibration & validation settings
+ */
+export const updateCalibrationSettings = async (calibrationSettingsInput: CalibrationSettingsInput, options?: RequestInit): Promise<CalibrationSettings> => {
+
+  return customFetch<CalibrationSettings>(getUpdateCalibrationSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      calibrationSettingsInput,)
+  }
+);}
+
+
+
+
+export const getUpdateCalibrationSettingsMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCalibrationSettings>>, TError,{data: BodyType<CalibrationSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCalibrationSettings>>, TError,{data: BodyType<CalibrationSettingsInput>}, TContext> => {
+
+const mutationKey = ['updateCalibrationSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCalibrationSettings>>, {data: BodyType<CalibrationSettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateCalibrationSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCalibrationSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateCalibrationSettings>>>
+    export type UpdateCalibrationSettingsMutationBody = BodyType<CalibrationSettingsInput>
+    export type UpdateCalibrationSettingsMutationError = ErrorType<Error>
+
+    /**
+ * @summary Update calibration & validation settings
+ */
+export const useUpdateCalibrationSettings = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCalibrationSettings>>, TError,{data: BodyType<CalibrationSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCalibrationSettings>>,
+        TError,
+        {data: BodyType<CalibrationSettingsInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCalibrationSettingsMutationOptions(options));
+    }
 

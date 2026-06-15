@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Users, Activity, BarChart3, Database, Box, Beaker, Menu } from "lucide-react";
+import { Users, Activity, BarChart3, Database, Box, Beaker, Menu, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -12,6 +12,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/surveys", label: "설문조사 기준", icon: Database },
     { href: "/calibration", label: "보정 및 검증", icon: BarChart3 },
     { href: "/products", label: "제품 라인업", icon: Box },
+    { href: "/admin", label: "관리자", icon: Settings },
   ];
 
   return (

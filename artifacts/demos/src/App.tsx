@@ -15,6 +15,7 @@ import AgentDetail from "@/pages/population/detail";
 import Simulations from "@/pages/simulations";
 import NewSimulation from "@/pages/simulations/new";
 import SimulationDetail from "@/pages/simulations/detail";
+import Admin from "@/pages/admin";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ function Router() {
         <Route path="/surveys/:id" component={SurveyDetail} />
         <Route path="/calibration" component={Calibration} />
         <Route path="/products" component={Products} />
+        <Route path="/admin" component={Admin} />
         <Route path="/simulations" component={Simulations} />
         <Route path="/simulations/new" component={NewSimulation} />
         <Route path="/simulations/:id" component={SimulationDetail} />

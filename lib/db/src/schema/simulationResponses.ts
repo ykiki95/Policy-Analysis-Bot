@@ -8,6 +8,7 @@ export const simulationResponsesTable = pgTable("simulation_responses", {
   district: text("district").notNull(),
   ageBracket: text("age_bracket").notNull(),
   gender: text("gender").notNull(),
+  politicalLeaning: integer("political_leaning").notNull().default(0),
   stance: text("stance").notNull(),
   score: integer("score").notNull(),
   confidence: integer("confidence").notNull(),

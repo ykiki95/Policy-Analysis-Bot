@@ -22,12 +22,15 @@ Aaru 스타일 합성 인구 시뮬레이션 SaaS. 서울 거주 합성 시민 5
 
 ## Where things live
 
-- DB schema (source of truth): `lib/db/src/schema/*.ts` (agents, surveys, simulations, simulationResponses, calibrations)
+- DB schema (source of truth): `lib/db/src/schema/*.ts` (agents, surveys, simulations, simulationResponses, calibrations, dataSources, surveyUploads, calibrationSettings)
 - API contract (source of truth): `lib/api-spec/openapi.yaml` → generates `@workspace/api-zod` + `@workspace/api-client-react`
 - Backend routes: `artifacts/api-server/src/routes/*.ts`
 - Cost estimator: `artifacts/api-server/src/lib/pricing.ts`
 - LLM run engine: `artifacts/api-server/src/lib/simulationEngine.ts`
-- Frontend pages: `artifacts/demos/src/pages/*`
+- Deterministic agent generator: `artifacts/api-server/src/lib/agentGenerator.ts` (25 Seoul gu centroids + correlated attitudes, mulberry32 PRNG)
+- Admin routes: `artifacts/api-server/src/routes/admin.ts` (인구 재생성, 데이터 출처, 설문 업로드, 보정 설정)
+- Frontend pages: `artifacts/demos/src/pages/*` (관리자 페이지: `pages/admin/index.tsx`)
+- Map: Leaflet + react-leaflet + OpenStreetMap 타일 (API 키 불필요), `pages/population/index.tsx`의 `CircleMarker` 산점도
 
 ## Architecture decisions
 
@@ -36,6 +39,9 @@ Aaru 스타일 합성 인구 시뮬레이션 SaaS. 서울 거주 합성 시민 5
 - Agent attitudes are synthetic but correlated: political leaning derived from age + district bias + noise; issue stances derived from leaning. Seeded deterministically (PRNG) — not random per boot.
 - Cost shown BEFORE running via `/simulations/estimate` (token-count × per-model price). gpt-5-mini ≈ $0.29, gpt-5-nano ≈ $0.06, gpt-5 ≈ $1.44 for a 500-agent run.
 - Calibration data is illustrative: calibrated error is consistently lower than raw error to demonstrate the validation loop.
+- **시뮬레이션 결과 보존**: `simulation_responses`는 `district/ageBracket/gender/politicalLeaning`을 응답 시점에 스냅샷으로 저장한다. `GET /simulations/:id` 집계는 절대 라이브 `agents` 테이블과 조인하지 않는다 — 그래야 인구 재생성(`/admin/population/regenerate`, agents 전체 교체 + id 시퀀스 리셋) 후에도 과거 시뮬레이션 집계가 변하지 않는다. 새 `politicalLeaning` 컬럼 추가 시 기존 행은 agents에서 백필했다.
+- 인구 재생성은 단일 트랜잭션에서 agents 삭제 → `agents_id_seq` 리셋 → `generateAgents(count)` 재삽입으로 원자적으로 수행한다. count 범위 50~5000.
+- 관리자 라우트(`/api/admin/*`)에는 인증이 없다 — 전체 앱이 사용자 계정/세션이 없는 데모이기 때문. 실서비스 배포 시 admin 인증 추가 필요(현재 범위 외).
 
 ## Product
 

@@ -202,6 +202,100 @@ export interface DashboardSummary {
   recentSimulations: Simulation[];
 }
 
+export interface DataSource {
+  id: number;
+  name: string;
+  agency: string;
+  category: string;
+  contributesTo: string;
+  recordCount: number;
+  coverage: string;
+  referenceYear: string;
+  sourceUrl: string;
+}
+
+export interface RegeneratePopulationInput {
+  /**
+     * @minimum 50
+     * @maximum 5000
+     */
+  count: number;
+  seed?: number;
+}
+
+export interface RegeneratePopulationResult {
+  total: number;
+}
+
+export interface SurveyUploadColumn {
+  name: string;
+  mappedTo: string;
+}
+
+export type SurveyUploadSampleRowsItem = {[key: string]: string};
+
+export interface SurveyUpload {
+  id: number;
+  fileName: string;
+  description: string;
+  format: string;
+  rowCount: number;
+  status: string;
+  appliedToPopulation: boolean;
+  columns: SurveyUploadColumn[];
+  sampleRows: SurveyUploadSampleRowsItem[];
+  createdAt: string;
+}
+
+export type SurveyUploadInputSampleRowsItem = {[key: string]: string};
+
+export interface SurveyUploadInput {
+  /** @minLength 1 */
+  fileName: string;
+  description?: string;
+  format: string;
+  rowCount: number;
+  columns: SurveyUploadColumn[];
+  sampleRows: SurveyUploadInputSampleRowsItem[];
+}
+
+export interface CalibrationSettings {
+  id: number;
+  method: string;
+  benchmarkWeight: number;
+  recencyWeight: number;
+  shrinkageFactor: number;
+  outlierTrimPct: number;
+  description: string;
+  updatedAt: string;
+}
+
+export interface CalibrationSettingsInput {
+  /** @minLength 1 */
+  method: string;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  benchmarkWeight: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  recencyWeight: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  shrinkageFactor: number;
+  /**
+     * @minimum 0
+     * @maximum 25
+     */
+  outlierTrimPct: number;
+  description?: string;
+}
+
 export type ListAgentsParams = {
 district?: string;
 gender?: string;

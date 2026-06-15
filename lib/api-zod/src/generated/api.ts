@@ -404,3 +404,132 @@ export const GetDashboardSummaryResponse = zod.object({
 })
 
 
+/**
+ * @summary Public data sources the synthetic population is derived from
+ */
+export const ListDataSourcesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "agency": zod.string(),
+  "category": zod.string(),
+  "contributesTo": zod.string(),
+  "recordCount": zod.number(),
+  "coverage": zod.string(),
+  "referenceYear": zod.string(),
+  "sourceUrl": zod.string()
+})
+export const ListDataSourcesResponse = zod.array(ListDataSourcesResponseItem)
+
+
+/**
+ * @summary Regenerate the synthetic population with a new agent count
+ */
+export const regeneratePopulationBodyCountMin = 50;
+export const regeneratePopulationBodyCountMax = 5000;
+
+
+
+export const RegeneratePopulationBody = zod.object({
+  "count": zod.number().min(regeneratePopulationBodyCountMin).max(regeneratePopulationBodyCountMax),
+  "seed": zod.number().optional()
+})
+
+export const RegeneratePopulationResponse = zod.object({
+  "total": zod.number()
+})
+
+
+/**
+ * @summary List uploaded survey-criteria files
+ */
+export const ListSurveyUploadsResponseItem = zod.object({
+  "id": zod.number(),
+  "fileName": zod.string(),
+  "description": zod.string(),
+  "format": zod.string(),
+  "rowCount": zod.number(),
+  "status": zod.string(),
+  "appliedToPopulation": zod.boolean(),
+  "columns": zod.array(zod.object({
+  "name": zod.string(),
+  "mappedTo": zod.string()
+})),
+  "sampleRows": zod.array(zod.record(zod.string(), zod.string())),
+  "createdAt": zod.string()
+})
+export const ListSurveyUploadsResponse = zod.array(ListSurveyUploadsResponseItem)
+
+
+/**
+ * @summary Upload a survey-criteria file (parsed client-side to rows)
+ */
+
+
+
+export const CreateSurveyUploadBody = zod.object({
+  "fileName": zod.string().min(1),
+  "description": zod.string().optional(),
+  "format": zod.string(),
+  "rowCount": zod.number(),
+  "columns": zod.array(zod.object({
+  "name": zod.string(),
+  "mappedTo": zod.string()
+})),
+  "sampleRows": zod.array(zod.record(zod.string(), zod.string()))
+})
+
+
+/**
+ * @summary Current calibration & validation settings
+ */
+export const GetCalibrationSettingsResponse = zod.object({
+  "id": zod.number(),
+  "method": zod.string(),
+  "benchmarkWeight": zod.number(),
+  "recencyWeight": zod.number(),
+  "shrinkageFactor": zod.number(),
+  "outlierTrimPct": zod.number(),
+  "description": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Update calibration & validation settings
+ */
+
+export const updateCalibrationSettingsBodyBenchmarkWeightMin = 0;
+export const updateCalibrationSettingsBodyBenchmarkWeightMax = 1;
+
+export const updateCalibrationSettingsBodyRecencyWeightMin = 0;
+export const updateCalibrationSettingsBodyRecencyWeightMax = 1;
+
+export const updateCalibrationSettingsBodyShrinkageFactorMin = 0;
+export const updateCalibrationSettingsBodyShrinkageFactorMax = 1;
+
+export const updateCalibrationSettingsBodyOutlierTrimPctMin = 0;
+export const updateCalibrationSettingsBodyOutlierTrimPctMax = 25;
+
+
+
+export const UpdateCalibrationSettingsBody = zod.object({
+  "method": zod.string().min(1),
+  "benchmarkWeight": zod.number().min(updateCalibrationSettingsBodyBenchmarkWeightMin).max(updateCalibrationSettingsBodyBenchmarkWeightMax),
+  "recencyWeight": zod.number().min(updateCalibrationSettingsBodyRecencyWeightMin).max(updateCalibrationSettingsBodyRecencyWeightMax),
+  "shrinkageFactor": zod.number().min(updateCalibrationSettingsBodyShrinkageFactorMin).max(updateCalibrationSettingsBodyShrinkageFactorMax),
+  "outlierTrimPct": zod.number().min(updateCalibrationSettingsBodyOutlierTrimPctMin).max(updateCalibrationSettingsBodyOutlierTrimPctMax),
+  "description": zod.string().optional()
+})
+
+export const UpdateCalibrationSettingsResponse = zod.object({
+  "id": zod.number(),
+  "method": zod.string(),
+  "benchmarkWeight": zod.number(),
+  "recencyWeight": zod.number(),
+  "shrinkageFactor": zod.number(),
+  "outlierTrimPct": zod.number(),
+  "description": zod.string(),
+  "updatedAt": zod.string()
+})
+
+

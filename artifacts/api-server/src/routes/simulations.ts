@@ -116,10 +116,9 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
       district: simulationResponsesTable.district,
       ageBracket: simulationResponsesTable.ageBracket,
       gender: simulationResponsesTable.gender,
-      politicalLeaning: agentsTable.politicalLeaning,
+      politicalLeaning: simulationResponsesTable.politicalLeaning,
     })
     .from(simulationResponsesTable)
-    .innerJoin(agentsTable, eq(simulationResponsesTable.agentId, agentsTable.id))
     .where(eq(simulationResponsesTable.simulationId, params.data.id));
 
   type Row = (typeof rows)[number];

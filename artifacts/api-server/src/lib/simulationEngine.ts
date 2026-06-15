@@ -195,6 +195,7 @@ export async function runSimulation(simulationId: number): Promise<void> {
         district: agent.district,
         ageBracket: agent.ageBracket,
         gender: agent.gender,
+        politicalLeaning: agent.politicalLeaning,
         stance: verdict.stance,
         score: verdict.score,
         confidence: verdict.confidence,
