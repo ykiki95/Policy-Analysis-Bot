@@ -1,1 +1,2 @@
 - [Simulation result preservation](simulation-result-preservation.md) — sim aggregates must read snapshot columns on simulation_responses, never join live agents (regenerate resets agent IDs).
+- [Survey → persona pipeline](survey-persona-pipeline.md) — when asked to connect surveys to personas: do CRUD + deterministic free-form+weighting core, LLM parsing as assisted-mapping draft only.
