@@ -394,30 +394,43 @@ function SurveyUploadSection({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>기존 설문 기준 <span className="text-sm font-normal text-muted-foreground">({surveys?.length ?? 0}개)</span></CardTitle>
-          <CardDescription>합성 인구의 태도를 형성하는 기준 설문입니다. "설문조사 기준" 페이지에 표시되는 데이터와 동일합니다.</CardDescription>
+          <CardTitle>설문 기준 <span className="text-sm font-normal text-muted-foreground">({(surveys?.length ?? 0) + uploads.length}개)</span></CardTitle>
+          <CardDescription>합성 인구의 태도를 형성하는 기준 설문입니다. 시드된 기본 설문("설문조사 기준" 페이지와 동일)과 직접 업로드한 설문이 함께 표시됩니다.</CardDescription>
         </CardHeader>
         <CardContent>
           {!surveys ? (
             <div className="space-y-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
-          ) : surveys.length === 0 ? (
+          ) : surveys.length === 0 && uploads.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">등록된 설문 기준이 없습니다.</p>
           ) : (
-            <div className="border rounded-md">
+            <div className="border rounded-md overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>제목</TableHead>
+                    <TableHead>유형</TableHead>
+                    <TableHead>제목 / 파일명</TableHead>
                     <TableHead>설명</TableHead>
+                    <TableHead className="text-right">행 수</TableHead>
                     <TableHead>상태</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {surveys.map((s) => (
-                    <TableRow key={s.id}>
+                    <TableRow key={`survey-${s.id}`}>
+                      <TableCell><Badge variant="outline">기준</Badge></TableCell>
                       <TableCell className="font-medium whitespace-nowrap">{s.title}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-md truncate">{s.description}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">—</TableCell>
                       <TableCell><Badge variant={s.status === "active" ? "default" : "secondary"}>{s.status === "active" ? "활성" : "종료"}</Badge></TableCell>
+                    </TableRow>
+                  ))}
+                  {uploads.map((u) => (
+                    <TableRow key={`upload-${u.id}`}>
+                      <TableCell><Badge variant="secondary">{u.format}</Badge></TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">{u.fileName}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-md truncate">{u.description || "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums">{u.rowCount.toLocaleString()}</TableCell>
+                      <TableCell><Badge>{u.status === "processed" ? "처리됨" : u.status}</Badge></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -512,40 +525,6 @@ function SurveyUploadSection({
             {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             업로드
           </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle>업로드된 설문 기준</CardTitle></CardHeader>
-        <CardContent>
-          {uploads.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">아직 업로드된 설문이 없습니다.</p>
-          ) : (
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>파일명</TableHead>
-                    <TableHead>형식</TableHead>
-                    <TableHead className="text-right">행 수</TableHead>
-                    <TableHead>설명</TableHead>
-                    <TableHead>상태</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {uploads.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="font-medium">{u.fileName}</TableCell>
-                      <TableCell><Badge variant="secondary">{u.format}</Badge></TableCell>
-                      <TableCell className="text-right tabular-nums">{u.rowCount.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{u.description || "—"}</TableCell>
-                      <TableCell><Badge>{u.status === "processed" ? "처리됨" : u.status}</Badge></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
