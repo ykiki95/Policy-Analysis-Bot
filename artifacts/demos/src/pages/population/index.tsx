@@ -11,7 +11,8 @@ import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip } from
 import { Link } from "wouter";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 
-const PAGE_SIZE = 25;
+const AGE_ORDER = ["18-29", "30-39", "40-49", "50-59", "60-69", "70+"];
+const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 function getAgentColor(leaning: number) {
   if (leaning < -20) return "#2563eb"; // 진보 (blue)
@@ -22,25 +23,44 @@ function getAgentColor(leaning: number) {
 export default function Population() {
   const [district, setDistrict] = useState<string>("all");
   const [gender, setGender] = useState<string>("all");
+  const [ageBracket, setAgeBracket] = useState<string>("all");
+  const [occupation, setOccupation] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const { data: summary, isLoading: summaryLoading } = useGetAgentSummary();
   const { data: allAgents, isLoading: agentsLoading } = useListAgents({});
+
+  const occupations = useMemo(() => {
+    if (!allAgents) return [];
+    return Array.from(new Set(allAgents.map((a) => a.occupation))).sort((a, b) =>
+      a.localeCompare(b, "ko"),
+    );
+  }, [allAgents]);
+
+  const ageChartData = useMemo(() => {
+    if (!summary) return [];
+    return [...summary.byAgeBracket].sort(
+      (a, b) => AGE_ORDER.indexOf(a.key) - AGE_ORDER.indexOf(b.key),
+    );
+  }, [summary]);
 
   const filtered = useMemo(() => {
     if (!allAgents) return [];
     return allAgents.filter((a) => {
       if (district !== "all" && a.district !== district) return false;
       if (gender !== "all" && a.gender !== gender) return false;
+      if (ageBracket !== "all" && a.ageBracket !== ageBracket) return false;
+      if (occupation !== "all" && a.occupation !== occupation) return false;
       if (search && !a.name.includes(search) && !a.occupation.includes(search)) return false;
       return true;
     });
-  }, [allAgents, district, gender, search]);
+  }, [allAgents, district, gender, ageBracket, occupation, search]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pageRows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pageRows = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   if (summaryLoading || !summary) {
     return (
@@ -116,7 +136,7 @@ export default function Population() {
             <CardContent>
               <div className="h-48 w-full">
                 <ResponsiveContainer>
-                  <BarChart data={summary.byAgeBracket} layout="vertical" margin={{ left: 20 }}>
+                  <BarChart data={ageChartData} layout="vertical" margin={{ left: 20 }}>
                     <XAxis type="number" hide />
                     <YAxis dataKey="key" type="category" axisLine={false} tickLine={false} fontSize={12} width={50} />
                     <RechartsTooltip cursor={{ fill: "rgba(0,0,0,0.05)" }} />
@@ -183,6 +203,28 @@ export default function Population() {
                   <SelectItem value="Female">여성</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={ageBracket} onValueChange={(v) => { setAgeBracket(v); resetPage(); }}>
+                <SelectTrigger className="w-[110px]">
+                  <SelectValue placeholder="연령대" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 연령</SelectItem>
+                  {AGE_ORDER.map((a) => (
+                    <SelectItem key={a} value={a}>{a}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={occupation} onValueChange={(v) => { setOccupation(v); resetPage(); }}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="직업" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 직업</SelectItem>
+                  {occupations.map((o) => (
+                    <SelectItem key={o} value={o}>{o}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
@@ -208,8 +250,11 @@ export default function Population() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pageRows.map((agent) => (
-                      <TableRow key={agent.id} className="cursor-pointer hover:bg-muted/50">
+                    {pageRows.map((agent, idx) => (
+                      <TableRow
+                        key={agent.id}
+                        className={`cursor-pointer hover:bg-muted/50 ${Math.floor(idx / 5) % 2 === 1 ? "bg-muted/30" : ""}`}
+                      >
                         <TableCell className="font-medium">
                           <Link href={`/population/${agent.id}`}>{agent.name}</Link>
                         </TableCell>
@@ -235,9 +280,21 @@ export default function Population() {
                 </Table>
               </div>
               <div className="flex items-center justify-between mt-4">
-                <span className="text-sm text-muted-foreground">
-                  {currentPage} / {totalPages} 페이지
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    {currentPage} / {totalPages} 페이지
+                  </span>
+                  <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); resetPage(); }}>
+                    <SelectTrigger className="w-[120px] h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAGE_SIZE_OPTIONS.map((n) => (
+                        <SelectItem key={n} value={String(n)}>{n}개씩 보기</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>
                     <ChevronLeft className="h-4 w-4" /> 이전

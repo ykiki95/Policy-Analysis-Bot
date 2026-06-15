@@ -183,6 +183,27 @@ export interface Calibration {
   method: string;
 }
 
+export interface CalibrationInput {
+  /** @minLength 1 */
+  title: string;
+  /** @minLength 1 */
+  eventType: string;
+  /** @minLength 1 */
+  targetDate: string;
+  /** @minLength 1 */
+  metric: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  actualValue: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  rawPrediction: number;
+}
+
 export interface Product {
   id: string;
   name: string;

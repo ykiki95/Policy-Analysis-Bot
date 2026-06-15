@@ -23,6 +23,7 @@ import type {
   Agent,
   AgentSummary,
   Calibration,
+  CalibrationInput,
   CalibrationSettings,
   CalibrationSettingsInput,
   CostEstimate,
@@ -1712,5 +1713,146 @@ export const useUpdateCalibrationSettings = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getUpdateCalibrationSettingsMutationOptions(options));
+    }
+
+export const getCreateCalibrationUrl = () => {
+
+
+
+
+  return `/api/admin/calibrations`
+}
+
+/**
+ * @summary Upload a past validation event (calibrated values derived from settings)
+ */
+export const createCalibration = async (calibrationInput: CalibrationInput, options?: RequestInit): Promise<Calibration> => {
+
+  return customFetch<Calibration>(getCreateCalibrationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      calibrationInput,)
+  }
+);}
+
+
+
+
+export const getCreateCalibrationMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCalibration>>, TError,{data: BodyType<CalibrationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCalibration>>, TError,{data: BodyType<CalibrationInput>}, TContext> => {
+
+const mutationKey = ['createCalibration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCalibration>>, {data: BodyType<CalibrationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCalibration(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCalibrationMutationResult = NonNullable<Awaited<ReturnType<typeof createCalibration>>>
+    export type CreateCalibrationMutationBody = BodyType<CalibrationInput>
+    export type CreateCalibrationMutationError = ErrorType<Error>
+
+    /**
+ * @summary Upload a past validation event (calibrated values derived from settings)
+ */
+export const useCreateCalibration = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCalibration>>, TError,{data: BodyType<CalibrationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCalibration>>,
+        TError,
+        {data: BodyType<CalibrationInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCalibrationMutationOptions(options));
+    }
+
+export const getDeleteCalibrationUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/calibrations/${id}`
+}
+
+/**
+ * @summary Delete a validation event
+ */
+export const deleteCalibration = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteCalibrationUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCalibrationMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCalibration>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCalibration>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteCalibration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCalibration>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCalibration(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCalibrationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCalibration>>>
+
+    export type DeleteCalibrationMutationError = ErrorType<Error>
+
+    /**
+ * @summary Delete a validation event
+ */
+export const useDeleteCalibration = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCalibration>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCalibration>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteCalibrationMutationOptions(options));
     }
 

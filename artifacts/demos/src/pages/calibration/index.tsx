@@ -18,8 +18,9 @@ export default function Calibration() {
     );
   }
 
-  const avgRawError = calibrations.reduce((acc, curr) => acc + curr.rawError, 0) / calibrations.length;
-  const avgCalError = calibrations.reduce((acc, curr) => acc + curr.calibratedError, 0) / calibrations.length;
+  const hasEvents = calibrations.length > 0;
+  const avgRawError = hasEvents ? calibrations.reduce((acc, curr) => acc + curr.rawError, 0) / calibrations.length : 0;
+  const avgCalError = hasEvents ? calibrations.reduce((acc, curr) => acc + curr.calibratedError, 0) / calibrations.length : 0;
 
   const chartData = calibrations.map(c => ({
     name: c.title,
@@ -40,6 +41,10 @@ export default function Calibration() {
         <AlertDescription>
           본 플랫폼은 지속적인 검증 루프를 통해 모델의 예측값을 보정합니다. 
           원시 예측(Raw Prediction)에 대비해 보정 예측(Calibrated Prediction)의 오차가 현저히 낮음을 확인할 수 있습니다.
+          <span className="mt-2 block">
+            <strong>설문 기준</strong>은 합성 인구의 <em>태도를 형성</em>하는 입력 데이터이고,
+            아래 <strong>검증 이벤트</strong>는 결과가 이미 알려진 과거 사건으로 <em>모델의 예측 정확도를 사후 검증·보정</em>하는 데 쓰입니다. 두 데이터는 역할이 다르므로 개수도 서로 무관합니다.
+          </span>
         </AlertDescription>
       </Alert>
 
@@ -69,24 +74,33 @@ export default function Calibration() {
           <CardDescription>원시 예측과 보정 예측의 오차율(%) 비교</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[400px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                <XAxis dataKey="name" tick={{fontSize: 12}} />
-                <YAxis tickFormatter={(val) => `${val}%`} />
-                <RechartsTooltip cursor={{fill: 'rgba(0,0,0,0.05)'}} />
-                <Legend />
-                <Bar dataKey="rawError" name="원시 오차" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="calibratedError" name="보정 오차" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {hasEvents ? (
+            <div className="h-[400px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                  <XAxis dataKey="name" tick={{fontSize: 12}} />
+                  <YAxis tickFormatter={(val) => `${val}%`} />
+                  <RechartsTooltip cursor={{fill: 'rgba(0,0,0,0.05)'}} />
+                  <Legend />
+                  <Bar dataKey="rawError" name="원시 오차" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="calibratedError" name="보정 오차" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-16 text-center">
+              등록된 검증 이벤트가 없습니다. 관리자 → 검증 이벤트에서 과거 이벤트를 추가하세요.
+            </p>
+          )}
         </CardContent>
       </Card>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">검증 이벤트 내역</h3>
+        {!hasEvents && (
+          <p className="text-sm text-muted-foreground">등록된 검증 이벤트가 없습니다.</p>
+        )}
         <div className="grid gap-4">
           {calibrations.map((cal) => (
             <Card key={cal.id}>

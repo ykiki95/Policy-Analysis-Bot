@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import {
   db,
   agentsTable,
   dataSourcesTable,
   surveyUploadsTable,
   calibrationSettingsTable,
+  calibrationsTable,
 } from "@workspace/db";
 import { jsonReady } from "../lib/serialize";
 import { generateAgents } from "../lib/agentGenerator";
@@ -19,6 +20,9 @@ import {
   GetCalibrationSettingsResponse,
   UpdateCalibrationSettingsBody,
   UpdateCalibrationSettingsResponse,
+  ListCalibrationsResponseItem,
+  CreateCalibrationBody,
+  DeleteCalibrationParams,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -150,6 +154,67 @@ router.put("/admin/calibration-settings", async (req, res): Promise<void> => {
   }
 
   res.json(UpdateCalibrationSettingsResponse.parse(jsonReady(saved)));
+});
+
+router.post("/admin/calibrations", async (req, res): Promise<void> => {
+  const parsed = CreateCalibrationBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { title, eventType, targetDate, metric, actualValue, rawPrediction } =
+    parsed.data;
+
+  // Derive calibrated values from the current calibration settings so an
+  // uploaded event reflects the active validation loop (illustrative).
+  const [settings] = await db
+    .select()
+    .from(calibrationSettingsTable)
+    .limit(1);
+  const shrinkage = settings?.shrinkageFactor ?? DEFAULT_CALIBRATION.shrinkageFactor;
+  const method = settings?.method ?? DEFAULT_CALIBRATION.method;
+
+  const calibratedPrediction = Number(
+    (rawPrediction + shrinkage * (actualValue - rawPrediction)).toFixed(1),
+  );
+  const rawError = Number(Math.abs(rawPrediction - actualValue).toFixed(1));
+  const calibratedError = Number(
+    Math.abs(calibratedPrediction - actualValue).toFixed(1),
+  );
+
+  const [created] = await db
+    .insert(calibrationsTable)
+    .values({
+      title,
+      eventType,
+      targetDate,
+      metric,
+      actualValue,
+      rawPrediction,
+      calibratedPrediction,
+      rawError,
+      calibratedError,
+      method,
+    })
+    .returning();
+  res.status(201).json(ListCalibrationsResponseItem.parse(jsonReady(created)));
+});
+
+router.delete("/admin/calibrations/:id", async (req, res): Promise<void> => {
+  const parsed = DeleteCalibrationParams.safeParse(req.params);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [deleted] = await db
+    .delete(calibrationsTable)
+    .where(eq(calibrationsTable.id, parsed.data.id))
+    .returning();
+  if (!deleted) {
+    res.status(404).json({ error: "Calibration not found" });
+    return;
+  }
+  res.sendStatus(204);
 });
 
 export default router;

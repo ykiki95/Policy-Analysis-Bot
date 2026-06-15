@@ -533,3 +533,36 @@ export const UpdateCalibrationSettingsResponse = zod.object({
 })
 
 
+/**
+ * @summary Upload a past validation event (calibrated values derived from settings)
+ */
+
+
+
+
+export const createCalibrationBodyActualValueMin = 0;
+export const createCalibrationBodyActualValueMax = 100;
+
+export const createCalibrationBodyRawPredictionMin = 0;
+export const createCalibrationBodyRawPredictionMax = 100;
+
+
+
+export const CreateCalibrationBody = zod.object({
+  "title": zod.string().min(1),
+  "eventType": zod.string().min(1),
+  "targetDate": zod.string().min(1),
+  "metric": zod.string().min(1),
+  "actualValue": zod.number().min(createCalibrationBodyActualValueMin).max(createCalibrationBodyActualValueMax),
+  "rawPrediction": zod.number().min(createCalibrationBodyRawPredictionMin).max(createCalibrationBodyRawPredictionMax)
+})
+
+
+/**
+ * @summary Delete a validation event
+ */
+export const DeleteCalibrationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+

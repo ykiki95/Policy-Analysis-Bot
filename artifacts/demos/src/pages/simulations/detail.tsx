@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey } from "@workspace/api-client-react";
 import { useParams, Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Clock, CheckCircle2, Trash2, Loader2, DollarSign } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle2, Trash2, Loader2, DollarSign, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import {
   AlertDialog,
@@ -22,11 +23,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+const AGE_ORDER = ["18-29", "30-39", "40-49", "50-59", "60-69", "70+"];
+const RESPONSES_PAGE_SIZE = 20;
+
 export default function SimulationDetail() {
   const params = useParams();
   const id = parseInt(params.id || "0", 10);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const [resSearch, setResSearch] = useState("");
+  const [resPage, setResPage] = useState(1);
 
   const { data: simDetail, isLoading } = useGetSimulation(id, {
     query: { 
@@ -48,6 +54,30 @@ export default function SimulationDetail() {
   });
 
   const deleteMut = useDeleteSimulation();
+
+  const ageChartData = useMemo(() => {
+    const rows = simDetail?.results?.byAgeBracket;
+    if (!rows) return [];
+    return [...rows].sort(
+      (a, b) => AGE_ORDER.indexOf(a.key) - AGE_ORDER.indexOf(b.key),
+    );
+  }, [simDetail]);
+
+  const filteredResponses = useMemo(() => {
+    if (!responses) return [];
+    const q = resSearch.trim();
+    if (!q) return responses;
+    return responses.filter(
+      (r) => r.agentName.includes(q) || r.reasoning.includes(q),
+    );
+  }, [responses, resSearch]);
+
+  const resTotalPages = Math.max(1, Math.ceil(filteredResponses.length / RESPONSES_PAGE_SIZE));
+  const resCurrentPage = Math.min(resPage, resTotalPages);
+  const resPageRows = filteredResponses.slice(
+    (resCurrentPage - 1) * RESPONSES_PAGE_SIZE,
+    resCurrentPage * RESPONSES_PAGE_SIZE,
+  );
 
   if (isLoading || !simDetail) {
     return (
@@ -190,7 +220,7 @@ export default function SimulationDetail() {
             <CardContent>
               <div className="h-[250px] w-full">
                 <ResponsiveContainer>
-                  <BarChart data={simDetail.results.byAgeBracket} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                  <BarChart data={ageChartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                     <XAxis dataKey="key" tick={{fontSize: 12}} />
                     <YAxis tick={{fontSize: 12}} />
@@ -206,47 +236,82 @@ export default function SimulationDetail() {
 
           <Card>
             <CardHeader>
-              <CardTitle>에이전트 개별 응답 샘플</CardTitle>
-              <CardDescription>가장 확신도가 높은 응답 샘플입니다.</CardDescription>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <CardTitle>에이전트 개별 응답 <span className="text-sm font-normal text-muted-foreground">({filteredResponses.length.toLocaleString()}건)</span></CardTitle>
+                  <CardDescription>개별 에이전트의 입장과 추론 근거입니다.</CardDescription>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="이름·근거 검색"
+                    value={resSearch}
+                    onChange={(e) => { setResSearch(e.target.value); setResPage(1); }}
+                    className="pl-8 w-[200px]"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {responsesLoading ? (
                 <Skeleton className="h-64 w-full" />
               ) : (
-                <div className="border rounded-md overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>이름</TableHead>
-                        <TableHead>연령/성별</TableHead>
-                        <TableHead>입장</TableHead>
-                        <TableHead>신뢰도</TableHead>
-                        <TableHead className="w-1/2">추론 근거 (Reasoning)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {responses?.map((res) => (
-                        <TableRow key={res.id}>
-                          <TableCell className="font-medium whitespace-nowrap">
-                            <Link href={`/population/${res.agentId}`} className="hover:underline">
-                              {res.agentName}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">{res.ageBracket} / {res.gender === 'Male' ? '남성' : '여성'}</TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            <Badge variant={res.stance === 'Support' ? 'default' : res.stance === 'Oppose' ? 'destructive' : 'secondary'}>
-                              {res.stance}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{res.confidence}%</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {res.reasoning}
-                          </TableCell>
+                <>
+                  <div className="border rounded-md overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>이름</TableHead>
+                          <TableHead>연령/성별</TableHead>
+                          <TableHead>입장</TableHead>
+                          <TableHead>신뢰도</TableHead>
+                          <TableHead className="w-1/2">추론 근거 (Reasoning)</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {resPageRows.map((res, idx) => (
+                          <TableRow key={res.id} className={Math.floor(idx / 5) % 2 === 1 ? "bg-muted/30" : ""}>
+                            <TableCell className="font-medium whitespace-nowrap">
+                              <Link href={`/population/${res.agentId}`} className="hover:underline">
+                                {res.agentName}
+                              </Link>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">{res.ageBracket} / {res.gender === 'Male' ? '남성' : '여성'}</TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              <Badge variant={res.stance === 'Support' ? 'default' : res.stance === 'Oppose' ? 'destructive' : 'secondary'}>
+                                {res.stance}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{res.confidence}%</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {res.reasoning}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {resPageRows.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                              조건에 맞는 응답이 없습니다.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex items-center justify-between mt-4">
+                    <span className="text-sm text-muted-foreground">
+                      {resCurrentPage} / {resTotalPages} 페이지
+                    </span>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" disabled={resCurrentPage <= 1} onClick={() => setResPage(resCurrentPage - 1)}>
+                        <ChevronLeft className="h-4 w-4" /> 이전
+                      </Button>
+                      <Button variant="outline" size="sm" disabled={resCurrentPage >= resTotalPages} onClick={() => setResPage(resCurrentPage + 1)}>
+                        다음 <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

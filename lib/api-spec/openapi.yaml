@@ -445,6 +445,51 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /admin/calibrations:
+    post:
+      operationId: createCalibration
+      tags: [admin]
+      summary: Upload a past validation event (calibrated values derived from settings)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalibrationInput"
+      responses:
+        "201":
+          description: Created calibration event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Calibration"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/calibrations/{id}:
+    delete:
+      operationId: deleteCalibration
+      tags: [admin]
+      summary: Delete a validation event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   schemas:
     HealthStatus:
@@ -750,6 +795,23 @@ components:
         rawError: { type: number }
         calibratedError: { type: number }
         method: { type: string }
+
+    CalibrationInput:
+      type: object
+      required:
+        - title
+        - eventType
+        - targetDate
+        - metric
+        - actualValue
+        - rawPrediction
+      properties:
+        title: { type: string, minLength: 1 }
+        eventType: { type: string, minLength: 1 }
+        targetDate: { type: string, minLength: 1 }
+        metric: { type: string, minLength: 1 }
+        actualValue: { type: number, minimum: 0, maximum: 100 }
+        rawPrediction: { type: number, minimum: 0, maximum: 100 }
 
     Product:
       type: object

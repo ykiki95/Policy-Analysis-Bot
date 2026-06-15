@@ -8,7 +8,13 @@ import {
   useCreateSurveyUpload,
   useGetCalibrationSettings,
   useUpdateCalibrationSettings,
+  useListCalibrations,
+  useCreateCalibration,
+  useDeleteCalibration,
+  getListCalibrationsQueryKey,
   type SurveyUploadColumn,
+  type Calibration,
+  type CalibrationInput,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +32,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2 } from "lucide-react";
 
 const CALIBRATION_METHODS = [
   "베이지안 축소 (Bayesian Shrinkage)",
@@ -34,6 +40,45 @@ const CALIBRATION_METHODS = [
   "레이킹 (Iterative Proportional Fitting)",
   "회귀 보정 (Regression Calibration)",
 ];
+
+const METHOD_DESCRIPTIONS: Record<string, string> = {
+  "베이지안 축소 (Bayesian Shrinkage)":
+    "원시 예측을 과거 벤치마크(사전 분포) 쪽으로 일정 비율 당겨, 표본이 적거나 변동이 큰 예측의 과신을 줄입니다. 축소 계수가 클수록 벤치마크에 더 가까워집니다.",
+  "사후 층화 가중 (Post-stratification)":
+    "응답을 자치구·연령·성별 등 인구 셀로 나눈 뒤, 각 셀을 실제 인구 비율에 맞게 가중합니다. 특정 집단이 과대·과소 대표될 때 전체 추정의 편향을 보정합니다.",
+  "레이킹 (Iterative Proportional Fitting)":
+    "여러 인구 변수의 주변 분포(예: 연령별·성별 합계)에 동시에 맞도록 가중치를 반복 조정합니다. 셀별 목표값을 모를 때 주변 합만으로 보정할 수 있습니다.",
+  "회귀 보정 (Regression Calibration)":
+    "과거 예측값과 실제값의 관계를 회귀모형으로 학습해, 새 예측에 체계적 오차(편향·기울기)를 보정 적용합니다. 일관된 과대·과소 예측 경향을 교정하는 데 적합합니다.",
+};
+
+const EVENT_TYPE_OPTIONS = ["선거", "정책 반응", "여론조사", "제품 반응", "기타"];
+
+const SAMPLE_COLUMNS = [
+  { name: "respondent_id", desc: "응답자 식별자" },
+  { name: "district", desc: "자치구 (예: 강남구)" },
+  { name: "age_group", desc: "연령대 (예: 30-39)" },
+  { name: "gender", desc: "성별 (남성/여성)" },
+  { name: "question", desc: "설문 문항" },
+  { name: "answer", desc: "응답값 (예: 찬성/반대/중립 또는 점수)" },
+  { name: "weight", desc: "가중치 (선택, 기본 1)" },
+];
+
+const SAMPLE_ROWS = [
+  { respondent_id: "R0001", district: "강남구", age_group: "30-39", gender: "여성", question: "주 4일제 도입 찬반", answer: "찬성", weight: "1.0" },
+  { respondent_id: "R0002", district: "은평구", age_group: "50-59", gender: "남성", question: "주 4일제 도입 찬반", answer: "반대", weight: "1.2" },
+  { respondent_id: "R0003", district: "마포구", age_group: "18-29", gender: "여성", question: "주 4일제 도입 찬반", answer: "중립", weight: "0.9" },
+];
+
+function downloadFile(name: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 function parseUpload(text: string, fileName: string): { format: string; columns: string[]; rows: Record<string, string>[] } | null {
   const trimmed = text.trim();
@@ -74,10 +119,13 @@ export default function Admin() {
   const { data: dataSources, isLoading: dsLoading } = useListDataSources();
   const { data: uploads } = useListSurveyUploads();
   const { data: calibration, isLoading: calLoading } = useGetCalibrationSettings();
+  const { data: calibrationEvents, isLoading: eventsLoading } = useListCalibrations();
 
   const regenerate = useRegeneratePopulation();
   const createUpload = useCreateSurveyUpload();
   const updateCalibration = useUpdateCalibrationSettings();
+  const createEvent = useCreateCalibration();
+  const deleteEvent = useDeleteCalibration();
 
   const [count, setCount] = useState(500);
   useEffect(() => {
@@ -102,11 +150,12 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="population">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
           <TabsTrigger value="population"><Users className="h-4 w-4 mr-1.5" />인구 구성</TabsTrigger>
           <TabsTrigger value="sources"><Database className="h-4 w-4 mr-1.5" />데이터 출처</TabsTrigger>
           <TabsTrigger value="surveys"><Upload className="h-4 w-4 mr-1.5" />설문 업로드</TabsTrigger>
           <TabsTrigger value="calibration"><SlidersHorizontal className="h-4 w-4 mr-1.5" />보정 설정</TabsTrigger>
+          <TabsTrigger value="events"><CheckCircle2 className="h-4 w-4 mr-1.5" />검증 이벤트</TabsTrigger>
         </TabsList>
 
         <TabsContent value="population" className="mt-6">
@@ -134,6 +183,10 @@ export default function Admin() {
                   value={[count]}
                   onValueChange={(v) => setCount(v[0])}
                 />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>50명</span>
+                  <span>5,000명</span>
+                </div>
                 <div className="flex items-center gap-3">
                   <Input
                     type="number"
@@ -256,6 +309,34 @@ export default function Admin() {
             />
           )}
         </TabsContent>
+
+        <TabsContent value="events" className="mt-6">
+          <CalibrationEventsSection
+            events={calibrationEvents ?? []}
+            isLoading={eventsLoading}
+            isCreating={createEvent.isPending}
+            onCreate={async (input) => {
+              try {
+                await createEvent.mutateAsync({ data: input });
+                await queryClient.invalidateQueries({ queryKey: getListCalibrationsQueryKey() });
+                toast({ title: "검증 이벤트 추가됨", description: `${input.title} 이벤트가 등록되었습니다.` });
+                return true;
+              } catch {
+                toast({ title: "추가 실패", description: "값을 확인해 주세요.", variant: "destructive" });
+                return false;
+              }
+            }}
+            onDelete={async (id) => {
+              try {
+                await deleteEvent.mutateAsync({ id });
+                await queryClient.invalidateQueries({ queryKey: getListCalibrationsQueryKey() });
+                toast({ title: "검증 이벤트 삭제됨" });
+              } catch {
+                toast({ title: "삭제 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
+              }
+            }}
+          />
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -315,6 +396,48 @@ function SurveyUploadSection({
           <CardDescription>CSV 또는 JSON 형식의 설문 데이터를 업로드하면 합성 인구 태도의 보정 기준으로 등록됩니다.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="border rounded-md p-4 bg-muted/30 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium">권장 파일 형식</p>
+                <p className="text-xs text-muted-foreground">응답자 1명당 1행. 첫 줄은 헤더(컬럼명). JSON은 객체 배열.</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => downloadFile(
+                  "survey_sample.csv",
+                  [SAMPLE_COLUMNS.map((c) => c.name).join(","), ...SAMPLE_ROWS.map((r) => SAMPLE_COLUMNS.map((c) => (r as Record<string, string>)[c.name] ?? "").join(","))].join("\n"),
+                  "text/csv",
+                )}>
+                  <Download className="h-4 w-4 mr-1.5" /> CSV 샘플
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => downloadFile(
+                  "survey_sample.json",
+                  JSON.stringify(SAMPLE_ROWS, null, 2),
+                  "application/json",
+                )}>
+                  <Download className="h-4 w-4 mr-1.5" /> JSON 샘플
+                </Button>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>컬럼</TableHead>
+                    <TableHead>설명</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {SAMPLE_COLUMNS.map((c) => (
+                    <TableRow key={c.name}>
+                      <TableCell className="font-mono text-xs whitespace-nowrap">{c.name}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{c.desc}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
           <div className="space-y-2">
             <Label>설문 파일 (.csv / .json)</Label>
             <Input type="file" accept=".csv,.json" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
@@ -438,6 +561,18 @@ function CalibrationSection({
               {methodOptions.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
             </SelectContent>
           </Select>
+          {METHOD_DESCRIPTIONS[method] && (
+            <p className="text-xs text-muted-foreground leading-relaxed">{METHOD_DESCRIPTIONS[method]}</p>
+          )}
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          {CALIBRATION_METHODS.map((m) => (
+            <div key={m} className="rounded-md border p-3 bg-muted/20">
+              <p className="text-sm font-medium">{m}</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{METHOD_DESCRIPTIONS[m]}</p>
+            </div>
+          ))}
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -468,5 +603,173 @@ function CalibrationSection({
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+function CalibrationEventsSection({
+  events,
+  isLoading,
+  isCreating,
+  onCreate,
+  onDelete,
+}: {
+  events: Calibration[];
+  isLoading: boolean;
+  isCreating: boolean;
+  onCreate: (input: CalibrationInput) => Promise<boolean>;
+  onDelete: (id: number) => Promise<void>;
+}) {
+  const [title, setTitle] = useState("");
+  const [eventType, setEventType] = useState(EVENT_TYPE_OPTIONS[0]);
+  const [targetDate, setTargetDate] = useState("");
+  const [metric, setMetric] = useState("");
+  const [actualValue, setActualValue] = useState("");
+  const [rawPrediction, setRawPrediction] = useState("");
+
+  const valid =
+    title.trim() &&
+    targetDate.trim() &&
+    metric.trim() &&
+    actualValue !== "" &&
+    rawPrediction !== "";
+
+  const handleSubmit = async () => {
+    if (!valid) return;
+    const ok = await onCreate({
+      title: title.trim(),
+      eventType,
+      targetDate: targetDate.trim(),
+      metric: metric.trim(),
+      actualValue: Number(actualValue),
+      rawPrediction: Number(rawPrediction),
+    });
+    if (ok) {
+      setTitle("");
+      setTargetDate("");
+      setMetric("");
+      setActualValue("");
+      setRawPrediction("");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>검증 이벤트 추가</CardTitle>
+          <CardDescription>
+            결과가 알려진 과거 이벤트의 실제값과 모델의 원시 예측을 입력하면, 현재 보정 설정(축소 계수)에 따라
+            보정 예측과 오차가 자동 계산되어 검증 내역에 추가됩니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>이벤트 제목</Label>
+              <Input placeholder="예: 2024 서울시장 보궐선거" value={title} onChange={(e) => setTitle(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>이벤트 유형</Label>
+              <Select value={eventType} onValueChange={setEventType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {EVENT_TYPE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>기준일</Label>
+              <Input placeholder="예: 2024-04-10" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>지표</Label>
+              <Input placeholder="예: 후보 A 득표율" value={metric} onChange={(e) => setMetric(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>실제값 (%)</Label>
+              <Input type="number" min={0} max={100} placeholder="예: 52.3" value={actualValue} onChange={(e) => setActualValue(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>원시 예측 (%)</Label>
+              <Input type="number" min={0} max={100} placeholder="예: 48.5" value={rawPrediction} onChange={(e) => setRawPrediction(e.target.value)} />
+            </div>
+          </div>
+          <Button onClick={handleSubmit} disabled={!valid || isCreating}>
+            {isCreating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+            이벤트 추가
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>검증 이벤트 내역 <span className="text-sm font-normal text-muted-foreground">({events.length}개)</span></CardTitle>
+          <CardDescription>오래된 이벤트는 삭제하고 최신 이벤트를 추가하는 방식으로 관리합니다.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
+          ) : events.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">등록된 검증 이벤트가 없습니다.</p>
+          ) : (
+            <div className="border rounded-md overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>이벤트</TableHead>
+                    <TableHead>유형</TableHead>
+                    <TableHead>기준일</TableHead>
+                    <TableHead className="text-right">실제값</TableHead>
+                    <TableHead className="text-right">원시 예측</TableHead>
+                    <TableHead className="text-right">보정 예측</TableHead>
+                    <TableHead className="text-right">원시 오차</TableHead>
+                    <TableHead className="text-right">보정 오차</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {events.map((ev) => (
+                    <TableRow key={ev.id}>
+                      <TableCell className="font-medium">
+                        {ev.title}
+                        <div className="text-xs text-muted-foreground">{ev.metric}</div>
+                      </TableCell>
+                      <TableCell><Badge variant="secondary">{ev.eventType}</Badge></TableCell>
+                      <TableCell className="whitespace-nowrap">{ev.targetDate}</TableCell>
+                      <TableCell className="text-right tabular-nums">{ev.actualValue}%</TableCell>
+                      <TableCell className="text-right tabular-nums">{ev.rawPrediction}%</TableCell>
+                      <TableCell className="text-right tabular-nums text-primary font-medium">{ev.calibratedPrediction}%</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">{ev.rawError}%</TableCell>
+                      <TableCell className="text-right tabular-nums text-primary">{ev.calibratedError}%</TableCell>
+                      <TableCell>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>이 검증 이벤트를 삭제하시겠습니까?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                "{ev.title}" 이벤트가 검증 내역에서 제거됩니다. 이 작업은 되돌릴 수 없습니다.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>취소</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onDelete(ev.id)} className="bg-destructive text-destructive-foreground">삭제</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
