@@ -23,7 +23,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const AGE_ORDER = ["18-29", "30-39", "40-49", "50-59", "60-69", "70+"];
+const ageStart = (key: string) => {
+  const m = key.match(/\d+/);
+  return m ? parseInt(m[0], 10) : 999;
+};
 const RESPONSES_PAGE_SIZE = 20;
 
 export default function SimulationDetail() {
@@ -58,9 +61,7 @@ export default function SimulationDetail() {
   const ageChartData = useMemo(() => {
     const rows = simDetail?.results?.byAgeBracket;
     if (!rows) return [];
-    return [...rows].sort(
-      (a, b) => AGE_ORDER.indexOf(a.key) - AGE_ORDER.indexOf(b.key),
-    );
+    return [...rows].sort((a, b) => ageStart(a.key) - ageStart(b.key));
   }, [simDetail]);
 
   const filteredResponses = useMemo(() => {

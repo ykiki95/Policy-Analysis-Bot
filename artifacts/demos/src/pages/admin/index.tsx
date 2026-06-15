@@ -11,6 +11,7 @@ import {
   useListCalibrations,
   useCreateCalibration,
   useDeleteCalibration,
+  useListSurveys,
   getListCalibrationsQueryKey,
   type SurveyUploadColumn,
   type Calibration,
@@ -353,6 +354,7 @@ function SurveyUploadSection({
   onUpload: (input: { fileName: string; description: string; format: string; rowCount: number; columns: SurveyUploadColumn[]; sampleRows: Record<string, string>[] }) => Promise<boolean>;
   isPending: boolean;
 }) {
+  const { data: surveys } = useListSurveys();
   const [fileName, setFileName] = useState("");
   const [description, setDescription] = useState("");
   const [parsed, setParsed] = useState<ParsedUpload>(null);
@@ -390,6 +392,41 @@ function SurveyUploadSection({
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>기존 설문 기준 <span className="text-sm font-normal text-muted-foreground">({surveys?.length ?? 0}개)</span></CardTitle>
+          <CardDescription>합성 인구의 태도를 형성하는 기준 설문입니다. "설문조사 기준" 페이지에 표시되는 데이터와 동일합니다.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!surveys ? (
+            <div className="space-y-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
+          ) : surveys.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">등록된 설문 기준이 없습니다.</p>
+          ) : (
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>제목</TableHead>
+                    <TableHead>설명</TableHead>
+                    <TableHead>상태</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {surveys.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium whitespace-nowrap">{s.title}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-md truncate">{s.description}</TableCell>
+                      <TableCell><Badge variant={s.status === "active" ? "default" : "secondary"}>{s.status === "active" ? "활성" : "종료"}</Badge></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>설문 기준 업로드</CardTitle>
