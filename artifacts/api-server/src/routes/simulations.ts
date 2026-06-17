@@ -212,6 +212,15 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
         calibratedSupportPct: number | null;
         calibratedOpposePct: number | null;
         calibratedNeutralPct: number | null;
+        events: {
+          id: number;
+          title: string;
+          eventType: string;
+          targetDate: string;
+          actualValue: number;
+          rawPrediction: number;
+          bias: number;
+        }[];
       }
     | undefined;
 
@@ -225,7 +234,8 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
       db
         .select()
         .from(calibrationsTable)
-        .where(eq(calibrationsTable.product, sim.product)),
+        .where(eq(calibrationsTable.product, sim.product))
+        .orderBy(desc(calibrationsTable.targetDate)),
       db.select().from(calibrationSettingsTable).limit(1),
     ]);
     const model = buildOutputCalibrationModel(
@@ -248,6 +258,15 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
       calibratedSupportPct: calibrated?.supportPct ?? null,
       calibratedOpposePct: calibrated?.opposePct ?? null,
       calibratedNeutralPct: calibrated?.neutralPct ?? null,
+      events: productEvents.map((ev) => ({
+        id: ev.id,
+        title: ev.title,
+        eventType: ev.eventType,
+        targetDate: ev.targetDate,
+        actualValue: ev.actualValue,
+        rawPrediction: ev.rawPrediction,
+        bias: Math.round((ev.actualValue - ev.rawPrediction) * 10) / 10,
+      })),
     };
   }
 

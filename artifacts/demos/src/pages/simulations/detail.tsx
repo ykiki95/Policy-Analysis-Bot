@@ -235,7 +235,7 @@ export default function SimulationDetail() {
                     축소 계수 {simDetail.calibration.shrinkage}로 적용해 원시 예측을 교정했습니다.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-5">
                   <div className="grid grid-cols-2 gap-4 max-w-md">
                     <div className="rounded-lg border bg-card p-4">
                       <p className="text-xs text-muted-foreground mb-1">원시 찬성률</p>
@@ -254,6 +254,45 @@ export default function SimulationDetail() {
                       </p>
                     </div>
                   </div>
+
+                  {simDetail.calibration.events.length > 0 && (
+                    <div className="rounded-lg border bg-card/50">
+                      <div className="px-4 py-2.5 border-b">
+                        <p className="text-sm font-medium">사용된 검증 이벤트</p>
+                        <p className="text-xs text-muted-foreground">
+                          이 보정에 반영된 과거 실제 결과입니다. 평균 편향(실제−원시)이 보정량의 근거입니다.
+                        </p>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>검증 이벤트</TableHead>
+                            <TableHead>유형</TableHead>
+                            <TableHead className="whitespace-nowrap">기준일</TableHead>
+                            <TableHead className="text-right">실제</TableHead>
+                            <TableHead className="text-right">원시 예측</TableHead>
+                            <TableHead className="text-right">편향(실제−원시)</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {simDetail.calibration.events.map((ev) => (
+                            <TableRow key={ev.id}>
+                              <TableCell className="font-medium">{ev.title}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">{ev.eventType}</Badge>
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap text-muted-foreground">{ev.targetDate}</TableCell>
+                              <TableCell className="text-right tabular-nums">{ev.actualValue}%</TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">{ev.rawPrediction}%</TableCell>
+                              <TableCell className={`text-right tabular-nums font-medium ${ev.bias > 0 ? "text-emerald-600 dark:text-emerald-400" : ev.bias < 0 ? "text-rose-600 dark:text-rose-400" : ""}`}>
+                                {ev.bias > 0 ? "+" : ""}{ev.bias}%p
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ) : (

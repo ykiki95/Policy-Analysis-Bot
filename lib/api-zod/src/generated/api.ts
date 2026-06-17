@@ -453,7 +453,16 @@ export const GetSimulationResponse = zod.object({
   "shrinkage": zod.number(),
   "calibratedSupportPct": zod.number().nullish(),
   "calibratedOpposePct": zod.number().nullish(),
-  "calibratedNeutralPct": zod.number().nullish()
+  "calibratedNeutralPct": zod.number().nullish(),
+  "events": zod.array(zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "eventType": zod.string(),
+  "targetDate": zod.string(),
+  "actualValue": zod.number(),
+  "rawPrediction": zod.number(),
+  "bias": zod.number()
+})).describe('이 보정에 사용된 과거 검증 이벤트 목록 (어떤 검증이 쓰였는지 명시).')
 }).optional().describe('출력 보정(Lever 2) — 이 시뮬레이션 제품의 과거 검증 이벤트에서 학습한 평균 편향으로 원시 지지율을 사후 교정한 결과. 이벤트가 부족하면 applied=false 이고 보정값은 null.')
 })
 

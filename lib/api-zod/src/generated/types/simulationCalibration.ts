@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SimulationCalibrationEventsItem } from './simulationCalibrationEventsItem';
 
 /**
  * 출력 보정(Lever 2) — 이 시뮬레이션 제품의 과거 검증 이벤트에서 학습한 평균 편향으로 원시 지지율을 사후 교정한 결과. 이벤트가 부족하면 applied=false 이고 보정값은 null.
@@ -20,4 +21,6 @@ export interface SimulationCalibration {
   calibratedOpposePct?: number | null;
   /** @nullable */
   calibratedNeutralPct?: number | null;
+  /** 이 보정에 사용된 과거 검증 이벤트 목록 (어떤 검증이 쓰였는지 명시). */
+  events: SimulationCalibrationEventsItem[];
 }
