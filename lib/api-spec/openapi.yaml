@@ -374,6 +374,64 @@ paths:
                 items:
                   $ref: "#/components/schemas/Calibration"
 
+  /calibration/elections:
+    get:
+      operationId: getElectionCalibration
+      tags: [calibration]
+      summary: Election-grounded calibration — synthetic prediction vs real results
+      responses:
+        "200":
+          description: Election calibration result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ElectionCalibrationResult"
+
+  /elections:
+    get:
+      operationId: listElections
+      tags: [calibration]
+      summary: Real past election results used as calibration ground truth
+      responses:
+        "200":
+          description: Elections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Election"
+
+  /regions:
+    get:
+      operationId: listRegions
+      tags: [population]
+      summary: The 17 시도 regions with geo + political metadata
+      responses:
+        "200":
+          description: Regions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Region"
+
+  /admin/demographic-margins:
+    get:
+      operationId: listDemographicMargins
+      tags: [admin]
+      summary: Official region/age/gender marginals used as raking targets
+      responses:
+        "200":
+          description: Demographic margins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DemographicMargin"
+
   /products:
     get:
       operationId: listProducts
@@ -714,6 +772,7 @@ components:
         issue: { type: string }
         weight: { type: number }
         direction: { type: string }
+        targetStance: { type: number, minimum: -100, maximum: 100 }
 
     Survey:
       type: object
@@ -799,6 +858,8 @@ components:
         multiplier: { type: number }
         noiseScale: { type: number }
         driverCount: { type: integer }
+        targetMean: { type: number, nullable: true }
+        targetPull: { type: number }
 
     SurveyImpactResult:
       type: object
@@ -1052,12 +1113,105 @@ components:
       properties:
         count: { type: integer, minimum: 50, maximum: 5000 }
         seed: { type: integer }
+        regionScope:
+          type: string
+          description: 'Region code (시도) to scope generation to, or "NATIONAL" for all 17 regions.'
 
     RegeneratePopulationResult:
       type: object
       required: [total]
       properties:
         total: { type: integer }
+        scope: { type: string }
+
+    Region:
+      type: object
+      required: [code, name, lat, lng, leaningBias, macroRegion, displayOrder]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        leaningBias: { type: integer }
+        macroRegion: { type: string }
+        displayOrder: { type: integer }
+
+    DemographicMargin:
+      type: object
+      required: [id, dimension, key, label, population]
+      properties:
+        id: { type: integer }
+        dimension: { type: string }
+        key: { type: string }
+        label: { type: string }
+        population: { type: integer }
+
+    Election:
+      type: object
+      required:
+        - id
+        - name
+        - electionType
+        - electionDate
+        - regionCode
+        - metric
+        - leaning
+        - actualValue
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        electionType: { type: string }
+        electionDate: { type: string }
+        regionCode: { type: string }
+        metric: { type: string }
+        leaning: { type: string }
+        actualValue: { type: number }
+
+    ElectionCalibrationRow:
+      type: object
+      required:
+        - electionId
+        - electionName
+        - electionDate
+        - regionCode
+        - regionName
+        - metric
+        - leaning
+        - actualValue
+        - rawPrediction
+        - calibratedPrediction
+        - rawError
+        - calibratedError
+      properties:
+        electionId: { type: integer }
+        electionName: { type: string }
+        electionDate: { type: string }
+        regionCode: { type: string }
+        regionName: { type: string }
+        metric: { type: string }
+        leaning: { type: string }
+        actualValue: { type: number }
+        rawPrediction: { type: number }
+        calibratedPrediction: { type: number }
+        rawError: { type: number }
+        calibratedError: { type: number }
+
+    ElectionCalibrationResult:
+      type: object
+      required:
+        - method
+        - shrinkageFactor
+        - avgRawError
+        - avgCalibratedError
+        - rows
+      properties:
+        method: { type: string }
+        shrinkageFactor: { type: number }
+        avgRawError: { type: number }
+        avgCalibratedError: { type: number }
+        rows:
+          type: array
+          items: { $ref: "#/components/schemas/ElectionCalibrationRow" }
 
     SurveyUploadColumn:
       type: object

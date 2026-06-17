@@ -4,52 +4,43 @@ import {
   type SurveyAdjustments,
   type IssueKey,
 } from "./surveyWeighting";
+import { fitJoint, allocate, type Marginal } from "./raking";
 
-type District = {
+export type RegionMeta = {
+  code: string;
   name: string;
   lat: number;
   lng: number;
-  weight: number;
   leaningBias: number;
 };
 
-const DISTRICTS: District[] = [
-  { name: "강남구", lat: 37.5172, lng: 127.0473, weight: 5.5, leaningBias: 18 },
-  { name: "강동구", lat: 37.5301, lng: 127.1238, weight: 4.6, leaningBias: 4 },
-  { name: "강북구", lat: 37.6396, lng: 127.0257, weight: 3.1, leaningBias: -10 },
-  { name: "강서구", lat: 37.5509, lng: 126.8495, weight: 5.9, leaningBias: -4 },
-  { name: "관악구", lat: 37.4784, lng: 126.9516, weight: 5.0, leaningBias: -16 },
-  { name: "광진구", lat: 37.5385, lng: 127.0823, weight: 3.6, leaningBias: -6 },
-  { name: "구로구", lat: 37.4954, lng: 126.8874, weight: 4.1, leaningBias: -8 },
-  { name: "금천구", lat: 37.4569, lng: 126.8956, weight: 2.4, leaningBias: -9 },
-  { name: "노원구", lat: 37.6542, lng: 127.0568, weight: 5.2, leaningBias: -12 },
-  { name: "도봉구", lat: 37.6688, lng: 127.0471, weight: 3.2, leaningBias: -7 },
-  { name: "동대문구", lat: 37.5744, lng: 127.0397, weight: 3.5, leaningBias: -5 },
-  { name: "동작구", lat: 37.5124, lng: 126.9393, weight: 3.9, leaningBias: -3 },
-  { name: "마포구", lat: 37.5663, lng: 126.9019, weight: 3.7, leaningBias: -11 },
-  { name: "서대문구", lat: 37.5791, lng: 126.9368, weight: 3.0, leaningBias: -6 },
-  { name: "서초구", lat: 37.4837, lng: 127.0324, weight: 4.2, leaningBias: 20 },
-  { name: "성동구", lat: 37.5634, lng: 127.0369, weight: 2.9, leaningBias: -2 },
-  { name: "성북구", lat: 37.5894, lng: 127.0167, weight: 4.3, leaningBias: -8 },
-  { name: "송파구", lat: 37.5145, lng: 127.1059, weight: 6.6, leaningBias: 10 },
-  { name: "양천구", lat: 37.5169, lng: 126.8665, weight: 4.5, leaningBias: 2 },
-  { name: "영등포구", lat: 37.5264, lng: 126.8962, weight: 3.7, leaningBias: -1 },
-  { name: "용산구", lat: 37.5324, lng: 126.99, weight: 2.2, leaningBias: 8 },
-  { name: "은평구", lat: 37.6027, lng: 126.9291, weight: 4.7, leaningBias: -9 },
-  { name: "종로구", lat: 37.5735, lng: 126.979, weight: 1.5, leaningBias: 0 },
-  { name: "중구", lat: 37.5638, lng: 126.9976, weight: 1.2, leaningBias: 1 },
-  { name: "중랑구", lat: 37.6063, lng: 127.0927, weight: 3.9, leaningBias: -8 },
-];
+export type AgeMarginal = {
+  bracket: string;
+  population: number;
+};
 
-const AGE_BRACKETS: { bracket: string; min: number; max: number; weight: number }[] =
-  [
-    { bracket: "18-29", min: 18, max: 29, weight: 19 },
-    { bracket: "30-39", min: 30, max: 39, weight: 18 },
-    { bracket: "40-49", min: 40, max: 49, weight: 20 },
-    { bracket: "50-59", min: 50, max: 59, weight: 20 },
-    { bracket: "60-69", min: 60, max: 69, weight: 13 },
-    { bracket: "70+", min: 70, max: 84, weight: 10 },
-  ];
+export type GenerationInputs = {
+  count: number;
+  seed?: number;
+  /** Region geo + political metadata for every region in scope. */
+  regions: RegionMeta[];
+  /** Official region marginal (population per region code). */
+  regionMarginals: Marginal[];
+  /** Official age marginal (population per age bracket). */
+  ageMarginals: AgeMarginal[];
+  /** Official gender marginal (population per gender: Male/Female). */
+  genderMarginals: Marginal[];
+  adjustments?: SurveyAdjustments;
+};
+
+const AGE_RANGES: Record<string, { min: number; max: number }> = {
+  "18-29": { min: 18, max: 29 },
+  "30-39": { min: 30, max: 39 },
+  "40-49": { min: 40, max: 49 },
+  "50-59": { min: 50, max: 59 },
+  "60-69": { min: 60, max: 69 },
+  "70+": { min: 70, max: 84 },
+};
 
 const EDUCATIONS = ["고졸 이하", "전문대 졸", "대학교 졸", "대학원 졸"];
 const INCOME_BRACKETS = [
@@ -91,8 +82,7 @@ const VALUE_POOL = [
   "안전",
   "다양성",
 ];
-const SURNAMES =
-  "김이박최정강조윤장임한오서신권황안송류전홍".split("");
+const SURNAMES = "김이박최정강조윤장임한오서신권황안송류전홍".split("");
 const GIVEN = [
   "민준",
   "서연",
@@ -137,19 +127,6 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-function weightedPick<T extends { weight: number }>(
-  items: T[],
-  r: number,
-): T {
-  const total = items.reduce((acc, i) => acc + i.weight, 0);
-  let cursor = r * total;
-  for (const item of items) {
-    cursor -= item.weight;
-    if (cursor <= 0) return item;
-  }
-  return items[items.length - 1];
-}
-
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
@@ -175,118 +152,143 @@ function buildPersona(a: {
   leaning: number;
   values: string[];
 }): string {
-  const lean =
-    a.leaning <= -34 ? "진보" : a.leaning >= 34 ? "보수" : "중도";
+  const lean = a.leaning <= -34 ? "진보" : a.leaning >= 34 ? "보수" : "중도";
   return `${a.district}에 거주하는 ${a.ageBracket} ${a.occupation}. 정치 성향은 ${lean}이며 ${a.values.join(
     ", ",
   )} 가치를 중시한다.`;
 }
 
-export function generateAgents(
-  count: number,
-  seed = 20260615,
-  adjustments: SurveyAdjustments = emptyAdjustments(),
-): InsertAgent[] {
+/**
+ * Deterministically generate a synthetic population whose region × age × gender
+ * marginals match the supplied official statistics (via IPF raking + integer
+ * allocation). Within each fitted cell, attributes are drawn from a seeded PRNG.
+ * Same inputs + same seed always produce an identical population.
+ */
+export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
+  const {
+    count,
+    seed = 20260615,
+    regions,
+    regionMarginals,
+    ageMarginals,
+    genderMarginals,
+    adjustments = emptyAdjustments(),
+  } = inputs;
+
+  const regionByCode = new Map(regions.map((r) => [r.code, r]));
+  const ageByBracket = new Map(ageMarginals.map((a) => [a.bracket, a]));
+
+  const joint = fitJoint(
+    regionMarginals.filter((m) => regionByCode.has(m.key)),
+    ageMarginals.map((a) => ({ key: a.bracket, population: a.population })),
+    genderMarginals,
+  );
+  const allocated = allocate(joint, count);
+
   const rand = mulberry32(seed);
   const agents: InsertAgent[] = [];
 
-  for (let i = 0; i < count; i++) {
-    const district = weightedPick(DISTRICTS, rand());
-    const ageInfo = weightedPick(AGE_BRACKETS, rand());
-    const age =
-      ageInfo.min + Math.floor(rand() * (ageInfo.max - ageInfo.min + 1));
-    const gender = rand() < 0.49 ? "Male" : "Female";
+  for (const cell of allocated) {
+    if (cell.count <= 0) continue;
+    const region = regionByCode.get(cell.region);
+    if (!region) continue;
+    const range = AGE_RANGES[cell.age] ?? { min: 18, max: 84 };
+    const gender = cell.gender;
+    void ageByBracket; // marginals validated upstream
 
-    const lat = district.lat + (rand() - 0.5) * 0.045;
-    const lng = district.lng + (rand() - 0.5) * 0.05;
+    for (let n = 0; n < cell.count; n++) {
+      const age = range.min + Math.floor(rand() * (range.max - range.min + 1));
 
-    const ageLeaning = (age - 45) * 0.9;
-    const leaning = Math.round(
-      clamp(
-        ageLeaning + district.leaningBias + gaussian(rand) * 22,
-        -100,
-        100,
-      ),
-    );
+      const lat = region.lat + (rand() - 0.5) * 0.16;
+      const lng = region.lng + (rand() - 0.5) * 0.2;
 
-    const turnoutBase = 45 + (age - 18) * 0.7;
-    const turnoutPropensity = Math.round(
-      clamp(turnoutBase + gaussian(rand) * 12, 5, 99),
-    );
-
-    const eduIdx = clamp(
-      Math.round((age < 35 ? 2.4 : 1.6) + gaussian(rand) * 1.1),
-      0,
-      EDUCATIONS.length - 1,
-    );
-    const incomeIdx = clamp(
-      Math.round(2 + (age >= 35 && age <= 60 ? 0.6 : -0.4) + gaussian(rand) * 1.2),
-      0,
-      INCOME_BRACKETS.length - 1,
-    );
-
-    const stance = (key: IssueKey, bias: number): number => {
-      const a = adjustments[key];
-      return Math.round(
-        clamp(
-          leaning * bias * a.multiplier + gaussian(rand) * 18 * a.noiseScale,
-          -100,
-          100,
-        ),
+      const ageLeaning = (age - 45) * 0.9;
+      const leaning = Math.round(
+        clamp(ageLeaning + region.leaningBias + gaussian(rand) * 22, -100, 100),
       );
-    };
-    const issueStances: AgentIssueStances = {
-      economy: stance("economy", 0.7),
-      welfare: stance("welfare", -0.6),
-      security: stance("security", 0.65),
-      environment: stance("environment", -0.5),
-      housing: stance("housing", -0.4),
-    };
 
-    const values: string[] = [];
-    while (values.length < 3) {
-      const v = VALUE_POOL[Math.floor(rand() * VALUE_POOL.length)];
-      if (!values.includes(v)) values.push(v);
-    }
+      const turnoutBase = 45 + (age - 18) * 0.7;
+      const turnoutPropensity = Math.round(
+        clamp(turnoutBase + gaussian(rand) * 12, 5, 99),
+      );
 
-    const occupation =
-      age >= 67
-        ? "은퇴"
-        : age <= 24 && rand() < 0.6
-          ? "학생"
-          : OCCUPATIONS[Math.floor(rand() * OCCUPATIONS.length)];
+      const eduIdx = clamp(
+        Math.round((age < 35 ? 2.4 : 1.6) + gaussian(rand) * 1.1),
+        0,
+        EDUCATIONS.length - 1,
+      );
+      const incomeIdx = clamp(
+        Math.round(
+          2 + (age >= 35 && age <= 60 ? 0.6 : -0.4) + gaussian(rand) * 1.2,
+        ),
+        0,
+        INCOME_BRACKETS.length - 1,
+      );
 
-    const name =
-      SURNAMES[Math.floor(rand() * SURNAMES.length)] +
-      GIVEN[Math.floor(rand() * GIVEN.length)];
+      const stance = (key: IssueKey, bias: number): number => {
+        const a = adjustments[key];
+        const base = leaning * bias * a.multiplier;
+        const noise = gaussian(rand) * 18 * a.noiseScale;
+        // Rake the stance toward the survey-implied target mean when present.
+        const raked =
+          a.targetMean !== null && a.targetPull > 0
+            ? base * (1 - a.targetPull) + a.targetMean * a.targetPull
+            : base;
+        return Math.round(clamp(raked + noise, -100, 100));
+      };
+      const issueStances: AgentIssueStances = {
+        economy: stance("economy", 0.7),
+        welfare: stance("welfare", -0.6),
+        security: stance("security", 0.65),
+        environment: stance("environment", -0.5),
+        housing: stance("housing", -0.4),
+      };
 
-    agents.push({
-      name,
-      age,
-      ageBracket: ageInfo.bracket,
-      gender,
-      district: district.name,
-      lat: Math.round(lat * 1e6) / 1e6,
-      lng: Math.round(lng * 1e6) / 1e6,
-      education: EDUCATIONS[eduIdx],
-      incomeBracket: INCOME_BRACKETS[incomeIdx],
-      occupation,
-      householdType:
-        HOUSEHOLD_TYPES[Math.floor(rand() * HOUSEHOLD_TYPES.length)],
-      politicalLeaning: leaning,
-      partyAffinity: partyFromLeaning(leaning),
-      turnoutPropensity,
-      issueStances,
-      mediaDiet: MEDIA_DIETS[Math.floor(rand() * MEDIA_DIETS.length)],
-      values,
-      personaSummary: buildPersona({
-        ageBracket: ageInfo.bracket,
-        district: district.name,
+      const values: string[] = [];
+      while (values.length < 3) {
+        const v = VALUE_POOL[Math.floor(rand() * VALUE_POOL.length)];
+        if (!values.includes(v)) values.push(v);
+      }
+
+      const occupation =
+        age >= 67
+          ? "은퇴"
+          : age <= 24 && rand() < 0.6
+            ? "학생"
+            : OCCUPATIONS[Math.floor(rand() * OCCUPATIONS.length)];
+
+      const name =
+        SURNAMES[Math.floor(rand() * SURNAMES.length)] +
+        GIVEN[Math.floor(rand() * GIVEN.length)];
+
+      agents.push({
+        name,
+        age,
+        ageBracket: cell.age,
+        gender,
+        district: region.name,
+        lat: Math.round(lat * 1e6) / 1e6,
+        lng: Math.round(lng * 1e6) / 1e6,
+        education: EDUCATIONS[eduIdx],
+        incomeBracket: INCOME_BRACKETS[incomeIdx],
         occupation,
-        leaning,
+        householdType:
+          HOUSEHOLD_TYPES[Math.floor(rand() * HOUSEHOLD_TYPES.length)],
+        politicalLeaning: leaning,
+        partyAffinity: partyFromLeaning(leaning),
+        turnoutPropensity,
+        issueStances,
+        mediaDiet: MEDIA_DIETS[Math.floor(rand() * MEDIA_DIETS.length)],
         values,
-      }),
-    });
+        personaSummary: buildPersona({
+          ageBracket: cell.age,
+          district: region.name,
+          occupation,
+          leaning,
+          values,
+        }),
+      });
+    }
   }
 
   return agents;

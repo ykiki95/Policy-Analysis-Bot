@@ -8,10 +8,16 @@ import {
   surveyUploadsTable,
   calibrationSettingsTable,
   calibrationsTable,
+  demographicMarginsTable,
 } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { jsonReady } from "../lib/serialize";
 import { generateAgents } from "../lib/agentGenerator";
+import {
+  buildGenerationInputs,
+  loadMargins,
+  NATIONAL_SCOPE,
+} from "../lib/populationData";
 import {
   computeSurveyAdjustments,
   ISSUE_KEYS,
@@ -33,6 +39,7 @@ import {
   SuggestSurveyDriversBody,
   SuggestSurveyDriversResponse,
   GetSurveyImpactResponse,
+  ListDemographicMarginsResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -55,6 +62,17 @@ router.get("/admin/data-sources", async (_req, res): Promise<void> => {
   res.json(ListDataSourcesResponse.parse(rows));
 });
 
+router.get(
+  "/admin/demographic-margins",
+  async (_req, res): Promise<void> => {
+    const rows = await db
+      .select()
+      .from(demographicMarginsTable)
+      .orderBy(demographicMarginsTable.id);
+    res.json(ListDemographicMarginsResponse.parse(rows));
+  },
+);
+
 router.post(
   "/admin/population/regenerate",
   async (req, res): Promise<void> => {
@@ -63,10 +81,13 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { count, seed } = parsed.data;
-    const surveys = await db.select().from(surveysTable);
-    const adjustments = computeSurveyAdjustments(surveys);
-    const agents = generateAgents(count, seed ?? undefined, adjustments);
+    const { count, seed, regionScope } = parsed.data;
+    const { inputs, scopeName } = await buildGenerationInputs(
+      count,
+      seed ?? undefined,
+      regionScope ?? NATIONAL_SCOPE,
+    );
+    const agents = generateAgents(inputs);
 
     await db.transaction(async (tx) => {
       await tx.delete(agentsTable);
@@ -79,8 +100,10 @@ router.post(
       }
     });
 
-    req.log.info({ count }, "Population regenerated");
-    res.json(RegeneratePopulationResponse.parse({ total: agents.length }));
+    req.log.info({ count, scope: scopeName }, "Population regenerated");
+    res.json(
+      RegeneratePopulationResponse.parse({ total: agents.length, scope: scopeName }),
+    );
   },
 );
 
@@ -339,6 +362,8 @@ router.get("/admin/survey-impact", async (_req, res): Promise<void> => {
     multiplier: adjustments[key].multiplier,
     noiseScale: adjustments[key].noiseScale,
     driverCount: adjustments[key].driverCount,
+    targetMean: adjustments[key].targetMean,
+    targetPull: adjustments[key].targetPull,
   }));
   res.json(GetSurveyImpactResponse.parse({ appliedSurveyCount, items }));
 });

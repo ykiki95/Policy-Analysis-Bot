@@ -6,7 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface RegeneratePopulationResult {
-  total: number;
-  scope?: string;
+export interface DemographicMargin {
+  id: number;
+  dimension: string;
+  key: string;
+  label: string;
+  population: number;
 }

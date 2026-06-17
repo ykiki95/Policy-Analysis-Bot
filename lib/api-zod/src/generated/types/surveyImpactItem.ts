@@ -13,4 +13,6 @@ export interface SurveyImpactItem {
   multiplier: number;
   noiseScale: number;
   driverCount: number;
+  targetMean?: number | null;
+  targetPull?: number;
 }

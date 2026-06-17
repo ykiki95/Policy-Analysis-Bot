@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetAgentSummary,
   useListDataSources,
+  useListRegions,
+  useListDemographicMargins,
   useRegeneratePopulation,
   useListSurveyUploads,
   useCreateSurveyUpload,
@@ -127,6 +129,8 @@ export default function Admin() {
 
   const { data: summary } = useGetAgentSummary();
   const { data: dataSources, isLoading: dsLoading } = useListDataSources();
+  const { data: regions } = useListRegions();
+  const { data: margins } = useListDemographicMargins();
   const { data: uploads } = useListSurveyUploads();
   const { data: calibration, isLoading: calLoading } = useGetCalibrationSettings();
   const { data: calibrationEvents, isLoading: eventsLoading } = useListCalibrations();
@@ -138,15 +142,21 @@ export default function Admin() {
   const deleteEvent = useDeleteCalibration();
 
   const [count, setCount] = useState(500);
+  const [regionScope, setRegionScope] = useState("NATIONAL");
   useEffect(() => {
     if (summary?.total) setCount(summary.total);
   }, [summary?.total]);
 
+  const scopeName =
+    regionScope === "NATIONAL"
+      ? "전국"
+      : (regions?.find((r) => r.code === regionScope)?.name ?? regionScope);
+
   const handleRegenerate = async () => {
     try {
-      await regenerate.mutateAsync({ data: { count } });
+      await regenerate.mutateAsync({ data: { count, regionScope } });
       await queryClient.invalidateQueries();
-      toast({ title: "인구 재생성 완료", description: `${count.toLocaleString()}명의 합성 시민을 생성했습니다.` });
+      toast({ title: "인구 재생성 완료", description: `${scopeName} 합성 시민 ${count.toLocaleString()}명을 생성했습니다.` });
     } catch {
       toast({ title: "재생성 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
     }
@@ -181,6 +191,23 @@ export default function Admin() {
                 <div className="text-sm text-muted-foreground">현재 인구</div>
                 <div className="text-2xl font-bold">{summary?.total?.toLocaleString() ?? "—"}명</div>
               </div>
+              <div className="space-y-2">
+                <Label>생성 범위 (시·도)</Label>
+                <Select value={regionScope} onValueChange={setRegionScope}>
+                  <SelectTrigger className="w-full md:w-72">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NATIONAL">전국 (17개 시·도)</SelectItem>
+                    {regions?.map((r) => (
+                      <SelectItem key={r.code} value={r.code}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  특정 시·도를 선택하면 해당 지역에 한정해 합성 인구를 생성합니다. 연령·성별 분포는 공공 통계 마진에 맞춰 래킹됩니다.
+                </p>
+              </div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label>목표 에이전트 수</Label>
@@ -211,7 +238,7 @@ export default function Admin() {
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button disabled={regenerate.isPending || count === summary?.total}>
+                  <Button disabled={regenerate.isPending}>
                     {regenerate.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     인구 재생성
                   </Button>
@@ -220,7 +247,7 @@ export default function Admin() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>인구를 재생성하시겠습니까?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      기존 {summary?.total?.toLocaleString()}명의 에이전트가 {count.toLocaleString()}명으로 교체됩니다.
+                      기존 {summary?.total?.toLocaleString()}명의 에이전트가 <strong>{scopeName}</strong> 범위의 {count.toLocaleString()}명으로 교체됩니다.
                       이 작업은 되돌릴 수 없으며, 새 시뮬레이션은 새 인구를 대상으로 실행됩니다.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
@@ -230,6 +257,45 @@ export default function Admin() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>공공 통계 마진 (래킹 타깃)</CardTitle>
+              <CardDescription>
+                지역·연령·성별 공식 인구 분포를 타깃으로 IPF(반복 비례 적합) 래킹하여 합성 인구의 교차 분포를 결정합니다.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-3 gap-6">
+                {(["region", "age", "gender"] as const).map((dim) => {
+                  const dimRows = (margins ?? []).filter((m) => m.dimension === dim);
+                  const dimTotal = dimRows.reduce((s, m) => s + m.population, 0) || 1;
+                  const title = dim === "region" ? "지역 (17개 시·도)" : dim === "age" ? "연령대" : "성별";
+                  return (
+                    <div key={dim} className="space-y-2">
+                      <div className="text-sm font-semibold">{title}</div>
+                      <div className="space-y-1.5">
+                        {dimRows.map((m) => {
+                          const pct = (m.population / dimTotal) * 100;
+                          return (
+                            <div key={m.id} className="text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">{m.label}</span>
+                                <span className="tabular-nums">{pct.toFixed(1)}%</span>
+                              </div>
+                              <div className="h-1.5 bg-border rounded-full overflow-hidden">
+                                <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

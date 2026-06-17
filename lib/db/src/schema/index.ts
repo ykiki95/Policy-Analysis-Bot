@@ -6,3 +6,6 @@ export * from "./calibrations";
 export * from "./dataSources";
 export * from "./surveyUploads";
 export * from "./calibrationSettings";
+export * from "./regions";
+export * from "./demographicMargins";
+export * from "./elections";

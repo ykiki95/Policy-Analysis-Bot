@@ -29,6 +29,9 @@ import type {
   CostEstimate,
   DashboardSummary,
   DataSource,
+  DemographicMargin,
+  Election,
+  ElectionCalibrationResult,
   Error,
   EstimateInput,
   HealthStatus,
@@ -36,6 +39,7 @@ import type {
   Product,
   RegeneratePopulationInput,
   RegeneratePopulationResult,
+  Region,
   Simulation,
   SimulationDetail,
   SimulationInput,
@@ -1323,6 +1327,314 @@ export function useListCalibrations<TData = Awaited<ReturnType<typeof listCalibr
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListCalibrationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetElectionCalibrationUrl = () => {
+
+
+
+
+  return `/api/calibration/elections`
+}
+
+/**
+ * @summary Election-grounded calibration — synthetic prediction vs real results
+ */
+export const getElectionCalibration = async ( options?: RequestInit): Promise<ElectionCalibrationResult> => {
+
+  return customFetch<ElectionCalibrationResult>(getGetElectionCalibrationUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetElectionCalibrationQueryKey = () => {
+    return [
+    `/api/calibration/elections`
+    ] as const;
+    }
+
+
+export const getGetElectionCalibrationQueryOptions = <TData = Awaited<ReturnType<typeof getElectionCalibration>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getElectionCalibration>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetElectionCalibrationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getElectionCalibration>>> = ({ signal }) => getElectionCalibration({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getElectionCalibration>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetElectionCalibrationQueryResult = NonNullable<Awaited<ReturnType<typeof getElectionCalibration>>>
+export type GetElectionCalibrationQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Election-grounded calibration — synthetic prediction vs real results
+ */
+
+export function useGetElectionCalibration<TData = Awaited<ReturnType<typeof getElectionCalibration>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getElectionCalibration>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetElectionCalibrationQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListElectionsUrl = () => {
+
+
+
+
+  return `/api/elections`
+}
+
+/**
+ * @summary Real past election results used as calibration ground truth
+ */
+export const listElections = async ( options?: RequestInit): Promise<Election[]> => {
+
+  return customFetch<Election[]>(getListElectionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListElectionsQueryKey = () => {
+    return [
+    `/api/elections`
+    ] as const;
+    }
+
+
+export const getListElectionsQueryOptions = <TData = Awaited<ReturnType<typeof listElections>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listElections>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListElectionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listElections>>> = ({ signal }) => listElections({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listElections>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListElectionsQueryResult = NonNullable<Awaited<ReturnType<typeof listElections>>>
+export type ListElectionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Real past election results used as calibration ground truth
+ */
+
+export function useListElections<TData = Awaited<ReturnType<typeof listElections>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listElections>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListElectionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListRegionsUrl = () => {
+
+
+
+
+  return `/api/regions`
+}
+
+/**
+ * @summary The 17 시도 regions with geo + political metadata
+ */
+export const listRegions = async ( options?: RequestInit): Promise<Region[]> => {
+
+  return customFetch<Region[]>(getListRegionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRegionsQueryKey = () => {
+    return [
+    `/api/regions`
+    ] as const;
+    }
+
+
+export const getListRegionsQueryOptions = <TData = Awaited<ReturnType<typeof listRegions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRegions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRegionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRegions>>> = ({ signal }) => listRegions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRegions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRegionsQueryResult = NonNullable<Awaited<ReturnType<typeof listRegions>>>
+export type ListRegionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary The 17 시도 regions with geo + political metadata
+ */
+
+export function useListRegions<TData = Awaited<ReturnType<typeof listRegions>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRegions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRegionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListDemographicMarginsUrl = () => {
+
+
+
+
+  return `/api/admin/demographic-margins`
+}
+
+/**
+ * @summary Official region/age/gender marginals used as raking targets
+ */
+export const listDemographicMargins = async ( options?: RequestInit): Promise<DemographicMargin[]> => {
+
+  return customFetch<DemographicMargin[]>(getListDemographicMarginsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDemographicMarginsQueryKey = () => {
+    return [
+    `/api/admin/demographic-margins`
+    ] as const;
+    }
+
+
+export const getListDemographicMarginsQueryOptions = <TData = Awaited<ReturnType<typeof listDemographicMargins>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDemographicMargins>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDemographicMarginsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDemographicMargins>>> = ({ signal }) => listDemographicMargins({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDemographicMargins>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDemographicMarginsQueryResult = NonNullable<Awaited<ReturnType<typeof listDemographicMargins>>>
+export type ListDemographicMarginsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Official region/age/gender marginals used as raking targets
+ */
+
+export function useListDemographicMargins<TData = Awaited<ReturnType<typeof listDemographicMargins>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDemographicMargins>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDemographicMarginsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

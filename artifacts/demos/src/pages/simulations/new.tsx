@@ -27,7 +27,7 @@ export default function NewSimulation() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [estimateLoading, setEstimateLoading] = useState(false);
-  const [estimatedCost, setEstimatedCost] = useState<{min: number, max: number, time: number} | null>(null);
+  const [estimatedCost, setEstimatedCost] = useState<{min: number, max: number, time: number, totalAgents: number} | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -56,7 +56,8 @@ export default function NewSimulation() {
           setEstimatedCost({
             min: data.estimatedLowUsd,
             max: data.estimatedHighUsd,
-            time: data.estimatedSeconds
+            time: data.estimatedSeconds,
+            totalAgents: data.totalAgents
           });
           setEstimateLoading(false);
         },
@@ -88,7 +89,7 @@ export default function NewSimulation() {
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">새 시뮬레이션</h1>
-        <p className="text-muted-foreground mt-1">합성 인구 500명을 대상으로 실험을 설계하고 실행합니다.</p>
+        <p className="text-muted-foreground mt-1">전국 합성 인구를 대상으로 실험을 설계하고 실행합니다.</p>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
@@ -232,10 +233,10 @@ export default function NewSimulation() {
               ) : (
                 <div className="space-y-2">
                   <div className="text-2xl font-bold text-primary">
-                    ${(estimatedCost.min * 10).toFixed(2)} - ${(estimatedCost.max * 10).toFixed(2)}
+                    ${estimatedCost.min.toFixed(2)} - ${estimatedCost.max.toFixed(2)}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    대상 에이전트: 500명<br/>
+                    대상 에이전트: {estimatedCost.totalAgents.toLocaleString()}명<br/>
                     예상 소요 시간: 약 {estimatedCost.time}초
                   </div>
                 </div>

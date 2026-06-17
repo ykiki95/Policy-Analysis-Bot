@@ -45,6 +45,16 @@ export type IssueAdjustment = {
   noiseScale: number;
   /** Number of applied drivers contributing to this issue. */
   driverCount: number;
+  /**
+   * Reliability-weighted target mean stance (-100..100) the applied surveys
+   * imply for this issue, or null when no driver specified a target stance.
+   */
+  targetMean: number | null;
+  /**
+   * How strongly to rake the generated stance toward `targetMean` (0..0.85).
+   * Scales with driver weight and survey reliability (sample size).
+   */
+  targetPull: number;
 };
 
 export type SurveyAdjustments = Record<IssueKey, IssueAdjustment>;
@@ -52,9 +62,28 @@ export type SurveyAdjustments = Record<IssueKey, IssueAdjustment>;
 const MAX_WEIGHT = 1.5;
 const MULTIPLIER_GAIN = 0.5; // up to +75% coupling at MAX_WEIGHT
 const NOISE_REDUCTION = 0.25; // down to -25% noise at weight >= 1
+const MAX_PULL = 0.85;
+
+/**
+ * Map a survey sample size to a 0..1 reliability factor. Larger samples are
+ * weighted more strongly (margin-of-error style: reliability ≈ 1 − 1/√n,
+ * reaching ~0.97 around n=1000). Returns 0.5 when the sample size is unknown.
+ */
+export function reliabilityFromSampleSize(sampleSize: number | null | undefined): number {
+  const n = typeof sampleSize === "number" && Number.isFinite(sampleSize) ? sampleSize : 0;
+  if (n <= 0) return 0.5;
+  return Math.max(0, Math.min(1, 1 - 1 / Math.sqrt(n)));
+}
 
 function emptyAdjustment(): IssueAdjustment {
-  return { weightSum: 0, multiplier: 1, noiseScale: 1, driverCount: 0 };
+  return {
+    weightSum: 0,
+    multiplier: 1,
+    noiseScale: 1,
+    driverCount: 0,
+    targetMean: null,
+    targetPull: 0,
+  };
 }
 
 export function emptyAdjustments(): SurveyAdjustments {
@@ -75,19 +104,45 @@ export function emptyAdjustments(): SurveyAdjustments {
  * that makes the population's stance on that issue more confident.
  */
 export function computeSurveyAdjustments(
-  surveys: Pick<Survey, "appliedToPopulation" | "drivers">[],
+  surveys: Pick<Survey, "appliedToPopulation" | "drivers" | "sampleSize">[],
 ): SurveyAdjustments {
   const adj = emptyAdjustments();
+  // Reliability-weighted accumulators for the target stance per issue.
+  const targetNum: Record<IssueKey, number> = {
+    economy: 0,
+    welfare: 0,
+    security: 0,
+    environment: 0,
+    housing: 0,
+  };
+  const targetDen: Record<IssueKey, number> = {
+    economy: 0,
+    welfare: 0,
+    security: 0,
+    environment: 0,
+    housing: 0,
+  };
+
   for (const survey of surveys) {
     if (!survey.appliedToPopulation) continue;
+    const reliability = reliabilityFromSampleSize(survey.sampleSize);
     const drivers: SurveyDriver[] = survey.drivers ?? [];
     for (const d of drivers) {
       const key = issueToKey(d.issue);
       if (!key) continue;
       const w = typeof d.weight === "number" ? d.weight : Number(d.weight);
       if (!Number.isFinite(w) || w <= 0) continue;
-      adj[key].weightSum += w;
+      // Bigger samples contribute more coupling weight.
+      adj[key].weightSum += w * reliability;
       adj[key].driverCount += 1;
+
+      const ts =
+        typeof d.targetStance === "number" ? d.targetStance : Number(d.targetStance);
+      if (Number.isFinite(ts)) {
+        const wgt = w * reliability;
+        targetNum[key] += Math.max(-100, Math.min(100, ts)) * wgt;
+        targetDen[key] += wgt;
+      }
     }
   }
   for (const key of ISSUE_KEYS) {
@@ -97,6 +152,11 @@ export function computeSurveyAdjustments(
       Math.round((1 + MULTIPLIER_GAIN * capped) * 1000) / 1000;
     adj[key].noiseScale =
       Math.round((1 - NOISE_REDUCTION * Math.min(capped, 1)) * 1000) / 1000;
+    if (targetDen[key] > 0) {
+      adj[key].targetMean = Math.round(targetNum[key] / targetDen[key]);
+      adj[key].targetPull =
+        Math.round(Math.min(MAX_PULL, targetDen[key] / MAX_WEIGHT) * 1000) / 1000;
+    }
   }
   return adj;
 }

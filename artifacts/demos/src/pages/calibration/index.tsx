@@ -1,9 +1,132 @@
-import { useListCalibrations } from "@workspace/api-client-react";
+import { useListCalibrations, useGetElectionCalibration } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
 import { Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+
+function ElectionCalibrationView() {
+  const { data, isLoading } = useGetElectionCalibration();
+
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-3">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+
+  const chartData = data.rows
+    .filter((r) => r.leaning === "conservative")
+    .map((r) => ({
+      name: r.regionName.replace(/(특별자치도|특별자치시|특별시|광역시|도)$/u, ""),
+      rawError: r.rawError,
+      calibratedError: r.calibratedError,
+    }));
+
+  return (
+    <div className="space-y-6">
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertTitle>실제 선거 결과 기반 검증</AlertTitle>
+        <AlertDescription>
+          합성 인구의 투표 성향(투표 의향 가중 로지스틱)으로 시·도별 득표율을 예측한 뒤,
+          실제 <strong>{data.rows[0]?.electionName ?? "과거 선거"}</strong> 결과와 비교합니다.
+          사후 층화·축소(shrinkage {data.shrinkageFactor})로 원시 예측을 보정합니다.
+        </AlertDescription>
+      </Alert>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">보정 방법</CardTitle></CardHeader>
+          <CardContent><div className="text-base font-semibold">{data.method}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">평균 원시 오차</CardTitle></CardHeader>
+          <CardContent><div className="text-3xl font-bold text-muted-foreground">{data.avgRawError.toFixed(2)}%p</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">평균 보정 오차</CardTitle></CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-primary">{data.avgCalibratedError.toFixed(2)}%p</div>
+            <p className="text-xs text-muted-foreground mt-1">사후 층화 보정 후</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>시·도별 예측 오차 (보수 후보 득표율)</CardTitle>
+          <CardDescription>원시 예측과 보정 예측의 오차(%p) 비교</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[360px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-35} textAnchor="end" height={60} />
+                <YAxis tickFormatter={(v) => `${v}`} />
+                <RechartsTooltip cursor={{ fill: "rgba(0,0,0,0.05)" }} />
+                <Legend />
+                <Bar dataKey="rawError" name="원시 오차" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="calibratedError" name="보정 오차" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>예측 vs 실제 상세</CardTitle>
+          <CardDescription>{data.rows[0]?.electionName} · {data.rows[0]?.electionDate}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="border rounded-md overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>지역</TableHead>
+                  <TableHead>진영</TableHead>
+                  <TableHead className="text-right">실제</TableHead>
+                  <TableHead className="text-right">원시 예측</TableHead>
+                  <TableHead className="text-right">보정 예측</TableHead>
+                  <TableHead className="text-right">원시 오차</TableHead>
+                  <TableHead className="text-right">보정 오차</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.rows.map((r) => (
+                  <TableRow key={`${r.electionId}-${r.regionCode}-${r.leaning}`}>
+                    <TableCell className="font-medium">{r.regionName}</TableCell>
+                    <TableCell>
+                      <Badge variant={r.leaning === "conservative" ? "destructive" : "default"}>
+                        {r.leaning === "conservative" ? "보수" : "진보"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{r.actualValue}%</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{r.rawPrediction}%</TableCell>
+                    <TableCell className="text-right tabular-nums font-semibold text-primary">{r.calibratedPrediction}%</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{r.rawError}</TableCell>
+                    <TableCell className="text-right tabular-nums">{r.calibratedError}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 export default function Calibration() {
   const { data: calibrations, isLoading } = useListCalibrations();
@@ -37,9 +160,20 @@ export default function Calibration() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">보정 및 검증</h1>
-        <p className="text-muted-foreground mt-1">과거 가상 이벤트 기반의 모델 신뢰도 평가</p>
+        <p className="text-muted-foreground mt-1">실제 선거 결과 및 과거 가상 이벤트 기반의 모델 신뢰도 평가</p>
       </div>
 
+      <Tabs defaultValue="elections">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="elections">실제 선거 검증</TabsTrigger>
+          <TabsTrigger value="events">가상 이벤트 검증</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="elections" className="mt-6">
+          <ElectionCalibrationView />
+        </TabsContent>
+
+        <TabsContent value="events" className="mt-6 space-y-8">
       <Alert>
         <Info className="h-4 w-4" />
         <AlertTitle>신뢰도의 근거</AlertTitle>
@@ -137,6 +271,8 @@ export default function Calibration() {
           ))}
         </div>
       </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

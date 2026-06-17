@@ -39,10 +39,10 @@ function normalizeStance(value: unknown, score: number): AgentVerdict["stance"] 
 function buildPrompt(agent: Agent, sim: Simulation): string {
   const stances = agent.issueStances;
   return [
-    `당신은 대한민국 서울에 거주하는 시민 페르소나입니다. 아래 인물의 입장에서 정책/메시지에 대한 반응을 평가하세요.`,
+    `당신은 대한민국에 거주하는 시민 페르소나입니다. 아래 인물의 입장에서 정책/메시지에 대한 반응을 평가하세요.`,
     `이름: ${agent.name}`,
     `나이: ${agent.age} (${agent.ageBracket}), 성별: ${agent.gender}`,
-    `거주 자치구: ${agent.district}`,
+    `거주 지역(시·도): ${agent.district}`,
     `학력: ${agent.education}, 소득: ${agent.incomeBracket}, 직업: ${agent.occupation}, 가구형태: ${agent.householdType}`,
     `정치성향(-100 진보 ~ +100 보수): ${agent.politicalLeaning}, 지지정당 성향: ${agent.partyAffinity}, 투표 성향(0~100): ${agent.turnoutPropensity}`,
     `이슈별 입장(0~100): 경제 ${stances.economy}, 복지 ${stances.welfare}, 안보 ${stances.security}, 환경 ${stances.environment}, 주거 ${stances.housing}`,
@@ -121,7 +121,7 @@ function buildSummary(
       : opposePct >= 55
         ? "전반적으로 부정적인 반응"
         : "찬반이 팽팽하게 갈리는 반응";
-  return `서울 합성 인구 ${sim.totalAgents}명 시뮬레이션 결과 ${verdict}이 나타났습니다. 찬성 ${supportPct}%, 반대 ${opposePct}%, 중립 ${neutralPct}%로, ${topDistrict} 지역에서 지지가 가장 높았습니다.`;
+  return `전국 합성 인구 ${sim.totalAgents}명 시뮬레이션 결과 ${verdict}이 나타났습니다. 찬성 ${supportPct}%, 반대 ${opposePct}%, 중립 ${neutralPct}%로, ${topDistrict} 지역에서 지지가 가장 높았습니다.`;
 }
 
 export async function runSimulation(simulationId: number): Promise<void> {

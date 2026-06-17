@@ -126,6 +126,11 @@ export const GetAgentResponse = zod.object({
 /**
  * @summary List survey instruments used to train the attitude model
  */
+export const listSurveysResponseDriversItemTargetStanceMin = -100;
+export const listSurveysResponseDriversItemTargetStanceMax = 100;
+
+
+
 export const ListSurveysResponseItem = zod.object({
   "id": zod.number(),
   "title": zod.string(),
@@ -139,7 +144,8 @@ export const ListSurveysResponseItem = zod.object({
   "factor": zod.string(),
   "issue": zod.string(),
   "weight": zod.number(),
-  "direction": zod.string()
+  "direction": zod.string(),
+  "targetStance": zod.number().min(listSurveysResponseDriversItemTargetStanceMin).max(listSurveysResponseDriversItemTargetStanceMax).optional()
 })),
   "appliedToPopulation": zod.boolean(),
   "createdAt": zod.string()
@@ -150,6 +156,9 @@ export const ListSurveysResponse = zod.array(ListSurveysResponseItem)
 /**
  * @summary Create a survey criterion with attitude drivers
  */
+
+export const createSurveyBodyDriversItemTargetStanceMin = -100;
+export const createSurveyBodyDriversItemTargetStanceMax = 100;
 
 
 
@@ -165,7 +174,8 @@ export const CreateSurveyBody = zod.object({
   "factor": zod.string(),
   "issue": zod.string(),
   "weight": zod.number(),
-  "direction": zod.string()
+  "direction": zod.string(),
+  "targetStance": zod.number().min(createSurveyBodyDriversItemTargetStanceMin).max(createSurveyBodyDriversItemTargetStanceMax).optional()
 }))
 })
 
@@ -176,6 +186,11 @@ export const CreateSurveyBody = zod.object({
 export const GetSurveyParams = zod.object({
   "id": zod.coerce.number()
 })
+
+export const getSurveyResponseDriversItemTargetStanceMin = -100;
+export const getSurveyResponseDriversItemTargetStanceMax = 100;
+
+
 
 export const GetSurveyResponse = zod.object({
   "id": zod.number(),
@@ -190,7 +205,8 @@ export const GetSurveyResponse = zod.object({
   "factor": zod.string(),
   "issue": zod.string(),
   "weight": zod.number(),
-  "direction": zod.string()
+  "direction": zod.string(),
+  "targetStance": zod.number().min(getSurveyResponseDriversItemTargetStanceMin).max(getSurveyResponseDriversItemTargetStanceMax).optional()
 })),
   "appliedToPopulation": zod.boolean(),
   "createdAt": zod.string()
@@ -216,6 +232,11 @@ export const SetSurveyAppliedBody = zod.object({
   "appliedToPopulation": zod.boolean()
 })
 
+export const setSurveyAppliedResponseDriversItemTargetStanceMin = -100;
+export const setSurveyAppliedResponseDriversItemTargetStanceMax = 100;
+
+
+
 export const SetSurveyAppliedResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
@@ -229,7 +250,8 @@ export const SetSurveyAppliedResponse = zod.object({
   "factor": zod.string(),
   "issue": zod.string(),
   "weight": zod.number(),
-  "direction": zod.string()
+  "direction": zod.string(),
+  "targetStance": zod.number().min(setSurveyAppliedResponseDriversItemTargetStanceMin).max(setSurveyAppliedResponseDriversItemTargetStanceMax).optional()
 })),
   "appliedToPopulation": zod.boolean(),
   "createdAt": zod.string()
@@ -422,6 +444,75 @@ export const ListCalibrationsResponse = zod.array(ListCalibrationsResponseItem)
 
 
 /**
+ * @summary Election-grounded calibration — synthetic prediction vs real results
+ */
+export const GetElectionCalibrationResponse = zod.object({
+  "method": zod.string(),
+  "shrinkageFactor": zod.number(),
+  "avgRawError": zod.number(),
+  "avgCalibratedError": zod.number(),
+  "rows": zod.array(zod.object({
+  "electionId": zod.number(),
+  "electionName": zod.string(),
+  "electionDate": zod.string(),
+  "regionCode": zod.string(),
+  "regionName": zod.string(),
+  "metric": zod.string(),
+  "leaning": zod.string(),
+  "actualValue": zod.number(),
+  "rawPrediction": zod.number(),
+  "calibratedPrediction": zod.number(),
+  "rawError": zod.number(),
+  "calibratedError": zod.number()
+}))
+})
+
+
+/**
+ * @summary Real past election results used as calibration ground truth
+ */
+export const ListElectionsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "electionType": zod.string(),
+  "electionDate": zod.string(),
+  "regionCode": zod.string(),
+  "metric": zod.string(),
+  "leaning": zod.string(),
+  "actualValue": zod.number()
+})
+export const ListElectionsResponse = zod.array(ListElectionsResponseItem)
+
+
+/**
+ * @summary The 17 시도 regions with geo + political metadata
+ */
+export const ListRegionsResponseItem = zod.object({
+  "code": zod.string(),
+  "name": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number(),
+  "leaningBias": zod.number(),
+  "macroRegion": zod.string(),
+  "displayOrder": zod.number()
+})
+export const ListRegionsResponse = zod.array(ListRegionsResponseItem)
+
+
+/**
+ * @summary Official region/age/gender marginals used as raking targets
+ */
+export const ListDemographicMarginsResponseItem = zod.object({
+  "id": zod.number(),
+  "dimension": zod.string(),
+  "key": zod.string(),
+  "label": zod.string(),
+  "population": zod.number()
+})
+export const ListDemographicMarginsResponse = zod.array(ListDemographicMarginsResponseItem)
+
+
+/**
  * @summary Product lines mapped to audiences
  */
 export const ListProductsResponseItem = zod.object({
@@ -495,11 +586,13 @@ export const regeneratePopulationBodyCountMax = 5000;
 
 export const RegeneratePopulationBody = zod.object({
   "count": zod.number().min(regeneratePopulationBodyCountMin).max(regeneratePopulationBodyCountMax),
-  "seed": zod.number().optional()
+  "seed": zod.number().optional(),
+  "regionScope": zod.string().optional().describe('Region code (시도) to scope generation to, or \"NATIONAL\" for all 17 regions.')
 })
 
 export const RegeneratePopulationResponse = zod.object({
-  "total": zod.number()
+  "total": zod.number(),
+  "scope": zod.string().optional()
 })
 
 
@@ -640,13 +733,19 @@ export const SuggestSurveyDriversBody = zod.object({
   "sampleRows": zod.array(zod.record(zod.string(), zod.string()))
 })
 
+export const suggestSurveyDriversResponseDriversItemTargetStanceMin = -100;
+export const suggestSurveyDriversResponseDriversItemTargetStanceMax = 100;
+
+
+
 export const SuggestSurveyDriversResponse = zod.object({
   "summary": zod.string(),
   "drivers": zod.array(zod.object({
   "factor": zod.string(),
   "issue": zod.string(),
   "weight": zod.number(),
-  "direction": zod.string()
+  "direction": zod.string(),
+  "targetStance": zod.number().min(suggestSurveyDriversResponseDriversItemTargetStanceMin).max(suggestSurveyDriversResponseDriversItemTargetStanceMax).optional()
 }))
 })
 
@@ -662,7 +761,9 @@ export const GetSurveyImpactResponse = zod.object({
   "weightSum": zod.number(),
   "multiplier": zod.number(),
   "noiseScale": zod.number(),
-  "driverCount": zod.number()
+  "driverCount": zod.number(),
+  "targetMean": zod.number().nullish(),
+  "targetPull": zod.number().optional()
 }))
 })
 

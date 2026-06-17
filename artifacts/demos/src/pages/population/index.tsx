@@ -81,7 +81,7 @@ export default function Population() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">합성 인구</h1>
-        <p className="text-muted-foreground mt-1">서울 시민 {summary.total.toLocaleString()}명의 인구통계 및 지리적 분포</p>
+        <p className="text-muted-foreground mt-1">전국 17개 시·도 합성 시민 {summary.total.toLocaleString()}명의 인구통계 및 지리적 분포</p>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
@@ -92,8 +92,8 @@ export default function Population() {
           <CardContent>
             <div className="relative w-full h-[460px] rounded-lg overflow-hidden border z-0">
               <MapContainer
-                center={[37.5665, 126.978]}
-                zoom={11}
+                center={[36.5, 127.8]}
+                zoom={7}
                 scrollWheelZoom={false}
                 style={{ height: "100%", width: "100%" }}
               >
@@ -183,11 +183,11 @@ export default function Population() {
                 />
               </div>
               <Select value={district} onValueChange={(v) => { setDistrict(v); resetPage(); }}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="자치구" />
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="지역" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">전체 구</SelectItem>
+                  <SelectItem value="all">전체 지역</SelectItem>
                   {summary.byDistrict.map((d) => (
                     <SelectItem key={d.key} value={d.key}>{d.key}</SelectItem>
                   ))}
@@ -242,7 +242,7 @@ export default function Population() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>이름</TableHead>
-                      <TableHead>자치구</TableHead>
+                      <TableHead>지역</TableHead>
                       <TableHead>연령대</TableHead>
                       <TableHead>성별</TableHead>
                       <TableHead>직업</TableHead>

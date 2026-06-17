@@ -13,4 +13,6 @@ export interface RegeneratePopulationInput {
      */
   count: number;
   seed?: number;
+  /** Region code (시도) to scope generation to, or "NATIONAL" for all 17 regions. */
+  regionScope?: string;
 }

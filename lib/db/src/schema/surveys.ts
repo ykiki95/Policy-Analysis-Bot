@@ -14,6 +14,12 @@ export type SurveyDriver = {
   issue: string;
   weight: number;
   direction: string;
+  /**
+   * Optional target stance (-100..100) the survey distribution implies for this
+   * issue. When present, generation rakes the population's mean stance on the
+   * issue toward this value (pull strength scales with weight × reliability).
+   */
+  targetStance?: number;
 };
 
 export const surveysTable = pgTable("surveys", {

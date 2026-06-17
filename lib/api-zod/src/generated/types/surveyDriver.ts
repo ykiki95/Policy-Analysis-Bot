@@ -11,4 +11,9 @@ export interface SurveyDriver {
   issue: string;
   weight: number;
   direction: string;
+  /**
+     * @minimum -100
+     * @maximum 100
+     */
+  targetStance?: number;
 }

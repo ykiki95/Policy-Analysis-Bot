@@ -65,6 +65,11 @@ export interface SurveyDriver {
   issue: string;
   weight: number;
   direction: string;
+  /**
+     * @minimum -100
+     * @maximum 100
+     */
+  targetStance?: number;
 }
 
 export interface Survey {
@@ -118,6 +123,8 @@ export interface SurveyImpactItem {
   multiplier: number;
   noiseScale: number;
   driverCount: number;
+  targetMean?: number | null;
+  targetPull?: number;
 }
 
 export interface SurveyImpactResult {
@@ -287,10 +294,65 @@ export interface RegeneratePopulationInput {
      */
   count: number;
   seed?: number;
+  /** Region code (시도) to scope generation to, or "NATIONAL" for all 17 regions. */
+  regionScope?: string;
 }
 
 export interface RegeneratePopulationResult {
   total: number;
+  scope?: string;
+}
+
+export interface Region {
+  code: string;
+  name: string;
+  lat: number;
+  lng: number;
+  leaningBias: number;
+  macroRegion: string;
+  displayOrder: number;
+}
+
+export interface DemographicMargin {
+  id: number;
+  dimension: string;
+  key: string;
+  label: string;
+  population: number;
+}
+
+export interface Election {
+  id: number;
+  name: string;
+  electionType: string;
+  electionDate: string;
+  regionCode: string;
+  metric: string;
+  leaning: string;
+  actualValue: number;
+}
+
+export interface ElectionCalibrationRow {
+  electionId: number;
+  electionName: string;
+  electionDate: string;
+  regionCode: string;
+  regionName: string;
+  metric: string;
+  leaning: string;
+  actualValue: number;
+  rawPrediction: number;
+  calibratedPrediction: number;
+  rawError: number;
+  calibratedError: number;
+}
+
+export interface ElectionCalibrationResult {
+  method: string;
+  shrinkageFactor: number;
+  avgRawError: number;
+  avgCalibratedError: number;
+  rows: ElectionCalibrationRow[];
 }
 
 export interface SurveyUploadColumn {
