@@ -1,4 +1,5 @@
-import { pgTable, serial, text, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, jsonb } from "drizzle-orm/pg-core";
+import type { AgentPolicyStances } from "./agents";
 
 export const simulationResponsesTable = pgTable("simulation_responses", {
   id: serial("id").primaryKey(),
@@ -9,6 +10,13 @@ export const simulationResponsesTable = pgTable("simulation_responses", {
   ageBracket: text("age_bracket").notNull(),
   gender: text("gender").notNull(),
   politicalLeaning: integer("political_leaning").notNull().default(0),
+  /**
+   * Policy-attitude snapshot (정부신뢰/정책수용성/증세수용/규제선호/공공서비스만족)
+   * captured at response time for Seraph (policy) simulations so policy-axis
+   * cross-analysis stays stable across population regeneration. Null for
+   * non-policy simulations.
+   */
+  policyStances: jsonb("policy_stances").$type<AgentPolicyStances>(),
   stance: text("stance").notNull(),
   score: integer("score").notNull(),
   confidence: integer("confidence").notNull(),

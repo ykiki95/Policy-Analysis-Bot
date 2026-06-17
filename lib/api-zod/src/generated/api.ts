@@ -432,7 +432,19 @@ export const GetSimulationResponse = zod.object({
   "opposePct": zod.number(),
   "neutralPct": zod.number(),
   "avgScore": zod.number()
+})),
+  "byPolicyAxis": zod.array(zod.object({
+  "axis": zod.string(),
+  "label": zod.string(),
+  "segments": zod.array(zod.object({
+  "key": zod.string(),
+  "count": zod.number(),
+  "supportPct": zod.number(),
+  "opposePct": zod.number(),
+  "neutralPct": zod.number(),
+  "avgScore": zod.number()
 }))
+})).optional().describe('Seraph(policy) simulations only — support\/acceptance segmented by each policy attitude axis (상\/중\/하). Absent for non-policy sims.')
 })
 })
 

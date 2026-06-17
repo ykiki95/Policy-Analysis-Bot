@@ -27,6 +27,7 @@ export * from './groupResult';
 export * from './healthStatus';
 export * from './issueStances';
 export * from './listAgentsParams';
+export * from './policyAxisResult';
 export * from './policyStances';
 export * from './product';
 export * from './regeneratePopulationInput';

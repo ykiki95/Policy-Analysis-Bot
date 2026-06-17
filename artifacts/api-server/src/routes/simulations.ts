@@ -26,6 +26,10 @@ import {
   isSupportedModel,
 } from "../lib/pricing";
 import { runSimulation } from "../lib/simulationEngine";
+import {
+  POLICY_AXIS_KEYS,
+  POLICY_AXIS_LABELS,
+} from "../lib/policyWeighting";
 
 const router: IRouter = Router();
 
@@ -34,6 +38,14 @@ function leaningBucket(leaning: number): string {
   if (leaning >= 34) return "보수";
   return "중도";
 }
+
+function policyAxisBucket(value: number): string {
+  if (value >= 67) return "상";
+  if (value <= 33) return "하";
+  return "중";
+}
+
+const POLICY_BUCKET_ORDER: Record<string, number> = { 상: 0, 중: 1, 하: 2 };
 
 async function countAgents(): Promise<number> {
   const rows = await db.select({ id: agentsTable.id }).from(agentsTable);
@@ -117,17 +129,25 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
       ageBracket: simulationResponsesTable.ageBracket,
       gender: simulationResponsesTable.gender,
       politicalLeaning: simulationResponsesTable.politicalLeaning,
+      policyStances: simulationResponsesTable.policyStances,
     })
     .from(simulationResponsesTable)
     .where(eq(simulationResponsesTable.simulationId, params.data.id));
 
   type Row = (typeof rows)[number];
-  const group = (keyFn: (r: Row) => string) => {
+  const pct = (part: number, total: number) =>
+    total === 0 ? 0 : Math.round((part / total) * 1000) / 10;
+
+  const groupBy = (
+    source: Row[],
+    keyFn: (r: Row) => string,
+    sortFn?: (a: { key: string }, b: { key: string }) => number,
+  ) => {
     const map = new Map<
       string,
       { count: number; support: number; oppose: number; neutral: number; scoreSum: number }
     >();
-    for (const r of rows) {
+    for (const r of source) {
       const key = keyFn(r);
       const e =
         map.get(key) ?? {
@@ -144,19 +164,36 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
       else e.neutral += 1;
       map.set(key, e);
     }
-    const pct = (part: number, total: number) =>
-      total === 0 ? 0 : Math.round((part / total) * 1000) / 10;
-    return Array.from(map.entries())
-      .map(([key, e]) => ({
-        key,
-        count: e.count,
-        supportPct: pct(e.support, e.count),
-        opposePct: pct(e.oppose, e.count),
-        neutralPct: pct(e.neutral, e.count),
-        avgScore: Math.round((e.scoreSum / e.count) * 10) / 10,
-      }))
-      .sort((a, b) => b.count - a.count);
+    const out = Array.from(map.entries()).map(([key, e]) => ({
+      key,
+      count: e.count,
+      supportPct: pct(e.support, e.count),
+      opposePct: pct(e.oppose, e.count),
+      neutralPct: pct(e.neutral, e.count),
+      avgScore: Math.round((e.scoreSum / e.count) * 10) / 10,
+    }));
+    return out.sort(sortFn ?? ((a, b) => b.count - a.count));
   };
+  const group = (keyFn: (r: Row) => string) => groupBy(rows, keyFn);
+
+  // Policy-axis cross-analysis: only when this is a Seraph (policy) sim and the
+  // responses carry the policy snapshot captured at run time.
+  const isPolicy = sim.product?.toLowerCase() === "seraph";
+  const policyRows = isPolicy ? rows.filter((r) => r.policyStances != null) : [];
+  const byPolicyAxis =
+    policyRows.length > 0
+      ? POLICY_AXIS_KEYS.map((axis) => ({
+          axis,
+          label: POLICY_AXIS_LABELS[axis],
+          segments: groupBy(
+            policyRows,
+            (r) => policyAxisBucket(r.policyStances?.[axis] ?? 50),
+            (a, b) =>
+              (POLICY_BUCKET_ORDER[a.key] ?? 99) -
+              (POLICY_BUCKET_ORDER[b.key] ?? 99),
+          ),
+        }))
+      : undefined;
 
   res.json(
     GetSimulationResponse.parse(
@@ -167,6 +204,7 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
           byAgeBracket: group((r) => r.ageBracket),
           byGender: group((r) => r.gender),
           byLeaning: group((r) => leaningBucket(r.politicalLeaning)),
+          ...(byPolicyAxis ? { byPolicyAxis } : {}),
         },
       }),
     ),

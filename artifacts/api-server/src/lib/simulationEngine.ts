@@ -265,6 +265,7 @@ export async function runSimulation(simulationId: number): Promise<void> {
       },
     );
 
+    const snapshotPolicy = isPolicySim(sim);
     const rows: InsertSimulationResponse[] = results.map(
       ({ agent, verdict }) => ({
         simulationId,
@@ -274,6 +275,7 @@ export async function runSimulation(simulationId: number): Promise<void> {
         ageBracket: agent.ageBracket,
         gender: agent.gender,
         politicalLeaning: agent.politicalLeaning,
+        policyStances: snapshotPolicy ? agent.policyStances : null,
         stance: verdict.stance,
         score: verdict.score,
         confidence: verdict.confidence,

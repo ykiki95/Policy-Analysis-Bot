@@ -235,6 +235,38 @@ export default function SimulationDetail() {
             </CardContent>
           </Card>
 
+          {simDetail.results.byPolicyAxis && simDetail.results.byPolicyAxis.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>정책 축별 수용도</CardTitle>
+                <CardDescription>
+                  정책 성향(정부신뢰·증세수용·규제선호 등) 상/중/하 그룹별 수용·거부 분포입니다. 정책 의사결정 시 어떤 시민층에서 수용도가 높고 낮은지 파악할 수 있습니다.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {simDetail.results.byPolicyAxis.map((axis) => (
+                    <div key={axis.axis} className="space-y-2">
+                      <h4 className="text-sm font-semibold">{axis.label}</h4>
+                      <div className="h-[160px] w-full">
+                        <ResponsiveContainer>
+                          <BarChart data={axis.segments} layout="vertical" margin={{ left: 10, right: 10 }} barCategoryGap="30%">
+                            <XAxis type="number" hide domain={[0, 100]} />
+                            <YAxis dataKey="key" type="category" axisLine={false} tickLine={false} fontSize={12} width={28} />
+                            <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
+                            <Bar dataKey="supportPct" stackId="a" fill="#22c55e" name="수용 %" maxBarSize={22} />
+                            <Bar dataKey="neutralPct" stackId="a" fill="#9ca3af" name="중립 %" maxBarSize={22} />
+                            <Bar dataKey="opposePct" stackId="a" fill="#ef4444" name="거부 %" maxBarSize={22} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

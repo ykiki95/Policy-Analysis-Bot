@@ -243,11 +243,19 @@ export interface GroupResult {
   avgScore: number;
 }
 
+export interface PolicyAxisResult {
+  axis: string;
+  label: string;
+  segments: GroupResult[];
+}
+
 export interface SimulationResults {
   byDistrict: GroupResult[];
   byAgeBracket: GroupResult[];
   byGender: GroupResult[];
   byLeaning: GroupResult[];
+  /** Seraph(policy) simulations only — support/acceptance segmented by each policy attitude axis (상/중/하). Absent for non-policy sims. */
+  byPolicyAxis?: PolicyAxisResult[];
 }
 
 export interface SimulationDetail {
