@@ -50,6 +50,16 @@ export type GenerationInputs = {
   consumerAdjustments?: ConsumerAdjustments;
   /** Policy-axis raking adjustments derived from policy-domain surveys. */
   policyAdjustments?: PolicyAdjustments;
+  /**
+   * 입력 보정(Lever 1) 기준선 이동량. 검증 이벤트의 평균 편향에서 환산된
+   * 결정론적 가산 이동 — political 은 정치성향(leaning), consumer/policy 는
+   * 각 성향 축의 최종값에 더해진다. PRNG 스트림은 건드리지 않는다.
+   */
+  calibrationOffsets?: {
+    political: number;
+    consumer: number;
+    policy: number;
+  };
 };
 
 const AGE_RANGES: Record<string, { min: number; max: number }> = {
@@ -194,6 +204,7 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
     adjustments = emptyAdjustments(),
     consumerAdjustments = emptyConsumerAdjustments(),
     policyAdjustments = emptyPolicyAdjustments(),
+    calibrationOffsets = { political: 0, consumer: 0, policy: 0 },
   } = inputs;
 
   const regionByCode = new Map(regions.map((r) => [r.code, r]));
@@ -235,7 +246,14 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
 
       const ageLeaning = (age - 45) * 0.9;
       const leaning = Math.round(
-        clamp(ageLeaning + region.leaningBias + gaussian(rand) * 22, -100, 100),
+        clamp(
+          ageLeaning +
+            region.leaningBias +
+            gaussian(rand) * 22 +
+            calibrationOffsets.political,
+          -100,
+          100,
+        ),
       );
 
       const turnoutBase = 45 + (age - 18) * 0.7;
@@ -284,7 +302,9 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
           c.targetMean !== null && c.targetPull > 0
             ? base * (1 - c.targetPull) + c.targetMean * c.targetPull
             : base;
-        return Math.round(clamp(raked + noise, 0, 100));
+        return Math.round(
+          clamp(raked + noise + calibrationOffsets.consumer, 0, 100),
+        );
       };
       const consumerStances: AgentConsumerStances = {
         priceSensitivity: consumerStance(
@@ -316,7 +336,9 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
           p.targetMean !== null && p.targetPull > 0
             ? base * (1 - p.targetPull) + p.targetMean * p.targetPull
             : base;
-        return Math.round(clamp(raked + noise, 0, 100));
+        return Math.round(
+          clamp(raked + noise + calibrationOffsets.policy, 0, 100),
+        );
       };
       const policyStances: AgentPolicyStances = {
         governmentTrust: policyStance(

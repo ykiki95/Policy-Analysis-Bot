@@ -13,6 +13,7 @@ export interface CalibrationSettings {
   recencyWeight: number;
   shrinkageFactor: number;
   outlierTrimPct: number;
+  applyToPopulation: boolean;
   description: string;
   updatedAt: string;
 }

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Clock, CheckCircle2, Trash2, Loader2, DollarSign, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle2, Trash2, Loader2, DollarSign, Search, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import {
   AlertDialog,
@@ -213,6 +213,57 @@ export default function SimulationDetail() {
               </CardContent>
             </Card>
           </div>
+
+          {simDetail.calibration && (
+            simDetail.calibration.applied &&
+            simDetail.calibration.calibratedSupportPct != null ? (
+              <Card className="border-primary/40 bg-primary/5">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <CardTitle className="text-base">예측 보정 (출력)</CardTitle>
+                    <Badge variant="secondary" className="ml-1">자동</Badge>
+                  </div>
+                  <CardDescription>
+                    {sim.product}의 과거 검증 {simDetail.calibration.eventCount}건에서 학습한 평균 편향
+                    {" "}{simDetail.calibration.meanBias > 0 ? "+" : ""}{simDetail.calibration.meanBias}%p를
+                    축소 계수 {simDetail.calibration.shrinkage}로 적용해 원시 예측을 교정했습니다.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 max-w-md">
+                    <div className="rounded-lg border bg-card p-4">
+                      <p className="text-xs text-muted-foreground mb-1">원시 찬성률</p>
+                      <div className="text-3xl font-bold text-muted-foreground">{sim.supportPct}%</div>
+                    </div>
+                    <div className="rounded-lg border border-primary bg-card p-4">
+                      <p className="text-xs text-primary mb-1">보정 찬성률</p>
+                      <div className="text-3xl font-bold text-primary">
+                        {simDetail.calibration.calibratedSupportPct}%
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {(() => {
+                          const d = simDetail.calibration.calibratedSupportPct - (sim.supportPct ?? 0);
+                          return `${d > 0 ? "▲ +" : d < 0 ? "▼ " : ""}${Math.abs(d) < 0.05 ? "0" : d.toFixed(1)}%p`;
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="py-5 flex items-start gap-3 text-sm text-muted-foreground">
+                  <Sparkles className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>
+                    출력 보정 미적용 — {sim.product}의 검증 이벤트가{" "}
+                    {simDetail.calibration.eventCount}건뿐입니다. 보정 및 검증 화면에서 과거 실제 결과를 2건 이상 등록하면
+                    원시 예측을 자동 교정한 <strong>보정 찬성률</strong>이 함께 표시됩니다.
+                  </span>
+                </CardContent>
+              </Card>
+            )
+          )}
 
           <Card>
             <CardHeader>

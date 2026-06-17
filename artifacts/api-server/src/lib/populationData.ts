@@ -4,11 +4,14 @@ import {
   regionsTable,
   demographicMarginsTable,
   surveysTable,
+  calibrationsTable,
+  calibrationSettingsTable,
   type Region,
 } from "@workspace/db";
 import { computeSurveyAdjustments } from "./surveyWeighting";
 import { computeConsumerAdjustments } from "./consumerWeighting";
 import { computePolicyAdjustments } from "./policyWeighting";
+import { computeCalibrationOffsets } from "./calibrationWeighting";
 import type { GenerationInputs, RegionMeta } from "./agentGenerator";
 import type { Marginal } from "./raking";
 
@@ -76,6 +79,18 @@ export async function buildGenerationInputs(
   const consumerAdjustments = computeConsumerAdjustments(surveys);
   const policyAdjustments = computePolicyAdjustments(surveys);
 
+  // 입력 보정(Lever 1): 토글이 켜져 있으면 검증 이벤트 편향을 페르소나
+  // 기준선 이동량으로 환산해 주입한다. 꺼져 있으면 모두 0.
+  const [calibrationEvents, [settings]] = await Promise.all([
+    db.select().from(calibrationsTable),
+    db.select().from(calibrationSettingsTable).limit(1),
+  ]);
+  const calibrationOffsets = computeCalibrationOffsets(
+    calibrationEvents,
+    settings?.shrinkageFactor ?? 0.4,
+    settings?.applyToPopulation ?? false,
+  );
+
   return {
     inputs: {
       count,
@@ -87,6 +102,7 @@ export async function buildGenerationInputs(
       adjustments,
       consumerAdjustments,
       policyAdjustments,
+      calibrationOffsets,
     },
     scopeName,
   };

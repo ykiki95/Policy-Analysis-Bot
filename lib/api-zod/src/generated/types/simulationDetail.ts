@@ -6,9 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Simulation } from './simulation';
+import type { SimulationCalibration } from './simulationCalibration';
 import type { SimulationResults } from './simulationResults';
 
 export interface SimulationDetail {
   simulation: Simulation;
   results: SimulationResults;
+  calibration?: SimulationCalibration;
 }

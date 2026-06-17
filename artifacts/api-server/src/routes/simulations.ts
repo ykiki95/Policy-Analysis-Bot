@@ -6,6 +6,8 @@ import {
   agentsTable,
   simulationsTable,
   simulationResponsesTable,
+  calibrationsTable,
+  calibrationSettingsTable,
 } from "@workspace/db";
 import {
   ListSimulationsResponse,
@@ -30,6 +32,10 @@ import {
   POLICY_AXIS_KEYS,
   POLICY_AXIS_LABELS,
 } from "../lib/policyWeighting";
+import {
+  buildOutputCalibrationModel,
+  applyOutputCalibration,
+} from "../lib/calibrationModel";
 
 const router: IRouter = Router();
 
@@ -195,6 +201,56 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
         }))
       : undefined;
 
+  // 출력 보정(Lever 2): 이 시뮬레이션 제품의 과거 검증 이벤트에서 학습한
+  // 평균 편향으로 원시 지지율을 사후 교정한다. 완료된 시뮬레이션에만 적용.
+  let calibration:
+    | {
+        applied: boolean;
+        eventCount: number;
+        meanBias: number;
+        shrinkage: number;
+        calibratedSupportPct: number | null;
+        calibratedOpposePct: number | null;
+        calibratedNeutralPct: number | null;
+      }
+    | undefined;
+
+  if (
+    sim.status === "completed" &&
+    sim.supportPct != null &&
+    sim.opposePct != null &&
+    sim.neutralPct != null
+  ) {
+    const [productEvents, [settings]] = await Promise.all([
+      db
+        .select()
+        .from(calibrationsTable)
+        .where(eq(calibrationsTable.product, sim.product)),
+      db.select().from(calibrationSettingsTable).limit(1),
+    ]);
+    const model = buildOutputCalibrationModel(
+      productEvents,
+      settings?.shrinkageFactor ?? 0.4,
+    );
+    const calibrated = applyOutputCalibration(
+      {
+        supportPct: sim.supportPct,
+        opposePct: sim.opposePct,
+        neutralPct: sim.neutralPct,
+      },
+      model,
+    );
+    calibration = {
+      applied: model.applied,
+      eventCount: model.eventCount,
+      meanBias: model.meanBias,
+      shrinkage: model.shrinkage,
+      calibratedSupportPct: calibrated?.supportPct ?? null,
+      calibratedOpposePct: calibrated?.opposePct ?? null,
+      calibratedNeutralPct: calibrated?.neutralPct ?? null,
+    };
+  }
+
   res.json(
     GetSimulationResponse.parse(
       jsonReady({
@@ -206,6 +262,7 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
           byLeaning: group((r) => leaningBucket(r.politicalLeaning)),
           ...(byPolicyAxis ? { byPolicyAxis } : {}),
         },
+        ...(calibration ? { calibration } : {}),
       }),
     ),
   );

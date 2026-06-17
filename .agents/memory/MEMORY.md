@@ -1,1 +1,2 @@
 - [Attitude-track PRNG streams](attitude-track-prng-streams.md) — each attitude domain (political/commercial/policy) uses its own mulberry32 stream (distinct XOR seed) so adding a track never shifts others.
+- [Calibration feedback loop](calibration-feedback-loop.md) — two levers (output post-hoc vs input persona-baseline); Dynamo bias = conservative-direction; input lever opt-in & only on next regenerate.

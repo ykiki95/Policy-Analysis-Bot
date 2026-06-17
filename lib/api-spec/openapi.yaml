@@ -1040,6 +1040,22 @@ components:
             each policy attitude axis (상/중/하). Absent for non-policy sims.
           items: { $ref: "#/components/schemas/PolicyAxisResult" }
 
+    SimulationCalibration:
+      type: object
+      description: >-
+        출력 보정(Lever 2) — 이 시뮬레이션 제품의 과거 검증 이벤트에서 학습한
+        평균 편향으로 원시 지지율을 사후 교정한 결과. 이벤트가 부족하면
+        applied=false 이고 보정값은 null.
+      required: [applied, eventCount, meanBias, shrinkage]
+      properties:
+        applied: { type: boolean }
+        eventCount: { type: integer }
+        meanBias: { type: number }
+        shrinkage: { type: number }
+        calibratedSupportPct: { type: ["number", "null"] }
+        calibratedOpposePct: { type: ["number", "null"] }
+        calibratedNeutralPct: { type: ["number", "null"] }
+
     SimulationDetail:
       type: object
       required: [simulation, results]
@@ -1048,6 +1064,8 @@ components:
           $ref: "#/components/schemas/Simulation"
         results:
           $ref: "#/components/schemas/SimulationResults"
+        calibration:
+          $ref: "#/components/schemas/SimulationCalibration"
 
     SimulationResponse:
       type: object
@@ -1351,6 +1369,7 @@ components:
         - recencyWeight
         - shrinkageFactor
         - outlierTrimPct
+        - applyToPopulation
         - description
         - updatedAt
       properties:
@@ -1360,6 +1379,7 @@ components:
         recencyWeight: { type: number }
         shrinkageFactor: { type: number }
         outlierTrimPct: { type: number }
+        applyToPopulation: { type: boolean }
         description: { type: string }
         updatedAt: { type: string }
 
@@ -1377,4 +1397,5 @@ components:
         recencyWeight: { type: number, minimum: 0, maximum: 1 }
         shrinkageFactor: { type: number, minimum: 0, maximum: 1 }
         outlierTrimPct: { type: number, minimum: 0, maximum: 25 }
+        applyToPopulation: { type: boolean }
         description: { type: string }

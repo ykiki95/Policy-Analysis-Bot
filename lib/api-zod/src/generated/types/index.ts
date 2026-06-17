@@ -36,6 +36,7 @@ export * from './regeneratePopulationInput';
 export * from './regeneratePopulationResult';
 export * from './region';
 export * from './simulation';
+export * from './simulationCalibration';
 export * from './simulationDetail';
 export * from './simulationInput';
 export * from './simulationResponse';

@@ -445,7 +445,16 @@ export const GetSimulationResponse = zod.object({
   "avgScore": zod.number()
 }))
 })).optional().describe('Seraph(policy) simulations only — support\/acceptance segmented by each policy attitude axis (상\/중\/하). Absent for non-policy sims.')
-})
+}),
+  "calibration": zod.object({
+  "applied": zod.boolean(),
+  "eventCount": zod.number(),
+  "meanBias": zod.number(),
+  "shrinkage": zod.number(),
+  "calibratedSupportPct": zod.number().nullish(),
+  "calibratedOpposePct": zod.number().nullish(),
+  "calibratedNeutralPct": zod.number().nullish()
+}).optional().describe('출력 보정(Lever 2) — 이 시뮬레이션 제품의 과거 검증 이벤트에서 학습한 평균 편향으로 원시 지지율을 사후 교정한 결과. 이벤트가 부족하면 applied=false 이고 보정값은 null.')
 })
 
 
@@ -711,6 +720,7 @@ export const GetCalibrationSettingsResponse = zod.object({
   "recencyWeight": zod.number(),
   "shrinkageFactor": zod.number(),
   "outlierTrimPct": zod.number(),
+  "applyToPopulation": zod.boolean(),
   "description": zod.string(),
   "updatedAt": zod.string()
 })
@@ -740,6 +750,7 @@ export const UpdateCalibrationSettingsBody = zod.object({
   "recencyWeight": zod.number().min(updateCalibrationSettingsBodyRecencyWeightMin).max(updateCalibrationSettingsBodyRecencyWeightMax),
   "shrinkageFactor": zod.number().min(updateCalibrationSettingsBodyShrinkageFactorMin).max(updateCalibrationSettingsBodyShrinkageFactorMax),
   "outlierTrimPct": zod.number().min(updateCalibrationSettingsBodyOutlierTrimPctMin).max(updateCalibrationSettingsBodyOutlierTrimPctMax),
+  "applyToPopulation": zod.boolean().optional(),
   "description": zod.string().optional()
 })
 
@@ -750,6 +761,7 @@ export const UpdateCalibrationSettingsResponse = zod.object({
   "recencyWeight": zod.number(),
   "shrinkageFactor": zod.number(),
   "outlierTrimPct": zod.number(),
+  "applyToPopulation": zod.boolean(),
   "description": zod.string(),
   "updatedAt": zod.string()
 })

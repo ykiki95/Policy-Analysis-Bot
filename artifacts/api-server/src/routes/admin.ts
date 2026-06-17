@@ -50,6 +50,7 @@ const DEFAULT_CALIBRATION = {
   recencyWeight: 0.3,
   shrinkageFactor: 0.4,
   outlierTrimPct: 5,
+  applyToPopulation: false,
   description:
     "과거 가상 이벤트 벤치마크에 가중치를 두고, 최근 데이터에 더 큰 비중을 부여하여 원시 예측을 보정합니다.",
 };
@@ -170,6 +171,8 @@ router.put("/admin/calibration-settings", async (req, res): Promise<void> => {
     recencyWeight: data.recencyWeight,
     shrinkageFactor: data.shrinkageFactor,
     outlierTrimPct: data.outlierTrimPct,
+    applyToPopulation:
+      data.applyToPopulation ?? existing?.applyToPopulation ?? false,
     description: data.description ?? "",
     updatedAt: new Date(),
   };

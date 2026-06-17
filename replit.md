@@ -31,6 +31,10 @@ Aaru 스타일 합성 인구 시뮬레이션 SaaS. 서울 거주 합성 시민 5
 - 설문→페르소나 가중 코어: `artifacts/api-server/src/lib/surveyWeighting.ts` (`appliedToPopulation=true` 설문의 드라이버를 이슈별 {multiplier, noiseScale}로 변환 → generateAgents에 주입. 5개 이슈: 경제/복지/안보/환경/주거). `domain` 이 `commercial`/`policy` 인 설문은 건너뜀.
 - 소비 도메인 가중(Lumen): `artifacts/api-server/src/lib/consumerWeighting.ts` (`domain='commercial'` 설문 → consumerStances 5축)
 - 정책 도메인 가중(Seraph): `artifacts/api-server/src/lib/policyWeighting.ts` (`domain='policy'` 설문 → policyStances 5축: 정부신뢰/정책수용성/증세수용/규제선호/공공서비스만족). agentGenerator는 정치·소비와 독립된 세 번째 PRNG 스트림(`policyRand = mulberry32(seed ^ 0x85ebca6b)`)으로 노이즈 생성 — 트랙 추가가 기존 스트림을 흔들지 않음.
+- 보정 피드백 루프 — 두 레버:
+  - 출력 보정(Lever 2): `artifacts/api-server/src/lib/calibrationModel.ts` (`buildOutputCalibrationModel(events, shrinkage)` → meanBias=mean(actual−raw), ≥2 이벤트일 때만 applied; `applyOutputCalibration(raw, model)`는 support를 shrinkage·meanBias만큼 이동 후 delta를 oppose/neutral에 비례 분배, 합 100 재정규화). `simulations.ts` GET /:id가 완료 시뮬레이션에 한해 `sim.product` 이벤트로 모델을 만들어 응답에 `calibration` 객체 추가. 프런트 `simulations/detail.tsx`가 원시 vs 보정 찬성률 비교 카드 표시.
+  - 입력 보정(Lever 1): `artifacts/api-server/src/lib/calibrationWeighting.ts` (`computeCalibrationOffsets(events, shrinkage, applyToPopulation)` → 제품별 평균 편향을 {political,consumer,policy} 기준선 이동량으로 환산, clamp(±25 leaning / ±15 stance), 토글 off 또는 <2 이벤트면 0). `calibrationSettings.applyToPopulation` 토글(기본 false)이 켜져 있을 때만 `populationData.buildGenerationInputs`가 offsets를 `generateAgents`에 주입 → 다음 인구 재생성부터 페르소나 기준선 이동. 프런트 `calibration/index.tsx` 상단 루프 허브의 Switch로 제어.
+  - 검증 이벤트 규약: `actualValue`/`rawPrediction` = 시뮬레이션이 예측하는 동일 지표(지지·찬성·수용률 %). Dynamo 이벤트=보수 지표(선거 시드와 일치)이므로 양의 편향이면 정치성향 기준선이 보수(+) 방향으로 이동. Lumen→consumer, Seraph→policy 기준선에 +offset.
 - Admin routes: `artifacts/api-server/src/routes/admin.ts` (인구 재생성, 데이터 출처, 설문 업로드, 보정 설정)
 - Frontend pages: `artifacts/demos/src/pages/*` (관리자 페이지: `pages/admin/index.tsx`)
 - Map: Leaflet + react-leaflet + OpenStreetMap 타일 (API 키 불필요), `pages/population/index.tsx`의 `CircleMarker` 산점도

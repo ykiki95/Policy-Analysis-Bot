@@ -258,9 +258,26 @@ export interface SimulationResults {
   byPolicyAxis?: PolicyAxisResult[];
 }
 
+/**
+ * 출력 보정(Lever 2) — 이 시뮬레이션 제품의 과거 검증 이벤트에서 학습한 평균 편향으로 원시 지지율을 사후 교정한 결과. 이벤트가 부족하면 applied=false 이고 보정값은 null.
+ */
+export interface SimulationCalibration {
+  applied: boolean;
+  eventCount: number;
+  meanBias: number;
+  shrinkage: number;
+  /** @nullable */
+  calibratedSupportPct?: number | null;
+  /** @nullable */
+  calibratedOpposePct?: number | null;
+  /** @nullable */
+  calibratedNeutralPct?: number | null;
+}
+
 export interface SimulationDetail {
   simulation: Simulation;
   results: SimulationResults;
+  calibration?: SimulationCalibration;
 }
 
 export interface SimulationResponse {
@@ -470,6 +487,7 @@ export interface CalibrationSettings {
   recencyWeight: number;
   shrinkageFactor: number;
   outlierTrimPct: number;
+  applyToPopulation: boolean;
   description: string;
   updatedAt: string;
 }
@@ -497,6 +515,7 @@ export interface CalibrationSettingsInput {
      * @maximum 25
      */
   outlierTrimPct: number;
+  applyToPopulation?: boolean;
   description?: string;
 }
 

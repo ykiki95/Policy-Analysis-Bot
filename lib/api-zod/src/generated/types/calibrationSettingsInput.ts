@@ -29,5 +29,6 @@ export interface CalibrationSettingsInput {
      * @maximum 25
      */
   outlierTrimPct: number;
+  applyToPopulation?: boolean;
   description?: string;
 }
