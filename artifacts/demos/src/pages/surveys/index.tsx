@@ -2,7 +2,7 @@ import { useListSurveys } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
-import { Database, Calendar, Users, Percent } from "lucide-react";
+import { Database, Calendar, Users, Percent, BadgeCheck, Building2, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function Surveys() {
@@ -37,10 +37,24 @@ export default function Surveys() {
                     <CardTitle className="text-lg">{survey.title}</CardTitle>
                     <CardDescription className="mt-1 line-clamp-2">{survey.description}</CardDescription>
                   </div>
-                  <Badge variant={survey.status === "active" ? "default" : "secondary"}>
-                    {survey.status === "active" ? "활성" : "종료"}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    {survey.isReal && (
+                      <Badge className="bg-emerald-600 hover:bg-emerald-600 gap-1">
+                        <BadgeCheck className="h-3 w-3" />실데이터
+                      </Badge>
+                    )}
+                    <Badge variant={survey.status === "active" ? "default" : "secondary"}>
+                      {survey.status === "active" ? "반영 중" : "종료"}
+                    </Badge>
+                  </div>
                 </div>
+                {survey.sourceAgency && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
+                    <Building2 className="h-3.5 w-3.5" />
+                    <span className="font-medium text-foreground/80">{survey.sourceAgency}</span>
+                    {survey.fieldPeriod && <span>· {survey.fieldPeriod}</span>}
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4 text-sm mt-4">
@@ -61,6 +75,20 @@ export default function Surveys() {
                     <span>신뢰도: {survey.reliability}%</span>
                   </div>
                 </div>
+                {survey.sourceUrl && (
+                  <span
+                    role="link"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      window.open(survey.sourceUrl!, "_blank", "noopener,noreferrer");
+                    }}
+                    className="mt-4 inline-flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+                  >
+                    출처 보기 <ExternalLink className="h-3 w-3" />
+                  </span>
+                )}
               </CardContent>
             </Card>
           </Link>

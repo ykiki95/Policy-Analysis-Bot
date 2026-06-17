@@ -787,6 +787,11 @@ components:
         - reliability
         - drivers
         - appliedToPopulation
+        - isReal
+        - sourceAgency
+        - sourceTitle
+        - fieldPeriod
+        - sourceUrl
         - createdAt
       properties:
         id: { type: integer }
@@ -801,6 +806,11 @@ components:
           type: array
           items: { $ref: "#/components/schemas/SurveyDriver" }
         appliedToPopulation: { type: boolean }
+        isReal: { type: boolean }
+        sourceAgency: { type: string, nullable: true }
+        sourceTitle: { type: string, nullable: true }
+        fieldPeriod: { type: string, nullable: true }
+        sourceUrl: { type: string, nullable: true }
         createdAt: { type: string }
 
     SurveyInput:
@@ -814,6 +824,11 @@ components:
         fieldedDate: { type: string }
         reliability: { type: number }
         appliedToPopulation: { type: boolean }
+        isReal: { type: boolean }
+        sourceAgency: { type: string }
+        sourceTitle: { type: string }
+        fieldPeriod: { type: string }
+        sourceUrl: { type: string }
         drivers:
           type: array
           items: { $ref: "#/components/schemas/SurveyDriver" }

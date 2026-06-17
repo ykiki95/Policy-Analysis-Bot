@@ -16,5 +16,10 @@ export interface SurveyInput {
   fieldedDate?: string;
   reliability?: number;
   appliedToPopulation?: boolean;
+  isReal?: boolean;
+  sourceAgency?: string;
+  sourceTitle?: string;
+  fieldPeriod?: string;
+  sourceUrl?: string;
   drivers: SurveyDriver[];
 }

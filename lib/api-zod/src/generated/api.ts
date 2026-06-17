@@ -148,6 +148,11 @@ export const ListSurveysResponseItem = zod.object({
   "targetStance": zod.number().min(listSurveysResponseDriversItemTargetStanceMin).max(listSurveysResponseDriversItemTargetStanceMax).optional()
 })),
   "appliedToPopulation": zod.boolean(),
+  "isReal": zod.boolean(),
+  "sourceAgency": zod.string().nullable(),
+  "sourceTitle": zod.string().nullable(),
+  "fieldPeriod": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
   "createdAt": zod.string()
 })
 export const ListSurveysResponse = zod.array(ListSurveysResponseItem)
@@ -170,6 +175,11 @@ export const CreateSurveyBody = zod.object({
   "fieldedDate": zod.string().optional(),
   "reliability": zod.number().optional(),
   "appliedToPopulation": zod.boolean().optional(),
+  "isReal": zod.boolean().optional(),
+  "sourceAgency": zod.string().optional(),
+  "sourceTitle": zod.string().optional(),
+  "fieldPeriod": zod.string().optional(),
+  "sourceUrl": zod.string().optional(),
   "drivers": zod.array(zod.object({
   "factor": zod.string(),
   "issue": zod.string(),
@@ -209,6 +219,11 @@ export const GetSurveyResponse = zod.object({
   "targetStance": zod.number().min(getSurveyResponseDriversItemTargetStanceMin).max(getSurveyResponseDriversItemTargetStanceMax).optional()
 })),
   "appliedToPopulation": zod.boolean(),
+  "isReal": zod.boolean(),
+  "sourceAgency": zod.string().nullable(),
+  "sourceTitle": zod.string().nullable(),
+  "fieldPeriod": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
   "createdAt": zod.string()
 })
 
@@ -254,6 +269,11 @@ export const SetSurveyAppliedResponse = zod.object({
   "targetStance": zod.number().min(setSurveyAppliedResponseDriversItemTargetStanceMin).max(setSurveyAppliedResponseDriversItemTargetStanceMax).optional()
 })),
   "appliedToPopulation": zod.boolean(),
+  "isReal": zod.boolean(),
+  "sourceAgency": zod.string().nullable(),
+  "sourceTitle": zod.string().nullable(),
+  "fieldPeriod": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
   "createdAt": zod.string()
 })
 

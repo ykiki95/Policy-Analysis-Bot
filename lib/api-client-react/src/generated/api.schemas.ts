@@ -83,6 +83,11 @@ export interface Survey {
   reliability: number;
   drivers: SurveyDriver[];
   appliedToPopulation: boolean;
+  isReal: boolean;
+  sourceAgency: string | null;
+  sourceTitle: string | null;
+  fieldPeriod: string | null;
+  sourceUrl: string | null;
   createdAt: string;
 }
 
@@ -95,6 +100,11 @@ export interface SurveyInput {
   fieldedDate?: string;
   reliability?: number;
   appliedToPopulation?: boolean;
+  isReal?: boolean;
+  sourceAgency?: string;
+  sourceTitle?: string;
+  fieldPeriod?: string;
+  sourceUrl?: string;
   drivers: SurveyDriver[];
 }
 

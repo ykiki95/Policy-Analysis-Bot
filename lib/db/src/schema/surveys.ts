@@ -33,6 +33,16 @@ export const surveysTable = pgTable("surveys", {
   reliability: doublePrecision("reliability").notNull(),
   drivers: jsonb("drivers").$type<SurveyDriver[]>().notNull(),
   appliedToPopulation: boolean("applied_to_population").notNull().default(false),
+  /** True when the survey is a real published aggregate (vs. synthetic/illustrative). */
+  isReal: boolean("is_real").notNull().default(false),
+  /** Source attribution (real published surveys): publishing org. */
+  sourceAgency: text("source_agency"),
+  /** Source attribution: the published survey/report title. */
+  sourceTitle: text("source_title"),
+  /** Source attribution: fieldwork period, e.g. "2024-07-01 ~ 2024-07-23". */
+  fieldPeriod: text("field_period"),
+  /** Source attribution: public URL of the published aggregate. */
+  sourceUrl: text("source_url"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

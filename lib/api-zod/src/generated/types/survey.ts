@@ -18,5 +18,10 @@ export interface Survey {
   reliability: number;
   drivers: SurveyDriver[];
   appliedToPopulation: boolean;
+  isReal: boolean;
+  sourceAgency: string | null;
+  sourceTitle: string | null;
+  fieldPeriod: string | null;
+  sourceUrl: string | null;
   createdAt: string;
 }

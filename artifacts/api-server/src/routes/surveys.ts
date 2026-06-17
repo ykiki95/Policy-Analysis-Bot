@@ -42,6 +42,11 @@ router.post("/surveys", async (req, res): Promise<void> => {
       reliability: d.reliability ?? 0,
       drivers: d.drivers,
       appliedToPopulation: d.appliedToPopulation ?? false,
+      isReal: d.isReal ?? false,
+      sourceAgency: d.sourceAgency ?? null,
+      sourceTitle: d.sourceTitle ?? null,
+      fieldPeriod: d.fieldPeriod ?? null,
+      sourceUrl: d.sourceUrl ?? null,
     })
     .returning();
   res.status(201).json(GetSurveyResponse.parse(jsonReady(created)));

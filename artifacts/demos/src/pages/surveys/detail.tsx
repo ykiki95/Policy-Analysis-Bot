@@ -2,7 +2,7 @@ import { useGetSurvey, getGetSurveyQueryKey } from "@workspace/api-client-react"
 import { useParams, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Database, Calendar, Users, Percent, CheckCircle } from "lucide-react";
+import { ArrowLeft, Database, Calendar, Users, Percent, CheckCircle, BadgeCheck, Building2, FileText, Clock, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
@@ -38,10 +38,75 @@ export default function SurveyDetail() {
           <h1 className="text-3xl font-bold tracking-tight">{survey.title}</h1>
           <p className="text-muted-foreground mt-2 max-w-3xl">{survey.description}</p>
         </div>
-        <Badge variant={survey.status === "active" ? "default" : "secondary"} className="text-sm px-3 py-1">
-          {survey.status === "active" ? "활성 상태" : "종료됨"}
-        </Badge>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          {survey.isReal && (
+            <Badge className="bg-emerald-600 hover:bg-emerald-600 gap-1 text-sm px-3 py-1">
+              <BadgeCheck className="h-3.5 w-3.5" />실데이터
+            </Badge>
+          )}
+          <Badge variant={survey.status === "active" ? "default" : "secondary"} className="text-sm px-3 py-1">
+            {survey.status === "active" ? "인구 반영 중" : "종료됨"}
+          </Badge>
+        </div>
       </div>
+
+      {survey.sourceAgency && (
+        <Card className="border-emerald-600/30 bg-emerald-50/30 dark:bg-emerald-950/10">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-emerald-600" />
+              <CardTitle className="text-base">출처 (공표 자료)</CardTitle>
+            </div>
+            <CardDescription>이 설문은 실제 공표된 여론조사 집계를 출처와 함께 인용했습니다.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="grid sm:grid-cols-2 gap-x-8 gap-y-3">
+              <div className="flex items-start gap-2">
+                <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">조사 기관</p>
+                  <p className="font-medium">{survey.sourceAgency}</p>
+                </div>
+              </div>
+              {survey.sourceTitle && (
+                <div className="flex items-start gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">조사명</p>
+                    <p className="font-medium">{survey.sourceTitle}</p>
+                  </div>
+                </div>
+              )}
+              {survey.fieldPeriod && (
+                <div className="flex items-start gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">조사 기간</p>
+                    <p className="font-medium">{survey.fieldPeriod}</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-start gap-2">
+                <Users className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">표본수</p>
+                  <p className="font-medium">{survey.sampleSize.toLocaleString()}명</p>
+                </div>
+              </div>
+            </div>
+            {survey.sourceUrl && (
+              <a
+                href={survey.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-primary hover:underline pt-1"
+              >
+                원문 보기 <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
