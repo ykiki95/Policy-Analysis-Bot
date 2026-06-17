@@ -19,9 +19,9 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
 const PRODUCT_META: { key: string; product: string; label: string; track: string }[] = [
-  { key: "Dynamo", product: "Dynamo", label: "정치 (Dynamo)", track: "정치성향 기준선" },
-  { key: "Lumen", product: "Lumen", label: "비즈니스 (Lumen)", track: "소비 성향 기준선" },
-  { key: "Seraph", product: "Seraph", label: "정부 (Seraph)", track: "정책 태도 기준선" },
+  { key: "Dynamo", product: "Dynamo", label: "정치", track: "정치성향 기준선" },
+  { key: "Lumen", product: "Lumen", label: "비즈니스", track: "소비 성향 기준선" },
+  { key: "Seraph", product: "Seraph", label: "정부", track: "정책 태도 기준선" },
 ];
 
 /**
@@ -461,9 +461,9 @@ export default function Calibration() {
 
       <Tabs defaultValue="dynamo">
         <TabsList className="grid w-full grid-cols-3 max-w-xl">
-          <TabsTrigger value="dynamo">정치 (Dynamo)</TabsTrigger>
-          <TabsTrigger value="lumen">비즈니스 (Lumen)</TabsTrigger>
-          <TabsTrigger value="seraph">정부 (Seraph)</TabsTrigger>
+          <TabsTrigger value="dynamo">정치</TabsTrigger>
+          <TabsTrigger value="lumen">비즈니스</TabsTrigger>
+          <TabsTrigger value="seraph">정부</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dynamo" className="mt-6 space-y-8">

@@ -29,6 +29,11 @@ const ageStart = (key: string) => {
 };
 const RESPONSES_PAGE_SIZE = 20;
 
+/** 제품(내부 브랜드값) → 도메인 표시 라벨(비즈니스/정부/정치). */
+function productDomainLabel(product: string): string {
+  return product === "Lumen" ? "비즈니스" : product === "Seraph" ? "정부" : "정치";
+}
+
 export default function SimulationDetail() {
   const params = useParams();
   const id = parseInt(params.id || "0", 10);
@@ -225,7 +230,7 @@ export default function SimulationDetail() {
                     <Badge variant="secondary" className="ml-1">자동</Badge>
                   </div>
                   <CardDescription>
-                    {sim.product}의 과거 검증 {simDetail.calibration.eventCount}건에서 학습한 평균 편향
+                    {productDomainLabel(sim.product)} 도메인의 과거 검증 {simDetail.calibration.eventCount}건에서 학습한 평균 편향
                     {" "}{simDetail.calibration.meanBias > 0 ? "+" : ""}{simDetail.calibration.meanBias}%p를
                     축소 계수 {simDetail.calibration.shrinkage}로 적용해 원시 예측을 교정했습니다.
                   </CardDescription>
@@ -256,7 +261,7 @@ export default function SimulationDetail() {
                 <CardContent className="py-5 flex items-start gap-3 text-sm text-muted-foreground">
                   <Sparkles className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>
-                    출력 보정 미적용 — {sim.product}의 검증 이벤트가{" "}
+                    출력 보정 미적용 — {productDomainLabel(sim.product)} 도메인의 검증 이벤트가{" "}
                     {simDetail.calibration.eventCount}건뿐입니다. 보정 및 검증 화면에서 과거 실제 결과를 2건 이상 등록하면
                     원시 예측을 자동 교정한 <strong>보정 찬성률</strong>이 함께 표시됩니다.
                   </span>

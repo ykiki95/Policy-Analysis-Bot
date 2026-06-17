@@ -50,9 +50,9 @@ export default function SurveyDetail() {
             }
           >
             {survey.domain === "commercial"
-              ? "소비 도메인"
+              ? "비즈니스 도메인"
               : survey.domain === "policy"
-                ? "정책 도메인"
+                ? "정부 도메인"
                 : "정치 도메인"}
           </Badge>
           {survey.isReal && (

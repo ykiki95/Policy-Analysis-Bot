@@ -18,7 +18,7 @@ function domainBadgeClass(domain: DomainKey) {
 }
 
 function domainLabel(domain: DomainKey) {
-  return domain === "commercial" ? "소비" : domain === "policy" ? "정책" : "정치";
+  return domain === "commercial" ? "비즈니스" : domain === "policy" ? "정부" : "정치";
 }
 
 export default function Surveys() {

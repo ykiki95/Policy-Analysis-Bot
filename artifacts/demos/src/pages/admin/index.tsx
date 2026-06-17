@@ -68,10 +68,15 @@ const METHOD_DESCRIPTIONS: Record<string, string> = {
 const EVENT_TYPE_OPTIONS = ["선거", "정책 반응", "여론조사", "제품 반응", "기타"];
 
 const CALIBRATION_PRODUCT_OPTIONS: { value: CalibrationInputProduct; label: string }[] = [
-  { value: "Dynamo", label: "Dynamo (정치)" },
-  { value: "Lumen", label: "Lumen (비즈니스)" },
-  { value: "Seraph", label: "Seraph (정부)" },
+  { value: "Dynamo", label: "정치" },
+  { value: "Lumen", label: "비즈니스" },
+  { value: "Seraph", label: "정부" },
 ];
+
+/** 제품(내부 브랜드값) → 도메인 표시 라벨(비즈니스/정부/정치). */
+function productDomainLabel(product: string): string {
+  return product === "Lumen" ? "비즈니스" : product === "Seraph" ? "정부" : "정치";
+}
 
 const DEFAULT_CALIBRATION_SETTINGS = {
   method: "베이지안 축소 (Bayesian Shrinkage)",
@@ -1245,7 +1250,7 @@ function CalibrationEventsSection({
                         {ev.title}
                         <div className="text-xs text-muted-foreground">{ev.metric}</div>
                       </TableCell>
-                      <TableCell><Badge variant="outline">{ev.product}</Badge></TableCell>
+                      <TableCell><Badge variant="outline">{productDomainLabel(ev.product)}</Badge></TableCell>
                       <TableCell><Badge variant="secondary">{ev.eventType}</Badge></TableCell>
                       <TableCell className="whitespace-nowrap">{ev.targetDate}</TableCell>
                       <TableCell className="text-right tabular-nums">{ev.actualValue}%</TableCell>
