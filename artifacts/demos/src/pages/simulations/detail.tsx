@@ -198,15 +198,15 @@ export default function SimulationDetail() {
                 <CardTitle className="text-sm font-medium">정치 성향별 지지율</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-[120px] w-full max-w-md">
+                <div className="h-[120px] w-full">
                   <ResponsiveContainer>
-                    <BarChart data={simDetail.results.byLeaning} layout="vertical" margin={{ left: 10, right: 10 }}>
+                    <BarChart data={simDetail.results.byLeaning} layout="vertical" margin={{ left: 10, right: 10 }} barCategoryGap="35%">
                       <XAxis type="number" hide />
                       <YAxis dataKey="key" type="category" axisLine={false} tickLine={false} fontSize={12} width={60} />
                       <RechartsTooltip cursor={{fill: 'rgba(0,0,0,0.05)'}} />
-                      <Bar dataKey="supportPct" stackId="a" fill="#22c55e" name="찬성 %" />
-                      <Bar dataKey="neutralPct" stackId="a" fill="#9ca3af" name="중립 %" />
-                      <Bar dataKey="opposePct" stackId="a" fill="#ef4444" name="반대 %" />
+                      <Bar dataKey="supportPct" stackId="a" fill="#22c55e" name="찬성 %" maxBarSize={18} />
+                      <Bar dataKey="neutralPct" stackId="a" fill="#9ca3af" name="중립 %" maxBarSize={18} />
+                      <Bar dataKey="opposePct" stackId="a" fill="#ef4444" name="반대 %" maxBarSize={18} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -219,16 +219,16 @@ export default function SimulationDetail() {
               <CardTitle>연령대별 반응</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[250px] w-full max-w-2xl">
+              <div className="h-[250px] w-full">
                 <ResponsiveContainer>
-                  <BarChart data={ageChartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                  <BarChart data={ageChartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }} barCategoryGap="30%">
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                     <XAxis dataKey="key" tick={{fontSize: 12}} />
                     <YAxis tick={{fontSize: 12}} />
                     <RechartsTooltip cursor={{fill: 'rgba(0,0,0,0.05)'}} />
                     <Legend />
-                    <Bar dataKey="supportPct" name="찬성률 (%)" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="opposePct" name="반대률 (%)" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="supportPct" name="찬성률 (%)" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                    <Bar dataKey="opposePct" name="반대률 (%)" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} maxBarSize={32} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
