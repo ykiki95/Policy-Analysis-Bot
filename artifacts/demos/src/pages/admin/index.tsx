@@ -12,8 +12,16 @@ import {
   useCreateCalibration,
   useDeleteCalibration,
   useListSurveys,
+  useCreateSurvey,
+  useDeleteSurvey,
+  useSetSurveyApplied,
+  useSuggestSurveyDrivers,
+  useGetSurveyImpact,
   getListCalibrationsQueryKey,
+  getListSurveysQueryKey,
+  getGetSurveyImpactQueryKey,
   type SurveyUploadColumn,
+  type SurveyDriver,
   type Calibration,
   type CalibrationInput,
 } from "@workspace/api-client-react";
@@ -28,12 +36,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2 } from "lucide-react";
+import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil } from "lucide-react";
 
 const CALIBRATION_METHODS = [
   "베이지안 축소 (Bayesian Shrinkage)",
@@ -345,6 +354,87 @@ export default function Admin() {
 
 type ParsedUpload = ReturnType<typeof parseUpload>;
 
+const ISSUE_OPTIONS = ["경제", "복지", "안보", "환경", "주거"];
+
+function DriverBuilder({
+  drivers,
+  setDrivers,
+}: {
+  drivers: SurveyDriver[];
+  setDrivers: (d: SurveyDriver[]) => void;
+}) {
+  const update = (i: number, patch: Partial<SurveyDriver>) => {
+    setDrivers(drivers.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
+  };
+  const remove = (i: number) => setDrivers(drivers.filter((_, idx) => idx !== i));
+  const add = () =>
+    setDrivers([...drivers, { factor: "", issue: "경제", weight: 0.5, direction: "" }]);
+
+  return (
+    <div className="space-y-3">
+      {drivers.map((d, i) => (
+        <div key={i} className="rounded-md border p-3 space-y-3 bg-muted/20">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">동인 {i + 1}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-muted-foreground"
+              onClick={() => remove(i)}
+              disabled={drivers.length <= 1}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">이슈</Label>
+              <Select value={d.issue} onValueChange={(v) => update(i, { issue: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ISSUE_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">요인 (선택)</Label>
+              <Input
+                placeholder="예: 연령, 소득, 자치구"
+                value={d.factor}
+                onChange={(e) => update(i, { factor: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">방향 설명</Label>
+            <Input
+              placeholder="예: 고령일수록 복지 확대 지지"
+              value={d.direction}
+              onChange={(e) => update(i, { direction: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">영향 강도 (가중치)</Label>
+              <span className="text-xs font-semibold tabular-nums">{d.weight.toFixed(2)}</span>
+            </div>
+            <Slider
+              min={0}
+              max={1}
+              step={0.05}
+              value={[d.weight]}
+              onValueChange={(v) => update(i, { weight: v[0] })}
+            />
+          </div>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add}>
+        <Plus className="h-4 w-4 mr-1.5" /> 동인 추가
+      </Button>
+    </div>
+  );
+}
+
 function SurveyUploadSection({
   uploads,
   onUpload,
@@ -354,14 +444,40 @@ function SurveyUploadSection({
   onUpload: (input: { fileName: string; description: string; format: string; rowCount: number; columns: SurveyUploadColumn[]; sampleRows: Record<string, string>[] }) => Promise<boolean>;
   isPending: boolean;
 }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: surveys } = useListSurveys();
+  const { data: impact } = useGetSurveyImpact();
+
+  const createSurvey = useCreateSurvey();
+  const deleteSurvey = useDeleteSurvey();
+  const setApplied = useSetSurveyApplied();
+  const suggestDrivers = useSuggestSurveyDrivers();
+
   const [fileName, setFileName] = useState("");
   const [description, setDescription] = useState("");
   const [parsed, setParsed] = useState<ParsedUpload>(null);
   const [error, setError] = useState("");
 
+  const [draftSummary, setDraftSummary] = useState("");
+  const [draftDrivers, setDraftDrivers] = useState<SurveyDriver[]>([]);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [showDraft, setShowDraft] = useState(false);
+
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualDescription, setManualDescription] = useState("");
+  const [manualDrivers, setManualDrivers] = useState<SurveyDriver[]>([
+    { factor: "", issue: "경제", weight: 0.5, direction: "" },
+  ]);
+
+  const invalidateAll = async () => {
+    await queryClient.invalidateQueries({ queryKey: getListSurveysQueryKey() });
+    await queryClient.invalidateQueries({ queryKey: getGetSurveyImpactQueryKey() });
+  };
+
   const handleFile = async (file: File) => {
     setError("");
+    setShowDraft(false);
     setFileName(file.name);
     const text = await file.text();
     const result = parseUpload(text, file.name);
@@ -387,6 +503,107 @@ function SurveyUploadSection({
       setFileName("");
       setDescription("");
       setParsed(null);
+      setShowDraft(false);
+    }
+  };
+
+  const handleSuggest = async () => {
+    if (!parsed) return;
+    try {
+      const result = await suggestDrivers.mutateAsync({
+        data: {
+          fileName,
+          description,
+          columns: parsed.columns,
+          sampleRows: parsed.rows.slice(0, 8),
+        },
+      });
+      setDraftSummary(result.summary);
+      setDraftDrivers(result.drivers);
+      setDraftTitle(fileName.replace(/\.(csv|json)$/i, "") || "업로드 설문");
+      setShowDraft(true);
+      if (result.drivers.length === 0) {
+        toast({ title: "동인을 찾지 못했습니다", description: "표본을 보강하거나 동인을 직접 추가해 주세요.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "자동 매핑 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    const cleanDrivers = draftDrivers
+      .filter((d) => d.direction.trim().length > 0)
+      .map((d) => ({ ...d, factor: d.factor.trim() || "직접 입력", direction: d.direction.trim() }));
+    if (!draftTitle.trim() || cleanDrivers.length === 0) {
+      toast({ title: "입력 확인", description: "제목과 최소 1개의 동인이 필요합니다.", variant: "destructive" });
+      return;
+    }
+    try {
+      await createSurvey.mutateAsync({
+        data: {
+          title: draftTitle.trim(),
+          description: description || draftSummary,
+          methodology: "LLM 자동 매핑",
+          drivers: cleanDrivers,
+          appliedToPopulation: false,
+        },
+      });
+      await invalidateAll();
+      toast({ title: "설문 기준 저장됨", description: `"${draftTitle.trim()}"이(가) 등록되었습니다. 인구 반영을 켜면 다음 재생성부터 적용됩니다.` });
+      setShowDraft(false);
+      setParsed(null);
+      setFileName("");
+      setDescription("");
+      setDraftDrivers([]);
+    } catch {
+      toast({ title: "저장 실패", description: "값을 확인해 주세요.", variant: "destructive" });
+    }
+  };
+
+  const handleManualSave = async () => {
+    const cleanDrivers = manualDrivers
+      .filter((d) => d.direction.trim().length > 0)
+      .map((d) => ({ ...d, factor: d.factor.trim() || "직접 입력", direction: d.direction.trim() }));
+    if (!manualTitle.trim() || cleanDrivers.length === 0) {
+      toast({ title: "입력 확인", description: "제목과 최소 1개의 동인(방향 설명 포함)이 필요합니다.", variant: "destructive" });
+      return;
+    }
+    try {
+      await createSurvey.mutateAsync({
+        data: {
+          title: manualTitle.trim(),
+          description: manualDescription,
+          methodology: "직접 입력",
+          drivers: cleanDrivers,
+          appliedToPopulation: false,
+        },
+      });
+      await invalidateAll();
+      toast({ title: "설문 기준 추가됨", description: `"${manualTitle.trim()}"이(가) 등록되었습니다.` });
+      setManualTitle("");
+      setManualDescription("");
+      setManualDrivers([{ factor: "", issue: "경제", weight: 0.5, direction: "" }]);
+    } catch {
+      toast({ title: "추가 실패", description: "값을 확인해 주세요.", variant: "destructive" });
+    }
+  };
+
+  const handleToggleApplied = async (id: number, value: boolean) => {
+    try {
+      await setApplied.mutateAsync({ id, data: { appliedToPopulation: value } });
+      await invalidateAll();
+    } catch {
+      toast({ title: "변경 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteSurvey = async (id: number, title: string) => {
+    try {
+      await deleteSurvey.mutateAsync({ id });
+      await invalidateAll();
+      toast({ title: "설문 삭제됨", description: `"${title}"이(가) 제거되었습니다.` });
+    } catch {
+      toast({ title: "삭제 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
     }
   };
 
@@ -394,8 +611,51 @@ function SurveyUploadSection({
     <div className="space-y-6">
       <Card>
         <CardHeader>
+          <CardTitle className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /> 설문 반영 현황</CardTitle>
+          <CardDescription>
+            "인구 반영"이 켜진 설문의 동인들이 합성 인구의 이슈별 태도 생성에 적용됩니다. 가중치가 클수록 해당 이슈의 태도가 인구통계와 더 강하게 결합되고, 무작위성(노이즈)은 줄어듭니다. 설정 변경 후 <strong>인구 재생성</strong> 시 반영됩니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!impact ? (
+            <div className="space-y-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-24 w-full" /></div>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                현재 <span className="font-semibold text-foreground">{impact.appliedSurveyCount}개</span> 설문이 인구 생성에 반영되고 있습니다.
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {impact.items.map((it) => {
+                  const active = it.driverCount > 0;
+                  return (
+                    <div key={it.key} className={`rounded-md border p-3 ${active ? "bg-primary/5 border-primary/30" : "bg-muted/20"}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{it.issue}</span>
+                        <Badge variant={active ? "default" : "secondary"} className="text-[10px]">{it.driverCount}개 동인</Badge>
+                      </div>
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">결합 강도</span>
+                          <span className="font-semibold tabular-nums">×{it.multiplier.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">노이즈</span>
+                          <span className="font-semibold tabular-nums">×{it.noiseScale.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>설문 기준 <span className="text-sm font-normal text-muted-foreground">({(surveys?.length ?? 0) + uploads.length}개)</span></CardTitle>
-          <CardDescription>합성 인구의 태도를 형성하는 기준 설문입니다. 시드된 기본 설문("설문조사 기준" 페이지와 동일)과 직접 업로드한 설문이 함께 표시됩니다.</CardDescription>
+          <CardDescription>합성 인구의 태도를 형성하는 기준 설문입니다. "인구 반영" 스위치로 각 설문을 인구 생성에 적용/해제할 수 있습니다. 시드된 기본 설문과 직접 추가·업로드한 설문이 함께 표시됩니다.</CardDescription>
         </CardHeader>
         <CardContent>
           {!surveys ? (
@@ -409,34 +669,106 @@ function SurveyUploadSection({
                   <TableRow>
                     <TableHead>유형</TableHead>
                     <TableHead>제목 / 파일명</TableHead>
-                    <TableHead>설명</TableHead>
-                    <TableHead className="text-right">행 수</TableHead>
+                    <TableHead>동인</TableHead>
+                    <TableHead className="text-center">인구 반영</TableHead>
                     <TableHead>상태</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {surveys.map((s) => (
                     <TableRow key={`survey-${s.id}`}>
                       <TableCell><Badge variant="outline">기준</Badge></TableCell>
-                      <TableCell className="font-medium whitespace-nowrap">{s.title}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-md truncate">{s.description}</TableCell>
-                      <TableCell className="text-right text-muted-foreground">—</TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {s.title}
+                        <div className="text-xs text-muted-foreground font-normal max-w-xs truncate">{s.description}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {s.drivers.length === 0 ? (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          ) : (
+                            s.drivers.map((d, i) => (
+                              <Badge key={i} variant="secondary" className="text-[10px] font-normal" title={`${d.factor}: ${d.direction} (${d.weight.toFixed(2)})`}>
+                                {d.issue} {d.weight.toFixed(1)}
+                              </Badge>
+                            ))
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Switch
+                          checked={s.appliedToPopulation}
+                          disabled={s.drivers.length === 0 || setApplied.isPending}
+                          onCheckedChange={(v) => handleToggleApplied(s.id, v)}
+                        />
+                      </TableCell>
                       <TableCell><Badge variant={s.status === "active" ? "default" : "secondary"}>{s.status === "active" ? "활성" : "종료"}</Badge></TableCell>
+                      <TableCell>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>설문 기준을 삭제하시겠습니까?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                "{s.title}"을(를) 삭제합니다. 이 작업은 되돌릴 수 없습니다. 이미 실행된 시뮬레이션 결과에는 영향을 주지 않습니다.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>취소</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteSurvey(s.id, s.title)}>삭제</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {uploads.map((u) => (
                     <TableRow key={`upload-${u.id}`}>
                       <TableCell><Badge variant="secondary">{u.format}</Badge></TableCell>
-                      <TableCell className="font-medium whitespace-nowrap">{u.fileName}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-md truncate">{u.description || "—"}</TableCell>
-                      <TableCell className="text-right tabular-nums">{u.rowCount.toLocaleString()}</TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {u.fileName}
+                        <div className="text-xs text-muted-foreground font-normal max-w-xs truncate">{u.description || "—"}</div>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">원본 업로드 ({u.rowCount.toLocaleString()}행)</TableCell>
+                      <TableCell className="text-center text-xs text-muted-foreground">—</TableCell>
                       <TableCell><Badge>{u.status === "processed" ? "처리됨" : u.status}</Badge></TableCell>
+                      <TableCell></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Pencil className="h-4 w-4" /> 설문 기준 직접 추가</CardTitle>
+          <CardDescription>업로드 없이 이슈별 태도 동인을 직접 정의해 설문 기준을 추가합니다. 저장 후 "인구 반영"을 켜면 다음 재생성부터 적용됩니다.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>제목</Label>
+            <Input placeholder="예: 2026 청년 주거 인식 조사" value={manualTitle} onChange={(e) => setManualTitle(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>설명 (선택)</Label>
+            <Textarea placeholder="이 설문이 무엇을 측정하는지 간단히 설명" value={manualDescription} onChange={(e) => setManualDescription(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>태도 동인</Label>
+            <DriverBuilder drivers={manualDrivers} setDrivers={setManualDrivers} />
+          </div>
+          <Button onClick={handleManualSave} disabled={createSurvey.isPending}>
+            {createSurvey.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            설문 기준 추가
+          </Button>
         </CardContent>
       </Card>
 
@@ -521,10 +853,45 @@ function SurveyUploadSection({
             </div>
           )}
 
-          <Button onClick={handleSubmit} disabled={!parsed || isPending}>
-            {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            업로드
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleSuggest} disabled={!parsed || suggestDrivers.isPending}>
+              {suggestDrivers.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+              LLM 자동 매핑 제안
+            </Button>
+            <Button variant="outline" onClick={handleSubmit} disabled={!parsed || isPending}>
+              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              원본만 업로드
+            </Button>
+          </div>
+
+          {showDraft && (
+            <div className="border rounded-md p-4 space-y-4 bg-primary/5 border-primary/30">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Sparkles className="h-4 w-4 text-primary" /> 자동 매핑 초안 (검토 후 저장)
+              </div>
+              {draftSummary && <p className="text-xs text-muted-foreground leading-relaxed">{draftSummary}</p>}
+              <p className="text-xs text-muted-foreground">아래 동인은 LLM이 제안한 초안입니다. 수정·삭제·추가한 뒤 설문 기준으로 저장하세요.</p>
+              <div className="space-y-2">
+                <Label>제목</Label>
+                <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>태도 동인</Label>
+                {draftDrivers.length === 0 ? (
+                  <DriverBuilder drivers={[{ factor: "", issue: "경제", weight: 0.5, direction: "" }]} setDrivers={setDraftDrivers} />
+                ) : (
+                  <DriverBuilder drivers={draftDrivers} setDrivers={setDraftDrivers} />
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleSaveDraft} disabled={createSurvey.isPending}>
+                  {createSurvey.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  설문 기준으로 저장
+                </Button>
+                <Button variant="ghost" onClick={() => setShowDraft(false)}>취소</Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

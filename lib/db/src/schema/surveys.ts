@@ -3,6 +3,7 @@ import {
   serial,
   text,
   integer,
+  boolean,
   doublePrecision,
   jsonb,
   timestamp,
@@ -25,6 +26,7 @@ export const surveysTable = pgTable("surveys", {
   status: text("status").notNull(),
   reliability: doublePrecision("reliability").notNull(),
   drivers: jsonb("drivers").$type<SurveyDriver[]>().notNull(),
+  appliedToPopulation: boolean("applied_to_population").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

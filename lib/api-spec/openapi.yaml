@@ -120,6 +120,29 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Survey"
+    post:
+      operationId: createSurvey
+      tags: [surveys]
+      summary: Create a survey criterion with attitude drivers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SurveyInput"
+      responses:
+        "201":
+          description: Created survey
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Survey"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /surveys/{id}:
     get:
@@ -134,6 +157,54 @@ paths:
       responses:
         "200":
           description: Survey
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Survey"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteSurvey
+      tags: [surveys]
+      summary: Delete a survey criterion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /surveys/{id}/applied:
+    patch:
+      operationId: setSurveyApplied
+      tags: [surveys]
+      summary: Toggle whether a survey feeds the population's attitude generation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SurveyApplyInput"
+      responses:
+        "200":
+          description: Updated survey
           content:
             application/json:
               schema:
@@ -490,6 +561,44 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /admin/survey-uploads/suggest-drivers:
+    post:
+      operationId: suggestSurveyDrivers
+      tags: [admin]
+      summary: LLM-assisted draft mapping of uploaded survey columns to attitude drivers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuggestDriversInput"
+      responses:
+        "200":
+          description: Suggested drivers (draft for human confirmation)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestDriversResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/survey-impact:
+    get:
+      operationId: getSurveyImpact
+      tags: [admin]
+      summary: Per-issue persona-generation impact from currently-applied surveys
+      responses:
+        "200":
+          description: Survey impact preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyImpactResult"
+
 components:
   schemas:
     HealthStatus:
@@ -618,6 +727,7 @@ components:
         - status
         - reliability
         - drivers
+        - appliedToPopulation
         - createdAt
       properties:
         id: { type: integer }
@@ -631,7 +741,73 @@ components:
         drivers:
           type: array
           items: { $ref: "#/components/schemas/SurveyDriver" }
+        appliedToPopulation: { type: boolean }
         createdAt: { type: string }
+
+    SurveyInput:
+      type: object
+      required: [title, drivers]
+      properties:
+        title: { type: string, minLength: 1 }
+        description: { type: string }
+        methodology: { type: string }
+        sampleSize: { type: integer }
+        fieldedDate: { type: string }
+        reliability: { type: number }
+        appliedToPopulation: { type: boolean }
+        drivers:
+          type: array
+          items: { $ref: "#/components/schemas/SurveyDriver" }
+
+    SurveyApplyInput:
+      type: object
+      required: [appliedToPopulation]
+      properties:
+        appliedToPopulation: { type: boolean }
+
+    SuggestDriversInput:
+      type: object
+      required: [sampleRows]
+      properties:
+        fileName: { type: string }
+        description: { type: string }
+        columns:
+          type: array
+          items: { type: string }
+        sampleRows:
+          type: array
+          items:
+            type: object
+            additionalProperties: { type: string }
+
+    SuggestDriversResult:
+      type: object
+      required: [summary, drivers]
+      properties:
+        summary: { type: string }
+        drivers:
+          type: array
+          items: { $ref: "#/components/schemas/SurveyDriver" }
+
+    SurveyImpactItem:
+      type: object
+      required: [issue, key, weightSum, multiplier, noiseScale, driverCount]
+      properties:
+        issue: { type: string }
+        key: { type: string }
+        weightSum: { type: number }
+        multiplier: { type: number }
+        noiseScale: { type: number }
+        driverCount: { type: integer }
+
+    SurveyImpactResult:
+      type: object
+      required: [appliedSurveyCount, items]
+      properties:
+        appliedSurveyCount: { type: integer }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/SurveyImpactItem" }
 
     Simulation:
       type: object

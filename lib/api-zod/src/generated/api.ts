@@ -141,9 +141,33 @@ export const ListSurveysResponseItem = zod.object({
   "weight": zod.number(),
   "direction": zod.string()
 })),
+  "appliedToPopulation": zod.boolean(),
   "createdAt": zod.string()
 })
 export const ListSurveysResponse = zod.array(ListSurveysResponseItem)
+
+
+/**
+ * @summary Create a survey criterion with attitude drivers
+ */
+
+
+
+export const CreateSurveyBody = zod.object({
+  "title": zod.string().min(1),
+  "description": zod.string().optional(),
+  "methodology": zod.string().optional(),
+  "sampleSize": zod.number().optional(),
+  "fieldedDate": zod.string().optional(),
+  "reliability": zod.number().optional(),
+  "appliedToPopulation": zod.boolean().optional(),
+  "drivers": zod.array(zod.object({
+  "factor": zod.string(),
+  "issue": zod.string(),
+  "weight": zod.number(),
+  "direction": zod.string()
+}))
+})
 
 
 /**
@@ -168,6 +192,46 @@ export const GetSurveyResponse = zod.object({
   "weight": zod.number(),
   "direction": zod.string()
 })),
+  "appliedToPopulation": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a survey criterion
+ */
+export const DeleteSurveyParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Toggle whether a survey feeds the population's attitude generation
+ */
+export const SetSurveyAppliedParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SetSurveyAppliedBody = zod.object({
+  "appliedToPopulation": zod.boolean()
+})
+
+export const SetSurveyAppliedResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "methodology": zod.string(),
+  "sampleSize": zod.number(),
+  "fieldedDate": zod.string(),
+  "status": zod.string(),
+  "reliability": zod.number(),
+  "drivers": zod.array(zod.object({
+  "factor": zod.string(),
+  "issue": zod.string(),
+  "weight": zod.number(),
+  "direction": zod.string()
+})),
+  "appliedToPopulation": zod.boolean(),
   "createdAt": zod.string()
 })
 
@@ -563,6 +627,43 @@ export const CreateCalibrationBody = zod.object({
  */
 export const DeleteCalibrationParams = zod.object({
   "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary LLM-assisted draft mapping of uploaded survey columns to attitude drivers
+ */
+export const SuggestSurveyDriversBody = zod.object({
+  "fileName": zod.string().optional(),
+  "description": zod.string().optional(),
+  "columns": zod.array(zod.string()).optional(),
+  "sampleRows": zod.array(zod.record(zod.string(), zod.string()))
+})
+
+export const SuggestSurveyDriversResponse = zod.object({
+  "summary": zod.string(),
+  "drivers": zod.array(zod.object({
+  "factor": zod.string(),
+  "issue": zod.string(),
+  "weight": zod.number(),
+  "direction": zod.string()
+}))
+})
+
+
+/**
+ * @summary Per-issue persona-generation impact from currently-applied surveys
+ */
+export const GetSurveyImpactResponse = zod.object({
+  "appliedSurveyCount": zod.number(),
+  "items": zod.array(zod.object({
+  "issue": zod.string(),
+  "key": zod.string(),
+  "weightSum": zod.number(),
+  "multiplier": zod.number(),
+  "noiseScale": zod.number(),
+  "driverCount": zod.number()
+}))
 })
 
 

@@ -40,7 +40,12 @@ import type {
   SimulationDetail,
   SimulationInput,
   SimulationResponse,
+  SuggestDriversInput,
+  SuggestDriversResult,
   Survey,
+  SurveyApplyInput,
+  SurveyImpactResult,
+  SurveyInput,
   SurveyUpload,
   SurveyUploadInput
 } from './api.schemas';
@@ -450,6 +455,77 @@ export function useListSurveys<TData = Awaited<ReturnType<typeof listSurveys>>, 
 
 
 
+export const getCreateSurveyUrl = () => {
+
+
+
+
+  return `/api/surveys`
+}
+
+/**
+ * @summary Create a survey criterion with attitude drivers
+ */
+export const createSurvey = async (surveyInput: SurveyInput, options?: RequestInit): Promise<Survey> => {
+
+  return customFetch<Survey>(getCreateSurveyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      surveyInput,)
+  }
+);}
+
+
+
+
+export const getCreateSurveyMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSurvey>>, TError,{data: BodyType<SurveyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSurvey>>, TError,{data: BodyType<SurveyInput>}, TContext> => {
+
+const mutationKey = ['createSurvey'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSurvey>>, {data: BodyType<SurveyInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSurvey(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSurveyMutationResult = NonNullable<Awaited<ReturnType<typeof createSurvey>>>
+    export type CreateSurveyMutationBody = BodyType<SurveyInput>
+    export type CreateSurveyMutationError = ErrorType<Error>
+
+    /**
+ * @summary Create a survey criterion with attitude drivers
+ */
+export const useCreateSurvey = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSurvey>>, TError,{data: BodyType<SurveyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSurvey>>,
+        TError,
+        {data: BodyType<SurveyInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSurveyMutationOptions(options));
+    }
+
 export const getGetSurveyUrl = (id: number,) => {
 
 
@@ -526,6 +602,148 @@ export function useGetSurvey<TData = Awaited<ReturnType<typeof getSurvey>>, TErr
 
 
 
+
+export const getDeleteSurveyUrl = (id: number,) => {
+
+
+
+
+  return `/api/surveys/${id}`
+}
+
+/**
+ * @summary Delete a survey criterion
+ */
+export const deleteSurvey = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteSurveyUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteSurveyMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSurvey>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSurvey>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteSurvey'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSurvey>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteSurvey(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSurveyMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSurvey>>>
+
+    export type DeleteSurveyMutationError = ErrorType<Error>
+
+    /**
+ * @summary Delete a survey criterion
+ */
+export const useDeleteSurvey = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSurvey>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSurvey>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSurveyMutationOptions(options));
+    }
+
+export const getSetSurveyAppliedUrl = (id: number,) => {
+
+
+
+
+  return `/api/surveys/${id}/applied`
+}
+
+/**
+ * @summary Toggle whether a survey feeds the population's attitude generation
+ */
+export const setSurveyApplied = async (id: number,
+    surveyApplyInput: SurveyApplyInput, options?: RequestInit): Promise<Survey> => {
+
+  return customFetch<Survey>(getSetSurveyAppliedUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      surveyApplyInput,)
+  }
+);}
+
+
+
+
+export const getSetSurveyAppliedMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setSurveyApplied>>, TError,{id: number;data: BodyType<SurveyApplyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setSurveyApplied>>, TError,{id: number;data: BodyType<SurveyApplyInput>}, TContext> => {
+
+const mutationKey = ['setSurveyApplied'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setSurveyApplied>>, {id: number;data: BodyType<SurveyApplyInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setSurveyApplied(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetSurveyAppliedMutationResult = NonNullable<Awaited<ReturnType<typeof setSurveyApplied>>>
+    export type SetSurveyAppliedMutationBody = BodyType<SurveyApplyInput>
+    export type SetSurveyAppliedMutationError = ErrorType<Error>
+
+    /**
+ * @summary Toggle whether a survey feeds the population's attitude generation
+ */
+export const useSetSurveyApplied = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setSurveyApplied>>, TError,{id: number;data: BodyType<SurveyApplyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setSurveyApplied>>,
+        TError,
+        {id: number;data: BodyType<SurveyApplyInput>},
+        TContext
+      > => {
+      return useMutation(getSetSurveyAppliedMutationOptions(options));
+    }
 
 export const getListSimulationsUrl = () => {
 
@@ -1855,4 +2073,152 @@ export const useDeleteCalibration = <TError = ErrorType<Error>,
       > => {
       return useMutation(getDeleteCalibrationMutationOptions(options));
     }
+
+export const getSuggestSurveyDriversUrl = () => {
+
+
+
+
+  return `/api/admin/survey-uploads/suggest-drivers`
+}
+
+/**
+ * @summary LLM-assisted draft mapping of uploaded survey columns to attitude drivers
+ */
+export const suggestSurveyDrivers = async (suggestDriversInput: SuggestDriversInput, options?: RequestInit): Promise<SuggestDriversResult> => {
+
+  return customFetch<SuggestDriversResult>(getSuggestSurveyDriversUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      suggestDriversInput,)
+  }
+);}
+
+
+
+
+export const getSuggestSurveyDriversMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestSurveyDrivers>>, TError,{data: BodyType<SuggestDriversInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suggestSurveyDrivers>>, TError,{data: BodyType<SuggestDriversInput>}, TContext> => {
+
+const mutationKey = ['suggestSurveyDrivers'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suggestSurveyDrivers>>, {data: BodyType<SuggestDriversInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  suggestSurveyDrivers(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SuggestSurveyDriversMutationResult = NonNullable<Awaited<ReturnType<typeof suggestSurveyDrivers>>>
+    export type SuggestSurveyDriversMutationBody = BodyType<SuggestDriversInput>
+    export type SuggestSurveyDriversMutationError = ErrorType<Error>
+
+    /**
+ * @summary LLM-assisted draft mapping of uploaded survey columns to attitude drivers
+ */
+export const useSuggestSurveyDrivers = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestSurveyDrivers>>, TError,{data: BodyType<SuggestDriversInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof suggestSurveyDrivers>>,
+        TError,
+        {data: BodyType<SuggestDriversInput>},
+        TContext
+      > => {
+      return useMutation(getSuggestSurveyDriversMutationOptions(options));
+    }
+
+export const getGetSurveyImpactUrl = () => {
+
+
+
+
+  return `/api/admin/survey-impact`
+}
+
+/**
+ * @summary Per-issue persona-generation impact from currently-applied surveys
+ */
+export const getSurveyImpact = async ( options?: RequestInit): Promise<SurveyImpactResult> => {
+
+  return customFetch<SurveyImpactResult>(getGetSurveyImpactUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSurveyImpactQueryKey = () => {
+    return [
+    `/api/admin/survey-impact`
+    ] as const;
+    }
+
+
+export const getGetSurveyImpactQueryOptions = <TData = Awaited<ReturnType<typeof getSurveyImpact>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSurveyImpact>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSurveyImpactQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSurveyImpact>>> = ({ signal }) => getSurveyImpact({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSurveyImpact>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSurveyImpactQueryResult = NonNullable<Awaited<ReturnType<typeof getSurveyImpact>>>
+export type GetSurveyImpactQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Per-issue persona-generation impact from currently-applied surveys
+ */
+
+export function useGetSurveyImpact<TData = Awaited<ReturnType<typeof getSurveyImpact>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSurveyImpact>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSurveyImpactQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 

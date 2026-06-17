@@ -1,4 +1,9 @@
 import type { InsertAgent, AgentIssueStances } from "@workspace/db";
+import {
+  emptyAdjustments,
+  type SurveyAdjustments,
+  type IssueKey,
+} from "./surveyWeighting";
 
 type District = {
   name: string;
@@ -177,7 +182,11 @@ function buildPersona(a: {
   )} 가치를 중시한다.`;
 }
 
-export function generateAgents(count: number, seed = 20260615): InsertAgent[] {
+export function generateAgents(
+  count: number,
+  seed = 20260615,
+  adjustments: SurveyAdjustments = emptyAdjustments(),
+): InsertAgent[] {
   const rand = mulberry32(seed);
   const agents: InsertAgent[] = [];
 
@@ -216,14 +225,22 @@ export function generateAgents(count: number, seed = 20260615): InsertAgent[] {
       INCOME_BRACKETS.length - 1,
     );
 
-    const stance = (bias: number): number =>
-      Math.round(clamp(leaning * bias + gaussian(rand) * 18, -100, 100));
+    const stance = (key: IssueKey, bias: number): number => {
+      const a = adjustments[key];
+      return Math.round(
+        clamp(
+          leaning * bias * a.multiplier + gaussian(rand) * 18 * a.noiseScale,
+          -100,
+          100,
+        ),
+      );
+    };
     const issueStances: AgentIssueStances = {
-      economy: stance(0.7),
-      welfare: stance(-0.6),
-      security: stance(0.65),
-      environment: stance(-0.5),
-      housing: stance(-0.4),
+      economy: stance("economy", 0.7),
+      welfare: stance("welfare", -0.6),
+      security: stance("security", 0.65),
+      environment: stance("environment", -0.5),
+      housing: stance("housing", -0.4),
     };
 
     const values: string[] = [];

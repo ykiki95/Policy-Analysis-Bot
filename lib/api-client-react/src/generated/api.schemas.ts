@@ -77,7 +77,52 @@ export interface Survey {
   status: string;
   reliability: number;
   drivers: SurveyDriver[];
+  appliedToPopulation: boolean;
   createdAt: string;
+}
+
+export interface SurveyInput {
+  /** @minLength 1 */
+  title: string;
+  description?: string;
+  methodology?: string;
+  sampleSize?: number;
+  fieldedDate?: string;
+  reliability?: number;
+  appliedToPopulation?: boolean;
+  drivers: SurveyDriver[];
+}
+
+export interface SurveyApplyInput {
+  appliedToPopulation: boolean;
+}
+
+export type SuggestDriversInputSampleRowsItem = {[key: string]: string};
+
+export interface SuggestDriversInput {
+  fileName?: string;
+  description?: string;
+  columns?: string[];
+  sampleRows: SuggestDriversInputSampleRowsItem[];
+}
+
+export interface SuggestDriversResult {
+  summary: string;
+  drivers: SurveyDriver[];
+}
+
+export interface SurveyImpactItem {
+  issue: string;
+  key: string;
+  weightSum: number;
+  multiplier: number;
+  noiseScale: number;
+  driverCount: number;
+}
+
+export interface SurveyImpactResult {
+  appliedSurveyCount: number;
+  items: SurveyImpactItem[];
 }
 
 export interface Simulation {

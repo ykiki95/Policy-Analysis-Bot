@@ -3,13 +3,20 @@ import { sql, eq } from "drizzle-orm";
 import {
   db,
   agentsTable,
+  surveysTable,
   dataSourcesTable,
   surveyUploadsTable,
   calibrationSettingsTable,
   calibrationsTable,
 } from "@workspace/db";
+import { openai } from "@workspace/integrations-openai-ai-server";
 import { jsonReady } from "../lib/serialize";
 import { generateAgents } from "../lib/agentGenerator";
+import {
+  computeSurveyAdjustments,
+  ISSUE_KEYS,
+  ISSUE_LABELS,
+} from "../lib/surveyWeighting";
 import {
   ListDataSourcesResponse,
   RegeneratePopulationBody,
@@ -23,6 +30,9 @@ import {
   ListCalibrationsResponseItem,
   CreateCalibrationBody,
   DeleteCalibrationParams,
+  SuggestSurveyDriversBody,
+  SuggestSurveyDriversResponse,
+  GetSurveyImpactResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -54,7 +64,9 @@ router.post(
       return;
     }
     const { count, seed } = parsed.data;
-    const agents = generateAgents(count, seed ?? undefined);
+    const surveys = await db.select().from(surveysTable);
+    const adjustments = computeSurveyAdjustments(surveys);
+    const agents = generateAgents(count, seed ?? undefined, adjustments);
 
     await db.transaction(async (tx) => {
       await tx.delete(agentsTable);
@@ -215,6 +227,120 @@ router.delete("/admin/calibrations/:id", async (req, res): Promise<void> => {
     return;
   }
   res.sendStatus(204);
+});
+
+router.post(
+  "/admin/survey-uploads/suggest-drivers",
+  async (req, res): Promise<void> => {
+    const parsed = SuggestSurveyDriversBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const { fileName, description } = parsed.data;
+    if (parsed.data.sampleRows.length === 0) {
+      res.status(400).json({ error: "표본 행이 없습니다." });
+      return;
+    }
+
+    const sampleRows = parsed.data.sampleRows.slice(0, 8).map((row) => {
+      const trimmed: Record<string, string> = {};
+      for (const [k, v] of Object.entries(row).slice(0, 20)) {
+        trimmed[k] = String(v).slice(0, 200);
+      }
+      return trimmed;
+    });
+    const columns = parsed.data.columns?.slice(0, 20);
+    const cols = columns?.length ? columns : Object.keys(sampleRows[0] ?? {});
+    const prompt = [
+      `다음은 업로드된 설문 데이터의 일부입니다. 이 설문이 합성 인구의 이슈별 태도에 어떤 영향을 주는지 "태도 동인(driver)" 목록으로 요약하세요.`,
+      fileName ? `파일명: ${fileName}` : "",
+      description ? `설명: ${description}` : "",
+      `컬럼: ${cols.join(", ")}`,
+      `표본 행(JSON): ${JSON.stringify(sampleRows.slice(0, 8))}`,
+      ``,
+      `규칙:`,
+      `- issue 값은 반드시 다음 중 하나의 한국어 단어만 사용: 경제, 복지, 안보, 환경, 주거`,
+      `- factor 는 설문에서 그 이슈를 설명하는 인구통계/태도 요인(예: 연령, 소득, 자치구, 정치성향, 학력, 주거형태)`,
+      `- weight 는 0~1 사이 실수(영향의 강도)`,
+      `- direction 은 영향의 방향을 설명하는 한국어 한 줄(예: "고령일수록 복지 확대 지지")`,
+      `- 표본에서 근거를 찾을 수 있는 동인만 최대 5개까지 제안`,
+      `- summary 는 이 설문이 인구 태도에 주는 영향을 1~2문장 한국어로 요약`,
+      ``,
+      `반드시 아래 JSON 형식 하나만 출력:`,
+      `{"summary":"...","drivers":[{"factor":"...","issue":"경제|복지|안보|환경|주거","weight":0.0,"direction":"..."}]}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-5-mini",
+        max_completion_tokens: 4000,
+        messages: [
+          {
+            role: "system",
+            content:
+              "당신은 설문 데이터를 합성 인구 태도 모델의 동인으로 매핑하는 분석가입니다. 반드시 유효한 JSON 객체 하나만 출력하세요. 이 결과는 사람이 검토 후 확정하는 초안입니다.",
+          },
+          { role: "user", content: prompt },
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const content = response.choices[0]?.message?.content ?? "{}";
+      let raw: { summary?: unknown; drivers?: unknown } = {};
+      try {
+        raw = JSON.parse(content);
+      } catch {
+        raw = {};
+      }
+
+      const validIssues = new Set(["경제", "복지", "안보", "환경", "주거"]);
+      const drivers = Array.isArray(raw.drivers)
+        ? raw.drivers
+            .map((d: Record<string, unknown>) => ({
+              factor: String(d?.factor ?? "").trim() || "요인",
+              issue: String(d?.issue ?? "").trim(),
+              weight: Math.max(
+                0,
+                Math.min(1, Number(d?.weight) || 0),
+              ),
+              direction: String(d?.direction ?? "").trim() || "—",
+            }))
+            .filter((d) => validIssues.has(d.issue))
+            .slice(0, 5)
+        : [];
+
+      const summary =
+        typeof raw.summary === "string" && raw.summary.trim().length > 0
+          ? raw.summary.trim()
+          : "이 설문에서 도출된 태도 동인 초안입니다. 검토 후 확정하세요.";
+
+      req.log.info({ fileName, count: drivers.length }, "Suggested survey drivers");
+      res.json(SuggestSurveyDriversResponse.parse({ summary, drivers }));
+    } catch (err) {
+      req.log.error({ err }, "suggest-drivers failed");
+      res.status(502).json({ error: "자동 매핑 제안에 실패했습니다. 잠시 후 다시 시도해 주세요." });
+    }
+  },
+);
+
+router.get("/admin/survey-impact", async (_req, res): Promise<void> => {
+  const surveys = await db.select().from(surveysTable);
+  const adjustments = computeSurveyAdjustments(surveys);
+  const appliedSurveyCount = surveys.filter(
+    (s) => s.appliedToPopulation,
+  ).length;
+  const items = ISSUE_KEYS.map((key) => ({
+    issue: ISSUE_LABELS[key],
+    key,
+    weightSum: adjustments[key].weightSum,
+    multiplier: adjustments[key].multiplier,
+    noiseScale: adjustments[key].noiseScale,
+    driverCount: adjustments[key].driverCount,
+  }));
+  res.json(GetSurveyImpactResponse.parse({ appliedSurveyCount, items }));
 });
 
 export default router;

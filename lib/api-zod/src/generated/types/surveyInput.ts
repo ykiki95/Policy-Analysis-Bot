@@ -7,16 +7,14 @@
  */
 import type { SurveyDriver } from './surveyDriver';
 
-export interface Survey {
-  id: number;
+export interface SurveyInput {
+  /** @minLength 1 */
   title: string;
-  description: string;
-  methodology: string;
-  sampleSize: number;
-  fieldedDate: string;
-  status: string;
-  reliability: number;
+  description?: string;
+  methodology?: string;
+  sampleSize?: number;
+  fieldedDate?: string;
+  reliability?: number;
+  appliedToPopulation?: boolean;
   drivers: SurveyDriver[];
-  appliedToPopulation: boolean;
-  createdAt: string;
 }
