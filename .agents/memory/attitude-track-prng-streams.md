@@ -25,6 +25,17 @@ toward `targetStance`) pattern, and add the domain to the skip list in
 `surveyWeighting.computeSurveyAdjustments` so it doesn't pollute political
 issues.
 
-Product→track routing lives in `simulationEngine.ts` and is keyed strictly on
-`sim.product` (lumen→commercial, seraph→policy, else political); `audience` is
-descriptive only and never switches the track.
+Product→track routing now lives in a pure `prompts.ts` module (no db/openai
+imports) and is keyed strictly on `sim.product` (lumen→commercial, seraph→policy,
+else political); `audience` is descriptive only and never switches the track.
+`simulationEngine.ts` re-imports `buildPrompt`/`isCommercialSim`/`isPolicySim`
+from it.
+
+**Regression tests** (vitest, `src/lib/*.test.ts` in api-server) lock both
+invariants: `agentGenerator.test.ts` asserts the political+consumer fields are
+byte-identical whether or not the policy track is active (toggling strong policy
+adjustments), and `prompts.test.ts` asserts the product→track routing. Tests stay
+env-free because they import only the pure `prompts.ts` + `agentGenerator.ts`
+(type-only `@workspace/db` imports are erased) — never the db/openai runtime
+modules that throw at import without env vars. Run with
+`pnpm --filter @workspace/api-server run test`.
