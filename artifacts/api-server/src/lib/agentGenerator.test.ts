@@ -103,3 +103,96 @@ describe("generateAgents determinism", () => {
     expect(rakedTrust).toBeGreaterThan(baseTrust + 10);
   });
 });
+
+/** Tally how many agents fall into each bucket of a categorical field. */
+function tally<T>(agents: T[], pick: (a: T) => string): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const a of agents) {
+    const k = pick(a);
+    out.set(k, (out.get(k) ?? 0) + 1);
+  }
+  return out;
+}
+
+/** Expected proportion of a marginal entry within its own dimension. */
+function shareOf(marginals: { population: number }[], population: number) {
+  const total = marginals.reduce((s, m) => s + m.population, 0);
+  return population / total;
+}
+
+describe("generateAgents marginal matching", () => {
+  it("produces exactly the requested agent count", () => {
+    for (const count of [50, 240, 1000, 5000]) {
+      const agents = generateAgents({ ...baseInputs(), count });
+      expect(agents.length).toBe(count);
+    }
+  });
+
+  it("matches the region marginal proportions within integer-allocation error", () => {
+    const inputs = baseInputs();
+    const count = 5000;
+    const agents = generateAgents({ ...inputs, count });
+
+    // Map region code -> name so we can compare the generated `district`
+    // (which carries the region name) back to the official region marginal key.
+    const nameByCode = new Map(inputs.regions.map((r) => [r.code, r.name]));
+    const counts = tally(agents, (a) => a.district);
+
+    for (const m of inputs.regionMarginals) {
+      const name = nameByCode.get(m.key)!;
+      const expected = shareOf(inputs.regionMarginals, m.population) * count;
+      const actual = counts.get(name) ?? 0;
+      // Largest-remainder allocation across region×age×gender cells can drift by
+      // at most one agent per cell; allow a small absolute tolerance.
+      const cells = inputs.ageMarginals.length * inputs.genderMarginals.length;
+      expect(Math.abs(actual - expected)).toBeLessThanOrEqual(cells);
+    }
+  });
+
+  it("matches the age marginal proportions within integer-allocation error", () => {
+    const inputs = baseInputs();
+    const count = 5000;
+    const agents = generateAgents({ ...inputs, count });
+    const counts = tally(agents, (a) => a.ageBracket);
+
+    for (const m of inputs.ageMarginals) {
+      const expected =
+        shareOf(inputs.ageMarginals, m.population) * count;
+      const actual = counts.get(m.bracket) ?? 0;
+      const cells =
+        inputs.regionMarginals.length * inputs.genderMarginals.length;
+      expect(Math.abs(actual - expected)).toBeLessThanOrEqual(cells);
+    }
+  });
+
+  it("matches the gender marginal proportions within integer-allocation error", () => {
+    const inputs = baseInputs();
+    const count = 5000;
+    const agents = generateAgents({ ...inputs, count });
+    const counts = tally(agents, (a) => a.gender);
+
+    for (const m of inputs.genderMarginals) {
+      const expected = shareOf(inputs.genderMarginals, m.population) * count;
+      const actual = counts.get(m.key) ?? 0;
+      const cells =
+        inputs.regionMarginals.length * inputs.ageMarginals.length;
+      expect(Math.abs(actual - expected)).toBeLessThanOrEqual(cells);
+    }
+  });
+
+  it("places every agent in the single region when region scope collapses to one", () => {
+    const inputs = baseInputs();
+    // Collapse the region marginal to a single region code (mirrors what
+    // buildGenerationInputs does for a non-national regionScope).
+    const scoped = inputs.regionMarginals.filter((m) => m.key === "41");
+    const agents = generateAgents({
+      ...inputs,
+      count: 500,
+      regionMarginals: scoped,
+    });
+
+    expect(agents.length).toBe(500);
+    const districts = new Set(agents.map((a) => a.district));
+    expect([...districts]).toEqual(["경기"]);
+  });
+});
