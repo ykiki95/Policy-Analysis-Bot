@@ -32,9 +32,12 @@ import type {
   DemographicMargin,
   Election,
   ElectionCalibrationResult,
+  ElectionSource,
   Error,
   EstimateInput,
   HealthStatus,
+  ImportElectionInput,
+  ImportElectionResult,
   ListAgentsParams,
   Product,
   RegeneratePopulationInput,
@@ -2533,4 +2536,152 @@ export function useGetSurveyImpact<TData = Awaited<ReturnType<typeof getSurveyIm
 
 
 
+
+export const getListElectionSourcesUrl = () => {
+
+
+
+
+  return `/api/admin/elections/sources`
+}
+
+/**
+ * @summary Presidential elections available to import from data.go.kr (NEC)
+ */
+export const listElectionSources = async ( options?: RequestInit): Promise<ElectionSource[]> => {
+
+  return customFetch<ElectionSource[]>(getListElectionSourcesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListElectionSourcesQueryKey = () => {
+    return [
+    `/api/admin/elections/sources`
+    ] as const;
+    }
+
+
+export const getListElectionSourcesQueryOptions = <TData = Awaited<ReturnType<typeof listElectionSources>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listElectionSources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListElectionSourcesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listElectionSources>>> = ({ signal }) => listElectionSources({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listElectionSources>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListElectionSourcesQueryResult = NonNullable<Awaited<ReturnType<typeof listElectionSources>>>
+export type ListElectionSourcesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Presidential elections available to import from data.go.kr (NEC)
+ */
+
+export function useListElectionSources<TData = Awaited<ReturnType<typeof listElectionSources>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listElectionSources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListElectionSourcesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getImportElectionUrl = () => {
+
+
+
+
+  return `/api/admin/elections/import`
+}
+
+/**
+ * @summary Import real NEC election results from data.go.kr into the elections ground truth
+ */
+export const importElection = async (importElectionInput: ImportElectionInput, options?: RequestInit): Promise<ImportElectionResult> => {
+
+  return customFetch<ImportElectionResult>(getImportElectionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      importElectionInput,)
+  }
+);}
+
+
+
+
+export const getImportElectionMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importElection>>, TError,{data: BodyType<ImportElectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importElection>>, TError,{data: BodyType<ImportElectionInput>}, TContext> => {
+
+const mutationKey = ['importElection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importElection>>, {data: BodyType<ImportElectionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importElection(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportElectionMutationResult = NonNullable<Awaited<ReturnType<typeof importElection>>>
+    export type ImportElectionMutationBody = BodyType<ImportElectionInput>
+    export type ImportElectionMutationError = ErrorType<Error>
+
+    /**
+ * @summary Import real NEC election results from data.go.kr into the elections ground truth
+ */
+export const useImportElection = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importElection>>, TError,{data: BodyType<ImportElectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importElection>>,
+        TError,
+        {data: BodyType<ImportElectionInput>},
+        TContext
+      > => {
+      return useMutation(getImportElectionMutationOptions(options));
+    }
 

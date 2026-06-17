@@ -855,3 +855,33 @@ export const GetSurveyImpactResponse = zod.object({
 })
 
 
+/**
+ * @summary Presidential elections available to import from data.go.kr (NEC)
+ */
+export const ListElectionSourcesResponseItem = zod.object({
+  "sgId": zod.string(),
+  "name": zod.string(),
+  "electionType": zod.string(),
+  "electionDate": zod.string()
+})
+export const ListElectionSourcesResponse = zod.array(ListElectionSourcesResponseItem)
+
+
+/**
+ * @summary Import real NEC election results from data.go.kr into the elections ground truth
+ */
+export const ImportElectionBody = zod.object({
+  "sgId": zod.string()
+})
+
+export const ImportElectionResponse = zod.object({
+  "electionName": zod.string(),
+  "electionType": zod.string(),
+  "electionDate": zod.string(),
+  "metric": zod.string(),
+  "candidate": zod.string(),
+  "imported": zod.number(),
+  "source": zod.string()
+})
+
+

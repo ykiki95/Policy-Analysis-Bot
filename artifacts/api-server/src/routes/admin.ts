@@ -9,6 +9,7 @@ import {
   calibrationSettingsTable,
   calibrationsTable,
   demographicMarginsTable,
+  electionsTable,
 } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { jsonReady } from "../lib/serialize";
@@ -40,7 +41,16 @@ import {
   SuggestSurveyDriversResponse,
   GetSurveyImpactResponse,
   ListDemographicMarginsResponse,
+  ListElectionSourcesResponse,
+  ImportElectionBody,
+  ImportElectionResponse,
 } from "@workspace/api-zod";
+import {
+  SUPPORTED_ELECTIONS,
+  findElectionSource,
+  fetchPresidentialConservativeShares,
+  DataGoKrError,
+} from "../lib/dataGoKr";
 
 const router: IRouter = Router();
 
@@ -370,6 +380,72 @@ router.get("/admin/survey-impact", async (_req, res): Promise<void> => {
     targetPull: adjustments[key].targetPull,
   }));
   res.json(GetSurveyImpactResponse.parse({ appliedSurveyCount, items }));
+});
+
+router.get("/admin/elections/sources", async (_req, res): Promise<void> => {
+  res.json(ListElectionSourcesResponse.parse(SUPPORTED_ELECTIONS));
+});
+
+router.post("/admin/elections/import", async (req, res): Promise<void> => {
+  const parsed = ImportElectionBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const source = findElectionSource(parsed.data.sgId);
+  if (!source) {
+    res.status(400).json({ error: "지원하지 않는 선거입니다." });
+    return;
+  }
+
+  try {
+    const shares = await fetchPresidentialConservativeShares(source.sgId);
+    const candidate = shares[0]?.candidate ?? "보수 후보";
+    const metric = `보수 후보(${candidate}) 득표율`;
+    const rows = shares.map((s) => ({
+      name: source.name,
+      electionType: source.electionType,
+      electionDate: source.electionDate,
+      regionCode: s.regionCode,
+      metric,
+      leaning: "conservative",
+      actualValue: s.actualValue,
+    }));
+
+    // 선거 검증 화면은 단일 선거(rows[0])를 기준으로 표시하므로, 새 선거를 불러올 때
+    // 기존 elections를 전부 교체(refresh)한다.
+    await db.transaction(async (tx) => {
+      await tx.delete(electionsTable);
+      await tx.execute(sql`ALTER SEQUENCE elections_id_seq RESTART WITH 1`);
+      await tx.insert(electionsTable).values(rows);
+    });
+
+    req.log.info(
+      { sgId: source.sgId, regions: rows.length },
+      "Imported real election results from data.go.kr",
+    );
+    res.json(
+      ImportElectionResponse.parse({
+        electionName: source.name,
+        electionType: source.electionType,
+        electionDate: source.electionDate,
+        metric,
+        candidate,
+        imported: rows.length,
+        source: "중앙선거관리위원회 (공공데이터포털)",
+      }),
+    );
+  } catch (err) {
+    if (err instanceof DataGoKrError) {
+      req.log.warn({ sgId: source.sgId, msg: err.message }, "election import failed");
+      res.status(502).json({ error: err.message });
+      return;
+    }
+    req.log.error({ err }, "election import failed");
+    res.status(502).json({
+      error: "공공데이터 연동에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+    });
+  }
 });
 
 export default router;

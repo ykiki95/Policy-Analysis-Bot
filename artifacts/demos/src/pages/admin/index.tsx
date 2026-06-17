@@ -19,6 +19,8 @@ import {
   useSetSurveyApplied,
   useSuggestSurveyDrivers,
   useGetSurveyImpact,
+  useListElectionSources,
+  useImportElection,
   getListCalibrationsQueryKey,
   getListSurveysQueryKey,
   getGetSurveyImpactQueryKey,
@@ -27,6 +29,7 @@ import {
   type Calibration,
   type CalibrationInput,
   type CalibrationInputProduct,
+  type ElectionSource,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +48,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw } from "lucide-react";
+import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote } from "lucide-react";
 
 const CALIBRATION_METHODS = [
   "베이지안 축소 (Bayesian Shrinkage)",
@@ -145,6 +148,70 @@ function parseUpload(text: string, fileName: string): { format: string; columns:
   return { format: "CSV", columns, rows };
 }
 
+function ElectionImportSection({
+  sources,
+  isPending,
+  onImport,
+}: {
+  sources: ElectionSource[];
+  isPending: boolean;
+  onImport: (sgId: string) => void | Promise<void>;
+}) {
+  const [selected, setSelected] = useState<string>("");
+  const effective = selected || sources[0]?.sgId || "";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Vote className="h-5 w-5 text-primary" />
+          실제 선거 데이터 연동 (data.go.kr)
+        </CardTitle>
+        <CardDescription>
+          중앙선거관리위원회 공공데이터(투·개표 정보 API)에서 실제 시·도별 보수 후보 득표율을
+          불러와 선거 검증의 기준값(ground truth)을 채웁니다. 불러온 선거가 기존 기준 데이터를
+          교체하며, 선거 검증 화면에 즉시 반영됩니다.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+          <div className="space-y-1.5 flex-1">
+            <Label className="text-xs">선거 선택</Label>
+            <Select value={effective} onValueChange={setSelected}>
+              <SelectTrigger>
+                <SelectValue placeholder="선거를 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                {sources.map((s) => (
+                  <SelectItem key={s.sgId} value={s.sgId}>
+                    {s.name} ({s.electionDate})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            onClick={() => effective && onImport(effective)}
+            disabled={!effective || isPending}
+            className="sm:w-auto"
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-1.5" />
+            )}
+            실제 결과 불러오기
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          출처: 중앙선거관리위원회 · 공공데이터포털(data.go.kr). 보수 후보 = 국민의힘 후보 기준
+          (제20대 윤석열 / 제21대 김문수). 시·도별 득표율 = 후보 득표수 ÷ 유효투표수.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -157,11 +224,13 @@ export default function Admin() {
   const { data: calibration, isLoading: calLoading } = useGetCalibrationSettings();
   const { data: calibrationEvents, isLoading: eventsLoading } = useListCalibrations();
 
+  const { data: electionSources } = useListElectionSources();
   const regenerate = useRegeneratePopulation();
   const createUpload = useCreateSurveyUpload();
   const updateCalibration = useUpdateCalibrationSettings();
   const createEvent = useCreateCalibration();
   const deleteEvent = useDeleteCalibration();
+  const importElection = useImportElection();
 
   const [count, setCount] = useState(500);
   const [regionScope, setRegionScope] = useState("NATIONAL");
@@ -388,7 +457,27 @@ export default function Admin() {
           />
         </TabsContent>
 
-        <TabsContent value="calibration" className="mt-6">
+        <TabsContent value="calibration" className="mt-6 space-y-6">
+          <ElectionImportSection
+            sources={electionSources ?? []}
+            isPending={importElection.isPending}
+            onImport={async (sgId) => {
+              try {
+                const result = await importElection.mutateAsync({ data: { sgId } });
+                await queryClient.invalidateQueries();
+                toast({
+                  title: "실제 선거 데이터 연동 완료",
+                  description: `${result.electionName} · ${result.metric} · ${result.imported}개 시·도 (출처: ${result.source})`,
+                });
+              } catch {
+                toast({
+                  title: "연동 실패",
+                  description: "공공데이터포털 응답을 확인해 주세요. 활용신청 승인 상태가 필요할 수 있습니다.",
+                  variant: "destructive",
+                });
+              }
+            }}
+          />
           {calLoading || !calibration ? (
             <Card><CardContent className="py-10"><Skeleton className="h-40 w-full" /></CardContent></Card>
           ) : (

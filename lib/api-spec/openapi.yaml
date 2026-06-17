@@ -657,6 +657,52 @@ paths:
               schema:
                 $ref: "#/components/schemas/SurveyImpactResult"
 
+  /admin/elections/sources:
+    get:
+      operationId: listElectionSources
+      tags: [admin]
+      summary: Presidential elections available to import from data.go.kr (NEC)
+      responses:
+        "200":
+          description: Supported election sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ElectionSource"
+
+  /admin/elections/import:
+    post:
+      operationId: importElection
+      tags: [admin]
+      summary: Import real NEC election results from data.go.kr into the elections ground truth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportElectionInput"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportElectionResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Upstream data.go.kr failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   schemas:
     HealthStatus:
@@ -1272,6 +1318,45 @@ components:
         metric: { type: string }
         leaning: { type: string }
         actualValue: { type: number }
+
+    ElectionSource:
+      type: object
+      required:
+        - sgId
+        - name
+        - electionType
+        - electionDate
+      properties:
+        sgId: { type: string }
+        name: { type: string }
+        electionType: { type: string }
+        electionDate: { type: string }
+
+    ImportElectionInput:
+      type: object
+      required:
+        - sgId
+      properties:
+        sgId: { type: string }
+
+    ImportElectionResult:
+      type: object
+      required:
+        - electionName
+        - electionType
+        - electionDate
+        - metric
+        - candidate
+        - imported
+        - source
+      properties:
+        electionName: { type: string }
+        electionType: { type: string }
+        electionDate: { type: string }
+        metric: { type: string }
+        candidate: { type: string }
+        imported: { type: integer }
+        source: { type: string }
 
     ElectionCalibrationRow:
       type: object

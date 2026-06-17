@@ -437,6 +437,27 @@ export interface Election {
   actualValue: number;
 }
 
+export interface ElectionSource {
+  sgId: string;
+  name: string;
+  electionType: string;
+  electionDate: string;
+}
+
+export interface ImportElectionInput {
+  sgId: string;
+}
+
+export interface ImportElectionResult {
+  electionName: string;
+  electionType: string;
+  electionDate: string;
+  metric: string;
+  candidate: string;
+  imported: number;
+  source: string;
+}
+
 export interface ElectionCalibrationRow {
   electionId: number;
   electionName: string;
