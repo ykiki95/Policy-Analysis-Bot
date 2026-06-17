@@ -44,7 +44,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil } from "lucide-react";
+import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw } from "lucide-react";
 
 const CALIBRATION_METHODS = [
   "베이지안 축소 (Bayesian Shrinkage)",
@@ -65,6 +65,16 @@ const METHOD_DESCRIPTIONS: Record<string, string> = {
 };
 
 const EVENT_TYPE_OPTIONS = ["선거", "정책 반응", "여론조사", "제품 반응", "기타"];
+
+const DEFAULT_CALIBRATION_SETTINGS = {
+  method: "베이지안 축소 (Bayesian Shrinkage)",
+  benchmarkWeight: 0.6,
+  recencyWeight: 0.3,
+  shrinkageFactor: 0.4,
+  outlierTrimPct: 5,
+  description:
+    "과거 가상 이벤트 벤치마크에 가중치를 두고, 최근 데이터에 더 큰 비중을 부여하여 원시 예측을 보정합니다.",
+};
 
 const SAMPLE_COLUMNS = [
   { name: "respondent_id", desc: "응답자 식별자" },
@@ -980,6 +990,17 @@ function CalibrationSection({
   const [outlierTrimPct, setOutlierTrimPct] = useState(initial.outlierTrimPct);
   const [description, setDescription] = useState(initial.description);
 
+  const handleReset = async () => {
+    const d = DEFAULT_CALIBRATION_SETTINGS;
+    setMethod(d.method);
+    setBenchmarkWeight(d.benchmarkWeight);
+    setRecencyWeight(d.recencyWeight);
+    setShrinkageFactor(d.shrinkageFactor);
+    setOutlierTrimPct(d.outlierTrimPct);
+    setDescription(d.description);
+    await onSave({ ...d });
+  };
+
   const methodOptions = useMemo(() => {
     return CALIBRATION_METHODS.includes(method) ? CALIBRATION_METHODS : [method, ...CALIBRATION_METHODS];
   }, [method]);
@@ -1043,13 +1064,35 @@ function CalibrationSection({
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
 
-        <Button
-          onClick={() => onSave({ method, benchmarkWeight, recencyWeight, shrinkageFactor, outlierTrimPct, description })}
-          disabled={isPending}
-        >
-          {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          설정 저장
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={() => onSave({ method, benchmarkWeight, recencyWeight, shrinkageFactor, outlierTrimPct, description })}
+            disabled={isPending}
+          >
+            {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            설정 저장
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" disabled={isPending}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                기본값으로 초기화
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>보정 설정을 기본값으로 초기화하시겠습니까?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  보정 방법과 모든 가중치가 권장 기본값(베이지안 축소 · 축소 계수 0.4 등)으로 되돌아가며 즉시 저장됩니다. 이 작업은 되돌릴 수 없습니다.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>취소</AlertDialogCancel>
+                <AlertDialogAction onClick={handleReset}>초기화</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </CardContent>
     </Card>
   );
