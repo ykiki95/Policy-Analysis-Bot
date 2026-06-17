@@ -1,3 +1,4 @@
 - [Simulation result preservation](simulation-result-preservation.md) — sim aggregates must read snapshot columns on simulation_responses, never join live agents (regenerate resets agent IDs).
 - [Survey → persona pipeline](survey-persona-pipeline.md) — BUILT: surveys.appliedToPopulation drives deterministic issue-coupling amplification + noise reduction in agentGenerator; CRUD + LLM assisted-draft mapping. Applies only on next regenerate.
 - [gpt-5 reasoning token budget](gpt5-reasoning-token-budget.md) — gpt-5* chat calls can return empty content if max_completion_tokens too small (reasoning tokens eat the budget); budget generously for JSON output.
+- [Domain tracks & data sourcing](domain-tracks-and-data-sourcing.md) — after political track, expand Lumen(commercial)+Seraph(policy) on same engine w/ domain-matched surveys+calibration; demo surveys are synthetic, real aggregates sourceable but microdata is licensed.
