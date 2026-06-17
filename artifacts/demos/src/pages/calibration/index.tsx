@@ -83,7 +83,7 @@ function ElectionCalibrationView() {
         <CardContent>
           <div className="h-[360px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+              <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }} barGap={2} barCategoryGap="35%">
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-35} textAnchor="end" height={60} />
                 <YAxis tickFormatter={(v) => `${v}`} />
@@ -225,7 +225,7 @@ function EventBacktestView({
         <CardContent>
           <div className="h-[360px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+              <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }} barGap={2} barCategoryGap="35%">
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={70} />
                 <YAxis tickFormatter={(v) => `${v}`} />
