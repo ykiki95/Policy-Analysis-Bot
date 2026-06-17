@@ -89,8 +89,8 @@ function ElectionCalibrationView() {
                 <YAxis tickFormatter={(v) => `${v}`} />
                 <RechartsTooltip cursor={{ fill: "rgba(0,0,0,0.05)" }} />
                 <Legend />
-                <Bar dataKey="rawError" name="원시 오차" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="calibratedError" name="보정 오차" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="rawError" name="원시 오차" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} maxBarSize={20} />
+                <Bar dataKey="calibratedError" name="보정 오차" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={20} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -231,8 +231,8 @@ function EventBacktestView({
                 <YAxis tickFormatter={(v) => `${v}`} />
                 <RechartsTooltip cursor={{ fill: "rgba(0,0,0,0.05)" }} />
                 <Legend />
-                <Bar dataKey="rawError" name="원시 오차" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="calibratedError" name="보정 오차" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="rawError" name="원시 오차" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} maxBarSize={20} />
+                <Bar dataKey="calibratedError" name="보정 오차" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={20} />
               </BarChart>
             </ResponsiveContainer>
           </div>
