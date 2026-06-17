@@ -692,6 +692,7 @@ components:
         - partyAffinity
         - turnoutPropensity
         - issueStances
+        - consumerStances
         - mediaDiet
         - values
         - personaSummary
@@ -713,6 +714,8 @@ components:
         turnoutPropensity: { type: integer }
         issueStances:
           $ref: "#/components/schemas/IssueStances"
+        consumerStances:
+          $ref: "#/components/schemas/ConsumerStances"
         mediaDiet: { type: string }
         values:
           type: array
@@ -728,6 +731,21 @@ components:
         security: { type: integer }
         environment: { type: integer }
         housing: { type: integer }
+
+    ConsumerStances:
+      type: object
+      required:
+        - priceSensitivity
+        - brandLoyalty
+        - noveltySeeking
+        - ecoConsciousness
+        - digitalConsumption
+      properties:
+        priceSensitivity: { type: integer }
+        brandLoyalty: { type: integer }
+        noveltySeeking: { type: integer }
+        ecoConsciousness: { type: integer }
+        digitalConsumption: { type: integer }
 
     BreakdownItem:
       type: object
@@ -787,6 +805,7 @@ components:
         - reliability
         - drivers
         - appliedToPopulation
+        - domain
         - isReal
         - sourceAgency
         - sourceTitle
@@ -806,6 +825,7 @@ components:
           type: array
           items: { $ref: "#/components/schemas/SurveyDriver" }
         appliedToPopulation: { type: boolean }
+        domain: { type: string, enum: [political, commercial] }
         isReal: { type: boolean }
         sourceAgency: { type: string, nullable: true }
         sourceTitle: { type: string, nullable: true }
@@ -824,6 +844,7 @@ components:
         fieldedDate: { type: string }
         reliability: { type: number }
         appliedToPopulation: { type: boolean }
+        domain: { type: string, enum: [political, commercial] }
         isReal: { type: boolean }
         sourceAgency: { type: string }
         sourceTitle: { type: string }

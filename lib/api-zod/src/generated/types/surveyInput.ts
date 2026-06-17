@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SurveyDriver } from './surveyDriver';
+import type { SurveyInputDomain } from './surveyInputDomain';
 
 export interface SurveyInput {
   /** @minLength 1 */
@@ -16,6 +17,7 @@ export interface SurveyInput {
   fieldedDate?: string;
   reliability?: number;
   appliedToPopulation?: boolean;
+  domain?: SurveyInputDomain;
   isReal?: boolean;
   sourceAgency?: string;
   sourceTitle?: string;

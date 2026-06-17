@@ -2,7 +2,7 @@ import { useGetSurvey, getGetSurveyQueryKey } from "@workspace/api-client-react"
 import { useParams, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Database, Calendar, Users, Percent, CheckCircle, BadgeCheck, Building2, FileText, Clock, ExternalLink } from "lucide-react";
+import { ArrowLeft, Database, Calendar, Users, Percent, CheckCircle, BadgeCheck, Building2, FileText, Clock, ExternalLink, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
@@ -39,6 +39,16 @@ export default function SurveyDetail() {
           <p className="text-muted-foreground mt-2 max-w-3xl">{survey.description}</p>
         </div>
         <div className="flex flex-col items-end gap-2 shrink-0">
+          <Badge
+            variant="outline"
+            className={
+              survey.domain === "commercial"
+                ? "border-amber-500/50 text-amber-600 dark:text-amber-400 text-sm px-3 py-1"
+                : "border-sky-500/50 text-sky-600 dark:text-sky-400 text-sm px-3 py-1"
+            }
+          >
+            {survey.domain === "commercial" ? "소비 도메인" : "정치 도메인"}
+          </Badge>
           {survey.isReal && (
             <Badge className="bg-emerald-600 hover:bg-emerald-600 gap-1 text-sm px-3 py-1">
               <BadgeCheck className="h-3.5 w-3.5" />실데이터
@@ -197,6 +207,28 @@ export default function SurveyDetail() {
           </Table>
         </CardContent>
       </Card>
+
+      {survey.domain === "commercial" && (
+        <Card className="border-amber-500/30 bg-amber-50/30 dark:bg-amber-950/10">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Info className="h-5 w-5 text-amber-600" />
+              <CardTitle className="text-base">공개 데이터 한계</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground space-y-1.5">
+            <p>
+              본 소비자 태도 보정은 공표된 정부·공공기관 집계 통계에 기반합니다. 브랜드별
+              선호, 세부 구매 채널, SKU 단위 전환율 등 세분화된 행태 데이터는 공개되지
+              않으며, 정밀 분석에는 유료 소비자 패널 데이터가 필요합니다.
+            </p>
+            <p>
+              따라서 합성 인구의 소비 성향은 거시 추세(가격 민감·디지털 소비 등)를
+              반영한 근사치이며, 특정 제품의 실제 시장 점유율 예측이 아닙니다.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

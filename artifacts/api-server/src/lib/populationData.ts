@@ -7,6 +7,7 @@ import {
   type Region,
 } from "@workspace/db";
 import { computeSurveyAdjustments } from "./surveyWeighting";
+import { computeConsumerAdjustments } from "./consumerWeighting";
 import type { GenerationInputs, RegionMeta } from "./agentGenerator";
 import type { Marginal } from "./raking";
 
@@ -71,6 +72,7 @@ export async function buildGenerationInputs(
 
   const surveys = await db.select().from(surveysTable);
   const adjustments = computeSurveyAdjustments(surveys);
+  const consumerAdjustments = computeConsumerAdjustments(surveys);
 
   return {
     inputs: {
@@ -81,6 +83,7 @@ export async function buildGenerationInputs(
       ageMarginals,
       genderMarginals,
       adjustments,
+      consumerAdjustments,
     },
     scopeName,
   };

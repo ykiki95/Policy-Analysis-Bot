@@ -104,7 +104,10 @@ export function emptyAdjustments(): SurveyAdjustments {
  * that makes the population's stance on that issue more confident.
  */
 export function computeSurveyAdjustments(
-  surveys: Pick<Survey, "appliedToPopulation" | "drivers" | "sampleSize">[],
+  surveys: Pick<
+    Survey,
+    "appliedToPopulation" | "drivers" | "sampleSize" | "domain"
+  >[],
 ): SurveyAdjustments {
   const adj = emptyAdjustments();
   // Reliability-weighted accumulators for the target stance per issue.
@@ -124,6 +127,8 @@ export function computeSurveyAdjustments(
   };
 
   for (const survey of surveys) {
+    // Commercial-domain surveys feed agent.consumerStances, not the political issues.
+    if (survey.domain === "commercial") continue;
     if (!survey.appliedToPopulation) continue;
     const reliability = reliabilityFromSampleSize(survey.sampleSize);
     const drivers: SurveyDriver[] = survey.drivers ?? [];

@@ -50,6 +50,13 @@ export const ListAgentsResponseItem = zod.object({
   "environment": zod.number(),
   "housing": zod.number()
 }),
+  "consumerStances": zod.object({
+  "priceSensitivity": zod.number(),
+  "brandLoyalty": zod.number(),
+  "noveltySeeking": zod.number(),
+  "ecoConsciousness": zod.number(),
+  "digitalConsumption": zod.number()
+}),
   "mediaDiet": zod.string(),
   "values": zod.array(zod.string()),
   "personaSummary": zod.string()
@@ -117,6 +124,13 @@ export const GetAgentResponse = zod.object({
   "environment": zod.number(),
   "housing": zod.number()
 }),
+  "consumerStances": zod.object({
+  "priceSensitivity": zod.number(),
+  "brandLoyalty": zod.number(),
+  "noveltySeeking": zod.number(),
+  "ecoConsciousness": zod.number(),
+  "digitalConsumption": zod.number()
+}),
   "mediaDiet": zod.string(),
   "values": zod.array(zod.string()),
   "personaSummary": zod.string()
@@ -148,6 +162,7 @@ export const ListSurveysResponseItem = zod.object({
   "targetStance": zod.number().min(listSurveysResponseDriversItemTargetStanceMin).max(listSurveysResponseDriversItemTargetStanceMax).optional()
 })),
   "appliedToPopulation": zod.boolean(),
+  "domain": zod.enum(['political', 'commercial']),
   "isReal": zod.boolean(),
   "sourceAgency": zod.string().nullable(),
   "sourceTitle": zod.string().nullable(),
@@ -175,6 +190,7 @@ export const CreateSurveyBody = zod.object({
   "fieldedDate": zod.string().optional(),
   "reliability": zod.number().optional(),
   "appliedToPopulation": zod.boolean().optional(),
+  "domain": zod.enum(['political', 'commercial']).optional(),
   "isReal": zod.boolean().optional(),
   "sourceAgency": zod.string().optional(),
   "sourceTitle": zod.string().optional(),
@@ -219,6 +235,7 @@ export const GetSurveyResponse = zod.object({
   "targetStance": zod.number().min(getSurveyResponseDriversItemTargetStanceMin).max(getSurveyResponseDriversItemTargetStanceMax).optional()
 })),
   "appliedToPopulation": zod.boolean(),
+  "domain": zod.enum(['political', 'commercial']),
   "isReal": zod.boolean(),
   "sourceAgency": zod.string().nullable(),
   "sourceTitle": zod.string().nullable(),
@@ -269,6 +286,7 @@ export const SetSurveyAppliedResponse = zod.object({
   "targetStance": zod.number().min(setSurveyAppliedResponseDriversItemTargetStanceMin).max(setSurveyAppliedResponseDriversItemTargetStanceMax).optional()
 })),
   "appliedToPopulation": zod.boolean(),
+  "domain": zod.enum(['political', 'commercial']),
   "isReal": zod.boolean(),
   "sourceAgency": zod.string().nullable(),
   "sourceTitle": zod.string().nullable(),

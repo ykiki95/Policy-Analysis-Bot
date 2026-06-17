@@ -1,9 +1,18 @@
-import type { InsertAgent, AgentIssueStances } from "@workspace/db";
+import type {
+  InsertAgent,
+  AgentIssueStances,
+  AgentConsumerStances,
+} from "@workspace/db";
 import {
   emptyAdjustments,
   type SurveyAdjustments,
   type IssueKey,
 } from "./surveyWeighting";
+import {
+  emptyConsumerAdjustments,
+  type ConsumerAdjustments,
+  type ConsumerAxisKey,
+} from "./consumerWeighting";
 import { fitJoint, allocate, type Marginal } from "./raking";
 
 export type RegionMeta = {
@@ -31,6 +40,8 @@ export type GenerationInputs = {
   /** Official gender marginal (population per gender: Male/Female). */
   genderMarginals: Marginal[];
   adjustments?: SurveyAdjustments;
+  /** Consumer-axis raking adjustments derived from commercial-domain surveys. */
+  consumerAdjustments?: ConsumerAdjustments;
 };
 
 const AGE_RANGES: Record<string, { min: number; max: number }> = {
@@ -173,6 +184,7 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
     ageMarginals,
     genderMarginals,
     adjustments = emptyAdjustments(),
+    consumerAdjustments = emptyConsumerAdjustments(),
   } = inputs;
 
   const regionByCode = new Map(regions.map((r) => [r.code, r]));
@@ -186,6 +198,11 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
   const allocated = allocate(joint, count);
 
   const rand = mulberry32(seed);
+  // Independent PRNG stream for consumer-axis noise. Kept separate from `rand`
+  // so adding the commercial track does NOT shift the political stream — agents'
+  // political attributes stay byte-identical whether or not consumer stances are
+  // generated, preserving determinism + non-overlap with the Seraph/Dynamo track.
+  const consumerRand = mulberry32(seed ^ 0x6d2b79f5);
   const agents: InsertAgent[] = [];
 
   for (const cell of allocated) {
@@ -244,6 +261,37 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
         housing: stance("housing", -0.4),
       };
 
+      // Consumer axes (0..100): deterministic demographic base + noise, raked
+      // toward commercial-survey targets. Distinct from the political issues.
+      const consumerStance = (key: ConsumerAxisKey, base: number): number => {
+        const c = consumerAdjustments[key];
+        const noise = gaussian(consumerRand) * 12 * c.noiseScale;
+        const raked =
+          c.targetMean !== null && c.targetPull > 0
+            ? base * (1 - c.targetPull) + c.targetMean * c.targetPull
+            : base;
+        return Math.round(clamp(raked + noise, 0, 100));
+      };
+      const consumerStances: AgentConsumerStances = {
+        priceSensitivity: consumerStance(
+          "priceSensitivity",
+          80 - incomeIdx * 11 + (age >= 60 ? 6 : 0),
+        ),
+        brandLoyalty: consumerStance("brandLoyalty", 30 + (age - 20) * 0.7),
+        noveltySeeking: consumerStance(
+          "noveltySeeking",
+          78 - (age - 25) * 0.8 + eduIdx * 4,
+        ),
+        ecoConsciousness: consumerStance(
+          "ecoConsciousness",
+          48 + eduIdx * 5 - (age - 40) * 0.25,
+        ),
+        digitalConsumption: consumerStance(
+          "digitalConsumption",
+          95 - (age - 25) * 1.0,
+        ),
+      };
+
       const values: string[] = [];
       while (values.length < 3) {
         const v = VALUE_POOL[Math.floor(rand() * VALUE_POOL.length)];
@@ -278,6 +326,7 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
         partyAffinity: partyFromLeaning(leaning),
         turnoutPropensity,
         issueStances,
+        consumerStances,
         mediaDiet: MEDIA_DIETS[Math.floor(rand() * MEDIA_DIETS.length)],
         values,
         personaSummary: buildPersona({

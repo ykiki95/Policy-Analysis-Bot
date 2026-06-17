@@ -1,7 +1,7 @@
 import { useListProducts } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Box, Target, Briefcase, Landmark } from "lucide-react";
+import { Box, Target, Briefcase, Landmark, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function Products() {
@@ -65,6 +65,15 @@ export default function Products() {
                   ))}
                 </ul>
               </div>
+              {product.name.toLowerCase() === "lumen" && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-50/40 dark:bg-amber-950/10 p-3 flex items-start gap-2">
+                  <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    소비자 태도는 공개 정부·공공기관 통계로 보정됩니다. 브랜드·세부 구매
+                    채널 단위 분석에는 유료 소비자 패널 데이터가 필요합니다.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

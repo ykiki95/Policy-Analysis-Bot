@@ -33,6 +33,12 @@ export const surveysTable = pgTable("surveys", {
   reliability: doublePrecision("reliability").notNull(),
   drivers: jsonb("drivers").$type<SurveyDriver[]>().notNull(),
   appliedToPopulation: boolean("applied_to_population").notNull().default(false),
+  /**
+   * Attitude domain this survey informs:
+   * - "political": the 5 political issues (경제/복지/안보/환경/주거) → agent.issueStances
+   * - "commercial": the 5 consumer axes (가격민감도/브랜드충성도/신제품수용/친환경소비/디지털소비) → agent.consumerStances
+   */
+  domain: text("domain").notNull().default("political"),
   /** True when the survey is a real published aggregate (vs. synthetic/illustrative). */
   isReal: boolean("is_real").notNull().default(false),
   /** Source attribution (real published surveys): publishing org. */

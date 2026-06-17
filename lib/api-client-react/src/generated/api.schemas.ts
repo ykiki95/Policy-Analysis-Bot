@@ -21,6 +21,14 @@ export interface IssueStances {
   housing: number;
 }
 
+export interface ConsumerStances {
+  priceSensitivity: number;
+  brandLoyalty: number;
+  noveltySeeking: number;
+  ecoConsciousness: number;
+  digitalConsumption: number;
+}
+
 export interface Agent {
   id: number;
   name: string;
@@ -38,6 +46,7 @@ export interface Agent {
   partyAffinity: string;
   turnoutPropensity: number;
   issueStances: IssueStances;
+  consumerStances: ConsumerStances;
   mediaDiet: string;
   values: string[];
   personaSummary: string;
@@ -72,6 +81,14 @@ export interface SurveyDriver {
   targetStance?: number;
 }
 
+export type SurveyDomain = typeof SurveyDomain[keyof typeof SurveyDomain];
+
+
+export const SurveyDomain = {
+  political: 'political',
+  commercial: 'commercial',
+} as const;
+
 export interface Survey {
   id: number;
   title: string;
@@ -83,6 +100,7 @@ export interface Survey {
   reliability: number;
   drivers: SurveyDriver[];
   appliedToPopulation: boolean;
+  domain: SurveyDomain;
   isReal: boolean;
   sourceAgency: string | null;
   sourceTitle: string | null;
@@ -90,6 +108,14 @@ export interface Survey {
   sourceUrl: string | null;
   createdAt: string;
 }
+
+export type SurveyInputDomain = typeof SurveyInputDomain[keyof typeof SurveyInputDomain];
+
+
+export const SurveyInputDomain = {
+  political: 'political',
+  commercial: 'commercial',
+} as const;
 
 export interface SurveyInput {
   /** @minLength 1 */
@@ -100,6 +126,7 @@ export interface SurveyInput {
   fieldedDate?: string;
   reliability?: number;
   appliedToPopulation?: boolean;
+  domain?: SurveyInputDomain;
   isReal?: boolean;
   sourceAgency?: string;
   sourceTitle?: string;

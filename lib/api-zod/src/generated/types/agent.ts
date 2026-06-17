@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ConsumerStances } from './consumerStances';
 import type { IssueStances } from './issueStances';
 
 export interface Agent {
@@ -24,6 +25,7 @@ export interface Agent {
   partyAffinity: string;
   turnoutPropensity: number;
   issueStances: IssueStances;
+  consumerStances: ConsumerStances;
   mediaDiet: string;
   values: string[];
   personaSummary: string;

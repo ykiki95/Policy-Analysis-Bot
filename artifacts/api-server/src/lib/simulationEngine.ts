@@ -36,7 +36,39 @@ function normalizeStance(value: unknown, score: number): AgentVerdict["stance"] 
   return "neutral";
 }
 
-function buildPrompt(agent: Agent, sim: Simulation): string {
+/**
+ * Lumen simulations probe consumer reception, so they use the consumer-attitude
+ * persona rather than the political one. Decided strictly by product — Seraph·
+ * Dynamo always stay on the political track even if audience is mis-set, so
+ * audience is treated as descriptive only and never switches the track.
+ */
+function isCommercialSim(sim: Simulation): boolean {
+  return sim.product?.toLowerCase() === "lumen";
+}
+
+function buildCommercialPrompt(agent: Agent, sim: Simulation): string {
+  const c = agent.consumerStances;
+  return [
+    `당신은 대한민국에 거주하는 소비자 페르소나입니다. 아래 인물의 입장에서 제품/브랜드/마케팅 메시지에 대한 반응을 평가하세요.`,
+    `이름: ${agent.name}`,
+    `나이: ${agent.age} (${agent.ageBracket}), 성별: ${agent.gender}`,
+    `거주 지역(시·도): ${agent.district}`,
+    `학력: ${agent.education}, 소득: ${agent.incomeBracket}, 직업: ${agent.occupation}, 가구형태: ${agent.householdType}`,
+    `소비 성향(0~100): 가격민감도 ${c.priceSensitivity}, 브랜드충성도 ${c.brandLoyalty}, 신제품수용 ${c.noveltySeeking}, 친환경소비 ${c.ecoConsciousness}, 디지털소비 ${c.digitalConsumption}`,
+    `미디어 소비: ${agent.mediaDiet}`,
+    `핵심 가치: ${agent.values.join(", ")}`,
+    `요약: ${agent.personaSummary}`,
+    ``,
+    `평가 대상 (${sim.audience} / ${sim.product}):`,
+    sim.policyText,
+    ``,
+    `이 소비자가 위 제품/메시지에 어떻게 반응할지(구매·수용 의향) JSON으로만 답하세요. 형식:`,
+    `{"stance":"support|oppose|neutral","score":0-100,"confidence":0-100,"reasoning":"한국어 1-2문장"}`,
+    `score는 수용/구매 의향(0=전혀 구매 안 함, 100=적극 구매). stance는 support=수용/구매, oppose=거부, neutral=중립. 이 소비자의 소비 성향과 가치에 충실하게 답하세요.`,
+  ].join("\n");
+}
+
+function buildPoliticalPrompt(agent: Agent, sim: Simulation): string {
   const stances = agent.issueStances;
   return [
     `당신은 대한민국에 거주하는 시민 페르소나입니다. 아래 인물의 입장에서 정책/메시지에 대한 반응을 평가하세요.`,
@@ -57,6 +89,12 @@ function buildPrompt(agent: Agent, sim: Simulation): string {
     `{"stance":"support|oppose|neutral","score":0-100,"confidence":0-100,"reasoning":"한국어 1-2문장"}`,
     `score는 지지 강도(0=강한 반대, 100=강한 지지). 이 인물의 성향과 가치에 충실하게 답하세요.`,
   ].join("\n");
+}
+
+function buildPrompt(agent: Agent, sim: Simulation): string {
+  return isCommercialSim(sim)
+    ? buildCommercialPrompt(agent, sim)
+    : buildPoliticalPrompt(agent, sim);
 }
 
 async function evaluateAgent(
@@ -115,13 +153,18 @@ function buildSummary(
   neutralPct: number,
   topDistrict: string,
 ): string {
+  const commercial = isCommercialSim(sim);
   const verdict =
     supportPct >= 55
       ? "전반적으로 우호적인 반응"
       : opposePct >= 55
         ? "전반적으로 부정적인 반응"
-        : "찬반이 팽팽하게 갈리는 반응";
-  return `전국 합성 인구 ${sim.totalAgents}명 시뮬레이션 결과 ${verdict}이 나타났습니다. 찬성 ${supportPct}%, 반대 ${opposePct}%, 중립 ${neutralPct}%로, ${topDistrict} 지역에서 지지가 가장 높았습니다.`;
+        : commercial
+          ? "수용과 거부가 팽팽하게 갈리는 반응"
+          : "찬반이 팽팽하게 갈리는 반응";
+  const posLabel = commercial ? "수용" : "찬성";
+  const negLabel = commercial ? "거부" : "반대";
+  return `전국 합성 인구 ${sim.totalAgents}명 시뮬레이션 결과 ${verdict}이 나타났습니다. ${posLabel} ${supportPct}%, ${negLabel} ${opposePct}%, 중립 ${neutralPct}%로, ${topDistrict} 지역에서 ${commercial ? "수용도" : "지지"}가 가장 높았습니다.`;
 }
 
 export async function runSimulation(simulationId: number): Promise<void> {

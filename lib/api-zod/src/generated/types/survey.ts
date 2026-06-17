@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SurveyDomain } from './surveyDomain';
 import type { SurveyDriver } from './surveyDriver';
 
 export interface Survey {
@@ -18,6 +19,7 @@ export interface Survey {
   reliability: number;
   drivers: SurveyDriver[];
   appliedToPopulation: boolean;
+  domain: SurveyDomain;
   isReal: boolean;
   sourceAgency: string | null;
   sourceTitle: string | null;

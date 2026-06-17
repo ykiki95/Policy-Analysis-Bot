@@ -2,7 +2,7 @@ import { useGetAgent, getGetAgentQueryKey } from "@workspace/api-client-react";
 import { useParams, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, MapPin, Briefcase, GraduationCap, DollarSign, Home, Heart, Tv } from "lucide-react";
+import { ArrowLeft, MapPin, Briefcase, GraduationCap, DollarSign, Home, Heart, Tv, ShoppingCart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
@@ -142,6 +142,36 @@ export default function AgentDetail() {
               </div>
               <Progress value={agent.issueStances.housing} className="h-2" />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-amber-600" />
+              <CardTitle>소비 성향 (0-100)</CardTitle>
+            </div>
+            <CardDescription>
+              Lumen(비즈니스) 시뮬레이션에서 사용되는 소비자 태도 축입니다. 공개 소비자
+              조사 통계로 보정된 합성 값입니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid sm:grid-cols-2 gap-x-8 gap-y-5">
+            {[
+              { label: "가격 민감도", value: agent.consumerStances.priceSensitivity },
+              { label: "브랜드 충성도", value: agent.consumerStances.brandLoyalty },
+              { label: "신제품 수용", value: agent.consumerStances.noveltySeeking },
+              { label: "친환경 소비", value: agent.consumerStances.ecoConsciousness },
+              { label: "디지털 소비", value: agent.consumerStances.digitalConsumption },
+            ].map((axis) => (
+              <div key={axis.label} className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">{axis.label}</span>
+                  <span>{axis.value}</span>
+                </div>
+                <Progress value={axis.value} className="h-2" />
+              </div>
+            ))}
           </CardContent>
         </Card>
 

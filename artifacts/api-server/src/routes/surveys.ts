@@ -42,6 +42,7 @@ router.post("/surveys", async (req, res): Promise<void> => {
       reliability: d.reliability ?? 0,
       drivers: d.drivers,
       appliedToPopulation: d.appliedToPopulation ?? false,
+      domain: d.domain ?? "political",
       isReal: d.isReal ?? false,
       sourceAgency: d.sourceAgency ?? null,
       sourceTitle: d.sourceTitle ?? null,

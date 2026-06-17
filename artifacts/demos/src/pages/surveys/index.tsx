@@ -38,6 +38,16 @@ export default function Surveys() {
                     <CardDescription className="mt-1 line-clamp-2">{survey.description}</CardDescription>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <Badge
+                      variant="outline"
+                      className={
+                        survey.domain === "commercial"
+                          ? "border-amber-500/50 text-amber-600 dark:text-amber-400"
+                          : "border-sky-500/50 text-sky-600 dark:text-sky-400"
+                      }
+                    >
+                      {survey.domain === "commercial" ? "소비" : "정치"}
+                    </Badge>
                     {survey.isReal && (
                       <Badge className="bg-emerald-600 hover:bg-emerald-600 gap-1">
                         <BadgeCheck className="h-3 w-3" />실데이터
