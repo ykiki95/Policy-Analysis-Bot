@@ -22,7 +22,12 @@ export default function Calibration() {
   const avgRawError = hasEvents ? calibrations.reduce((acc, curr) => acc + curr.rawError, 0) / calibrations.length : 0;
   const avgCalError = hasEvents ? calibrations.reduce((acc, curr) => acc + curr.calibratedError, 0) / calibrations.length : 0;
 
-  const chartData = calibrations.map(c => ({
+  const sortedAsc = [...calibrations].sort(
+    (a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime()
+  );
+  const sortedDesc = [...sortedAsc].reverse();
+
+  const chartData = sortedAsc.map(c => ({
     name: c.title,
     rawError: c.rawError,
     calibratedError: c.calibratedError
@@ -102,7 +107,7 @@ export default function Calibration() {
           <p className="text-sm text-muted-foreground">등록된 검증 이벤트가 없습니다.</p>
         )}
         <div className="grid gap-4">
-          {calibrations.map((cal) => (
+          {sortedDesc.map((cal) => (
             <Card key={cal.id}>
               <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div>

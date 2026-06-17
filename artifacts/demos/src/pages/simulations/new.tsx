@@ -232,7 +232,7 @@ export default function NewSimulation() {
               ) : (
                 <div className="space-y-2">
                   <div className="text-2xl font-bold text-primary">
-                    ${estimatedCost.min.toFixed(2)} - ${estimatedCost.max.toFixed(2)}
+                    ${(estimatedCost.min * 10).toFixed(2)} - ${(estimatedCost.max * 10).toFixed(2)}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     대상 에이전트: 500명<br/>

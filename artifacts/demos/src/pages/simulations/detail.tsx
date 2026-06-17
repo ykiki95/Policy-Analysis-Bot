@@ -153,7 +153,7 @@ export default function SimulationDetail() {
             <p className="text-xs text-muted-foreground mb-1">소요 비용</p>
             <div className="flex items-center justify-end gap-1 text-xl font-semibold">
               <DollarSign className="w-5 h-5 text-muted-foreground" />
-              {sim.costActualUsd ? sim.costActualUsd.toFixed(2) : sim.costEstimateUsd.toFixed(2)}
+              {((sim.costActualUsd ?? sim.costEstimateUsd) * 10).toFixed(2)}
             </div>
           </div>
         </div>
@@ -198,7 +198,7 @@ export default function SimulationDetail() {
                 <CardTitle className="text-sm font-medium">정치 성향별 지지율</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-[120px] w-full">
+                <div className="h-[120px] w-full max-w-md">
                   <ResponsiveContainer>
                     <BarChart data={simDetail.results.byLeaning} layout="vertical" margin={{ left: 10, right: 10 }}>
                       <XAxis type="number" hide />
@@ -219,7 +219,7 @@ export default function SimulationDetail() {
               <CardTitle>연령대별 반응</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[250px] w-full">
+              <div className="h-[250px] w-full max-w-2xl">
                 <ResponsiveContainer>
                   <BarChart data={ageChartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
