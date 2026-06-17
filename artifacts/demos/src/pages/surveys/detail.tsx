@@ -44,10 +44,16 @@ export default function SurveyDetail() {
             className={
               survey.domain === "commercial"
                 ? "border-amber-500/50 text-amber-600 dark:text-amber-400 text-sm px-3 py-1"
-                : "border-sky-500/50 text-sky-600 dark:text-sky-400 text-sm px-3 py-1"
+                : survey.domain === "policy"
+                  ? "border-violet-500/50 text-violet-600 dark:text-violet-400 text-sm px-3 py-1"
+                  : "border-sky-500/50 text-sky-600 dark:text-sky-400 text-sm px-3 py-1"
             }
           >
-            {survey.domain === "commercial" ? "소비 도메인" : "정치 도메인"}
+            {survey.domain === "commercial"
+              ? "소비 도메인"
+              : survey.domain === "policy"
+                ? "정책 도메인"
+                : "정치 도메인"}
           </Badge>
           {survey.isReal && (
             <Badge className="bg-emerald-600 hover:bg-emerald-600 gap-1 text-sm px-3 py-1">
@@ -225,6 +231,29 @@ export default function SurveyDetail() {
             <p>
               따라서 합성 인구의 소비 성향은 거시 추세(가격 민감·디지털 소비 등)를
               반영한 근사치이며, 특정 제품의 실제 시장 점유율 예측이 아닙니다.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {survey.domain === "policy" && (
+        <Card className="border-violet-500/30 bg-violet-50/30 dark:bg-violet-950/10">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Info className="h-5 w-5 text-violet-600" />
+              <CardTitle className="text-base">공개 데이터 한계</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground space-y-1.5">
+            <p>
+              본 정책 태도 보정은 사회통합실태조사·사회조사·전자정부 이용실태 등 공표된
+              국가승인·공공기관 집계 통계에 기반합니다. 개별 응답 원자료(마이크로데이터),
+              지역·정책별 세부 교차표는 공개되지 않거나 별도 신청·승인이 필요합니다.
+            </p>
+            <p>
+              따라서 합성 인구의 정책 성향(정부신뢰·증세수용·규제선호 등)은 거시 추세를
+              반영한 근사치이며, 특정 정책의 실제 찬반율·집행 성과 예측이 아닙니다. Seraph
+              (정부) 시뮬레이션의 의사결정 보조 지표로 활용하세요.
             </p>
           </CardContent>
         </Card>

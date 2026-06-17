@@ -2,6 +2,7 @@ import type {
   InsertAgent,
   AgentIssueStances,
   AgentConsumerStances,
+  AgentPolicyStances,
 } from "@workspace/db";
 import {
   emptyAdjustments,
@@ -13,6 +14,11 @@ import {
   type ConsumerAdjustments,
   type ConsumerAxisKey,
 } from "./consumerWeighting";
+import {
+  emptyPolicyAdjustments,
+  type PolicyAdjustments,
+  type PolicyAxisKey,
+} from "./policyWeighting";
 import { fitJoint, allocate, type Marginal } from "./raking";
 
 export type RegionMeta = {
@@ -42,6 +48,8 @@ export type GenerationInputs = {
   adjustments?: SurveyAdjustments;
   /** Consumer-axis raking adjustments derived from commercial-domain surveys. */
   consumerAdjustments?: ConsumerAdjustments;
+  /** Policy-axis raking adjustments derived from policy-domain surveys. */
+  policyAdjustments?: PolicyAdjustments;
 };
 
 const AGE_RANGES: Record<string, { min: number; max: number }> = {
@@ -185,6 +193,7 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
     genderMarginals,
     adjustments = emptyAdjustments(),
     consumerAdjustments = emptyConsumerAdjustments(),
+    policyAdjustments = emptyPolicyAdjustments(),
   } = inputs;
 
   const regionByCode = new Map(regions.map((r) => [r.code, r]));
@@ -203,6 +212,11 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
   // political attributes stay byte-identical whether or not consumer stances are
   // generated, preserving determinism + non-overlap with the Seraph/Dynamo track.
   const consumerRand = mulberry32(seed ^ 0x6d2b79f5);
+  // Third independent PRNG stream for policy-axis noise, seeded with a distinct
+  // constant (≠ rand and ≠ consumerRand) so adding the Seraph policy track does
+  // NOT shift the political or consumer streams — agents' political + consumer
+  // attributes stay byte-identical whether or not policy stances are generated.
+  const policyRand = mulberry32(seed ^ 0x85ebca6b);
   const agents: InsertAgent[] = [];
 
   for (const cell of allocated) {
@@ -292,6 +306,41 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
         ),
       };
 
+      // Policy axes (0..100): deterministic demographic base + noise (own PRNG
+      // stream), raked toward policy-survey targets. Distinct from political
+      // issues and consumer axes — used by the Seraph product line.
+      const policyStance = (key: PolicyAxisKey, base: number): number => {
+        const p = policyAdjustments[key];
+        const noise = gaussian(policyRand) * 12 * p.noiseScale;
+        const raked =
+          p.targetMean !== null && p.targetPull > 0
+            ? base * (1 - p.targetPull) + p.targetMean * p.targetPull
+            : base;
+        return Math.round(clamp(raked + noise, 0, 100));
+      };
+      const policyStances: AgentPolicyStances = {
+        governmentTrust: policyStance(
+          "governmentTrust",
+          50 + (age - 45) * 0.3 - eduIdx * 3,
+        ),
+        policyAcceptance: policyStance(
+          "policyAcceptance",
+          52 + (age - 45) * 0.25 - eduIdx * 2,
+        ),
+        taxTolerance: policyStance(
+          "taxTolerance",
+          44 + eduIdx * 4 - (age - 40) * 0.15,
+        ),
+        regulationPreference: policyStance(
+          "regulationPreference",
+          58 + (age - 40) * 0.2 + eduIdx * 2,
+        ),
+        publicServiceSatisfaction: policyStance(
+          "publicServiceSatisfaction",
+          56 - (age - 45) * 0.1,
+        ),
+      };
+
       const values: string[] = [];
       while (values.length < 3) {
         const v = VALUE_POOL[Math.floor(rand() * VALUE_POOL.length)];
@@ -327,6 +376,7 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
         turnoutPropensity,
         issueStances,
         consumerStances,
+        policyStances,
         mediaDiet: MEDIA_DIETS[Math.floor(rand() * MEDIA_DIETS.length)],
         values,
         personaSummary: buildPersona({

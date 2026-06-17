@@ -29,6 +29,14 @@ export interface ConsumerStances {
   digitalConsumption: number;
 }
 
+export interface PolicyStances {
+  governmentTrust: number;
+  policyAcceptance: number;
+  taxTolerance: number;
+  regulationPreference: number;
+  publicServiceSatisfaction: number;
+}
+
 export interface Agent {
   id: number;
   name: string;
@@ -47,6 +55,7 @@ export interface Agent {
   turnoutPropensity: number;
   issueStances: IssueStances;
   consumerStances: ConsumerStances;
+  policyStances: PolicyStances;
   mediaDiet: string;
   values: string[];
   personaSummary: string;
@@ -87,6 +96,7 @@ export type SurveyDomain = typeof SurveyDomain[keyof typeof SurveyDomain];
 export const SurveyDomain = {
   political: 'political',
   commercial: 'commercial',
+  policy: 'policy',
 } as const;
 
 export interface Survey {
@@ -115,6 +125,7 @@ export type SurveyInputDomain = typeof SurveyInputDomain[keyof typeof SurveyInpu
 export const SurveyInputDomain = {
   political: 'political',
   commercial: 'commercial',
+  policy: 'policy',
 } as const;
 
 export interface SurveyInput {

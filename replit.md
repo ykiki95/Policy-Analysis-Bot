@@ -28,7 +28,9 @@ Aaru 스타일 합성 인구 시뮬레이션 SaaS. 서울 거주 합성 시민 5
 - Cost estimator: `artifacts/api-server/src/lib/pricing.ts`
 - LLM run engine: `artifacts/api-server/src/lib/simulationEngine.ts`
 - Deterministic agent generator: `artifacts/api-server/src/lib/agentGenerator.ts` (25 Seoul gu centroids + correlated attitudes, mulberry32 PRNG, optional survey adjustments)
-- 설문→페르소나 가중 코어: `artifacts/api-server/src/lib/surveyWeighting.ts` (`appliedToPopulation=true` 설문의 드라이버를 이슈별 {multiplier, noiseScale}로 변환 → generateAgents에 주입. 5개 이슈: 경제/복지/안보/환경/주거)
+- 설문→페르소나 가중 코어: `artifacts/api-server/src/lib/surveyWeighting.ts` (`appliedToPopulation=true` 설문의 드라이버를 이슈별 {multiplier, noiseScale}로 변환 → generateAgents에 주입. 5개 이슈: 경제/복지/안보/환경/주거). `domain` 이 `commercial`/`policy` 인 설문은 건너뜀.
+- 소비 도메인 가중(Lumen): `artifacts/api-server/src/lib/consumerWeighting.ts` (`domain='commercial'` 설문 → consumerStances 5축)
+- 정책 도메인 가중(Seraph): `artifacts/api-server/src/lib/policyWeighting.ts` (`domain='policy'` 설문 → policyStances 5축: 정부신뢰/정책수용성/증세수용/규제선호/공공서비스만족). agentGenerator는 정치·소비와 독립된 세 번째 PRNG 스트림(`policyRand = mulberry32(seed ^ 0x85ebca6b)`)으로 노이즈 생성 — 트랙 추가가 기존 스트림을 흔들지 않음.
 - Admin routes: `artifacts/api-server/src/routes/admin.ts` (인구 재생성, 데이터 출처, 설문 업로드, 보정 설정)
 - Frontend pages: `artifacts/demos/src/pages/*` (관리자 페이지: `pages/admin/index.tsx`)
 - Map: Leaflet + react-leaflet + OpenStreetMap 타일 (API 키 불필요), `pages/population/index.tsx`의 `CircleMarker` 산점도

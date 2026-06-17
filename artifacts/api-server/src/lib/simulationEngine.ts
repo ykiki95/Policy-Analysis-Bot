@@ -38,12 +38,23 @@ function normalizeStance(value: unknown, score: number): AgentVerdict["stance"] 
 
 /**
  * Lumen simulations probe consumer reception, so they use the consumer-attitude
- * persona rather than the political one. Decided strictly by product — Seraph·
- * Dynamo always stay on the political track even if audience is mis-set, so
- * audience is treated as descriptive only and never switches the track.
+ * persona rather than the political or policy one. Decided strictly by product —
+ * Seraph runs on the policy track and Dynamo on the political track even if
+ * audience is mis-set, so audience is descriptive only and never switches the
+ * track.
  */
 function isCommercialSim(sim: Simulation): boolean {
   return sim.product?.toLowerCase() === "lumen";
+}
+
+/**
+ * Seraph simulations probe policy/government reception, so they use the policy-
+ * attitude persona rather than the political or consumer one. Decided strictly
+ * by product — Lumen·Dynamo stay on their own tracks even if audience is
+ * mis-set, so audience is descriptive only and never switches the track.
+ */
+function isPolicySim(sim: Simulation): boolean {
+  return sim.product?.toLowerCase() === "seraph";
 }
 
 function buildCommercialPrompt(agent: Agent, sim: Simulation): string {
@@ -65,6 +76,28 @@ function buildCommercialPrompt(agent: Agent, sim: Simulation): string {
     `이 소비자가 위 제품/메시지에 어떻게 반응할지(구매·수용 의향) JSON으로만 답하세요. 형식:`,
     `{"stance":"support|oppose|neutral","score":0-100,"confidence":0-100,"reasoning":"한국어 1-2문장"}`,
     `score는 수용/구매 의향(0=전혀 구매 안 함, 100=적극 구매). stance는 support=수용/구매, oppose=거부, neutral=중립. 이 소비자의 소비 성향과 가치에 충실하게 답하세요.`,
+  ].join("\n");
+}
+
+function buildPolicyPrompt(agent: Agent, sim: Simulation): string {
+  const p = agent.policyStances;
+  return [
+    `당신은 대한민국에 거주하는 시민 페르소나입니다. 아래 인물의 입장에서 정부 정책/제도/행정 서비스에 대한 반응을 평가하세요.`,
+    `이름: ${agent.name}`,
+    `나이: ${agent.age} (${agent.ageBracket}), 성별: ${agent.gender}`,
+    `거주 지역(시·도): ${agent.district}`,
+    `학력: ${agent.education}, 소득: ${agent.incomeBracket}, 직업: ${agent.occupation}, 가구형태: ${agent.householdType}`,
+    `정책 성향(0~100): 정부신뢰 ${p.governmentTrust}, 정책수용성 ${p.policyAcceptance}, 증세수용 ${p.taxTolerance}, 규제선호 ${p.regulationPreference}, 공공서비스만족 ${p.publicServiceSatisfaction}`,
+    `미디어 소비: ${agent.mediaDiet}`,
+    `핵심 가치: ${agent.values.join(", ")}`,
+    `요약: ${agent.personaSummary}`,
+    ``,
+    `평가 대상 (${sim.audience} / ${sim.product}):`,
+    sim.policyText,
+    ``,
+    `이 시민이 위 정책/제도에 어떻게 반응할지(수용·순응 의향) JSON으로만 답하세요. 형식:`,
+    `{"stance":"support|oppose|neutral","score":0-100,"confidence":0-100,"reasoning":"한국어 1-2문장"}`,
+    `score는 수용/순응 의향(0=전혀 수용 안 함, 100=적극 수용). stance는 support=수용, oppose=거부, neutral=중립. 이 시민의 정책 성향(정부신뢰·증세수용·규제선호 등)과 가치에 충실하게 답하세요.`,
   ].join("\n");
 }
 
@@ -92,9 +125,9 @@ function buildPoliticalPrompt(agent: Agent, sim: Simulation): string {
 }
 
 function buildPrompt(agent: Agent, sim: Simulation): string {
-  return isCommercialSim(sim)
-    ? buildCommercialPrompt(agent, sim)
-    : buildPoliticalPrompt(agent, sim);
+  if (isCommercialSim(sim)) return buildCommercialPrompt(agent, sim);
+  if (isPolicySim(sim)) return buildPolicyPrompt(agent, sim);
+  return buildPoliticalPrompt(agent, sim);
 }
 
 async function evaluateAgent(
@@ -154,17 +187,19 @@ function buildSummary(
   topDistrict: string,
 ): string {
   const commercial = isCommercialSim(sim);
+  const policy = isPolicySim(sim);
+  const acceptanceTrack = commercial || policy;
   const verdict =
     supportPct >= 55
       ? "전반적으로 우호적인 반응"
       : opposePct >= 55
         ? "전반적으로 부정적인 반응"
-        : commercial
+        : acceptanceTrack
           ? "수용과 거부가 팽팽하게 갈리는 반응"
           : "찬반이 팽팽하게 갈리는 반응";
-  const posLabel = commercial ? "수용" : "찬성";
-  const negLabel = commercial ? "거부" : "반대";
-  return `전국 합성 인구 ${sim.totalAgents}명 시뮬레이션 결과 ${verdict}이 나타났습니다. ${posLabel} ${supportPct}%, ${negLabel} ${opposePct}%, 중립 ${neutralPct}%로, ${topDistrict} 지역에서 ${commercial ? "수용도" : "지지"}가 가장 높았습니다.`;
+  const posLabel = acceptanceTrack ? "수용" : "찬성";
+  const negLabel = acceptanceTrack ? "거부" : "반대";
+  return `전국 합성 인구 ${sim.totalAgents}명 시뮬레이션 결과 ${verdict}이 나타났습니다. ${posLabel} ${supportPct}%, ${negLabel} ${opposePct}%, 중립 ${neutralPct}%로, ${topDistrict} 지역에서 ${acceptanceTrack ? "수용도" : "지지"}가 가장 높았습니다.`;
 }
 
 export async function runSimulation(simulationId: number): Promise<void> {

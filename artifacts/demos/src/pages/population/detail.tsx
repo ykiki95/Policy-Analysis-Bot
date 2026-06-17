@@ -2,7 +2,7 @@ import { useGetAgent, getGetAgentQueryKey } from "@workspace/api-client-react";
 import { useParams, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, MapPin, Briefcase, GraduationCap, DollarSign, Home, Heart, Tv, ShoppingCart } from "lucide-react";
+import { ArrowLeft, MapPin, Briefcase, GraduationCap, DollarSign, Home, Heart, Tv, ShoppingCart, Landmark } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
@@ -163,6 +163,39 @@ export default function AgentDetail() {
               { label: "신제품 수용", value: agent.consumerStances.noveltySeeking },
               { label: "친환경 소비", value: agent.consumerStances.ecoConsciousness },
               { label: "디지털 소비", value: agent.consumerStances.digitalConsumption },
+            ].map((axis) => (
+              <div key={axis.label} className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">{axis.label}</span>
+                  <span>{axis.value}</span>
+                </div>
+                <Progress value={axis.value} className="h-2" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-violet-600" />
+              <CardTitle>정책 성향 (0-100)</CardTitle>
+            </div>
+            <CardDescription>
+              Seraph(정부) 시뮬레이션에서 사용되는 정책·행정 태도 축입니다. 사회통합실태조사
+              ·사회조사·전자정부 이용실태 등 공개 통계로 보정된 합성 값입니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid sm:grid-cols-2 gap-x-8 gap-y-5">
+            {[
+              { label: "정부 신뢰", value: agent.policyStances.governmentTrust },
+              { label: "정책 수용성", value: agent.policyStances.policyAcceptance },
+              { label: "증세 수용", value: agent.policyStances.taxTolerance },
+              { label: "규제 선호", value: agent.policyStances.regulationPreference },
+              {
+                label: "공공서비스 만족",
+                value: agent.policyStances.publicServiceSatisfaction,
+              },
             ].map((axis) => (
               <div key={axis.label} className="space-y-2">
                 <div className="flex justify-between text-sm">

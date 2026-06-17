@@ -7,6 +7,7 @@
  */
 import type { ConsumerStances } from './consumerStances';
 import type { IssueStances } from './issueStances';
+import type { PolicyStances } from './policyStances';
 
 export interface Agent {
   id: number;
@@ -26,6 +27,7 @@ export interface Agent {
   turnoutPropensity: number;
   issueStances: IssueStances;
   consumerStances: ConsumerStances;
+  policyStances: PolicyStances;
   mediaDiet: string;
   values: string[];
   personaSummary: string;

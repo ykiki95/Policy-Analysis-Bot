@@ -127,8 +127,9 @@ export function computeSurveyAdjustments(
   };
 
   for (const survey of surveys) {
-    // Commercial-domain surveys feed agent.consumerStances, not the political issues.
-    if (survey.domain === "commercial") continue;
+    // Commercial-domain surveys feed agent.consumerStances and policy-domain
+    // surveys feed agent.policyStances — neither informs the political issues.
+    if (survey.domain === "commercial" || survey.domain === "policy") continue;
     if (!survey.appliedToPopulation) continue;
     const reliability = reliabilityFromSampleSize(survey.sampleSize);
     const drivers: SurveyDriver[] = survey.drivers ?? [];

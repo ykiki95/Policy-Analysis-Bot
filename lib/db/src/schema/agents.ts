@@ -37,6 +37,28 @@ export const DEFAULT_CONSUMER_STANCES: AgentConsumerStances = {
   digitalConsumption: 50,
 };
 
+/** Policy/government attitude axes (0..100) used by the Seraph product line. */
+export type AgentPolicyStances = {
+  /** 정부신뢰 — higher = more trust in government/public institutions. */
+  governmentTrust: number;
+  /** 정책수용성 — higher = more willing to accept/comply with new policy. */
+  policyAcceptance: number;
+  /** 증세수용 — higher = more willing to pay higher taxes for public services. */
+  taxTolerance: number;
+  /** 규제선호 — higher = prefers stronger government regulation over deregulation. */
+  regulationPreference: number;
+  /** 공공서비스만족 — higher = more satisfied with public services. */
+  publicServiceSatisfaction: number;
+};
+
+export const DEFAULT_POLICY_STANCES: AgentPolicyStances = {
+  governmentTrust: 50,
+  policyAcceptance: 50,
+  taxTolerance: 50,
+  regulationPreference: 50,
+  publicServiceSatisfaction: 50,
+};
+
 export const agentsTable = pgTable("agents", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -58,6 +80,10 @@ export const agentsTable = pgTable("agents", {
     .$type<AgentConsumerStances>()
     .notNull()
     .default(DEFAULT_CONSUMER_STANCES),
+  policyStances: jsonb("policy_stances")
+    .$type<AgentPolicyStances>()
+    .notNull()
+    .default(DEFAULT_POLICY_STANCES),
   mediaDiet: text("media_diet").notNull(),
   values: text("values").array().notNull(),
   personaSummary: text("persona_summary").notNull(),

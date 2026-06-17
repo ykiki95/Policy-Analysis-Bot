@@ -43,10 +43,16 @@ export default function Surveys() {
                       className={
                         survey.domain === "commercial"
                           ? "border-amber-500/50 text-amber-600 dark:text-amber-400"
-                          : "border-sky-500/50 text-sky-600 dark:text-sky-400"
+                          : survey.domain === "policy"
+                            ? "border-violet-500/50 text-violet-600 dark:text-violet-400"
+                            : "border-sky-500/50 text-sky-600 dark:text-sky-400"
                       }
                     >
-                      {survey.domain === "commercial" ? "소비" : "정치"}
+                      {survey.domain === "commercial"
+                        ? "소비"
+                        : survey.domain === "policy"
+                          ? "정책"
+                          : "정치"}
                     </Badge>
                     {survey.isReal && (
                       <Badge className="bg-emerald-600 hover:bg-emerald-600 gap-1">

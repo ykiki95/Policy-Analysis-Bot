@@ -12,4 +12,5 @@ export type SurveyInputDomain = typeof SurveyInputDomain[keyof typeof SurveyInpu
 export const SurveyInputDomain = {
   political: 'political',
   commercial: 'commercial',
+  policy: 'policy',
 } as const;

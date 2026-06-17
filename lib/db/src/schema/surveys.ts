@@ -37,6 +37,7 @@ export const surveysTable = pgTable("surveys", {
    * Attitude domain this survey informs:
    * - "political": the 5 political issues (경제/복지/안보/환경/주거) → agent.issueStances
    * - "commercial": the 5 consumer axes (가격민감도/브랜드충성도/신제품수용/친환경소비/디지털소비) → agent.consumerStances
+   * - "policy": the 5 policy axes (정부신뢰/정책수용성/증세수용/규제선호/공공서비스만족) → agent.policyStances
    */
   domain: text("domain").notNull().default("political"),
   /** True when the survey is a real published aggregate (vs. synthetic/illustrative). */

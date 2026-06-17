@@ -275,6 +275,137 @@ const surveys: InsertSurvey[] = [
       },
     ],
   },
+  // ── 정책(정부) 도메인: Seraph 제품 라인용 정책·행정 태도 ─────────────────────
+  {
+    title: "한국행정연구원 2023 사회통합실태조사 — 정부 신뢰",
+    description:
+      "전국 만 19세 이상 약 8,000명 대상 1:1 면접조사(국가승인통계). 중앙정부 신뢰 응답이 절반에 못 미치는 수준(약 48%)에 머물러 정부 기관에 대한 신뢰가 중간 이하로 나타남 → 정부신뢰 성향을 중간 이하로 보정.",
+    methodology: "1:1 가구방문 면접조사 (국가승인통계 제417001호)",
+    sampleSize: 8000,
+    fieldedDate: "2023-12-31",
+    status: "active",
+    reliability: 95,
+    appliedToPopulation: true,
+    domain: "policy",
+    isReal: true,
+    sourceAgency: "한국행정연구원(KIPA)",
+    sourceTitle: "2023 사회통합실태조사",
+    fieldPeriod: "2023 (연간 조사)",
+    sourceUrl: "https://www.kipa.re.kr/site/kipa/research/selectBaseList.do",
+    drivers: [
+      {
+        factor: "중앙정부 신뢰",
+        issue: "정부신뢰",
+        weight: 0.6,
+        direction: "중앙정부 신뢰 약 48%로 절반 미만 → 정부신뢰 중간 이하",
+        targetStance: 48,
+      },
+    ],
+  },
+  {
+    title: "한국행정연구원 2023 사회통합실태조사 — 정책 수용성",
+    description:
+      "전국 만 19세 이상 약 8,000명 대상 면접조사(국가승인통계). 정부 정책 결정 과정의 공정성·반응성에 대한 긍정 평가가 절반에 못 미쳐(약 46%) 새 정책에 대한 자발적 수용·순응 의향이 중간 수준에 그침 → 정책수용성을 중간 수준으로 보정.",
+    methodology: "1:1 가구방문 면접조사 (국가승인통계 제417001호)",
+    sampleSize: 8000,
+    fieldedDate: "2023-12-31",
+    status: "active",
+    reliability: 95,
+    appliedToPopulation: true,
+    domain: "policy",
+    isReal: true,
+    sourceAgency: "한국행정연구원(KIPA)",
+    sourceTitle: "2023 사회통합실태조사 (정부 정책 인식)",
+    fieldPeriod: "2023 (연간 조사)",
+    sourceUrl: "https://www.kipa.re.kr/site/kipa/research/selectBaseList.do",
+    drivers: [
+      {
+        factor: "정책 결정 과정 신뢰",
+        issue: "정책수용성",
+        weight: 0.5,
+        direction: "정책 결정 과정 공정성 긍정 약 46% → 정책수용성 중간 수준",
+        targetStance: 46,
+      },
+    ],
+  },
+  {
+    title: "한국조세재정연구원 2023 재정패널 — 증세·조세 인식",
+    description:
+      "전국 가구·개인 패널 대상 재정패널조사. 복지 확대를 위한 증세에 대한 찬성이 약 45% 수준으로, 복지 수요는 높으나 본인 세 부담 증가에는 신중한 태도가 우세 → 증세수용 성향을 중간 이하로 보정.",
+    methodology: "가구·개인 패널 설문조사 (재정패널)",
+    sampleSize: 5000,
+    fieldedDate: "2023-12-31",
+    status: "active",
+    reliability: 90,
+    appliedToPopulation: true,
+    domain: "policy",
+    isReal: true,
+    sourceAgency: "한국조세재정연구원(KIPF)",
+    sourceTitle: "재정패널조사 (조세·재정 인식)",
+    fieldPeriod: "2023 (연간 조사)",
+    sourceUrl: "https://www.kipf.re.kr/panel/",
+    drivers: [
+      {
+        factor: "증세 수용성",
+        issue: "증세수용",
+        weight: 0.5,
+        direction: "복지 위한 증세 찬성 약 45% → 본인 세부담엔 신중, 증세수용 중간 이하",
+        targetStance: 45,
+      },
+    ],
+  },
+  {
+    title: "통계청 2024 사회조사 — 사회안전·규제 인식",
+    description:
+      "전국 만 13세 이상 약 36,000명 대상 면접조사(국가지정통계). 식품·범죄·환경 등 위험으로부터의 사회안전 체감이 높지 않아 정부의 안전·환경 규제 강화 요구가 우세 → 규제선호 성향을 중상위로 보정.",
+    methodology: "가구방문 면접조사 (국가지정통계)",
+    sampleSize: 36000,
+    fieldedDate: "2024-05-31",
+    status: "active",
+    reliability: 95,
+    appliedToPopulation: true,
+    domain: "policy",
+    isReal: true,
+    sourceAgency: "통계청",
+    sourceTitle: "2024년 사회조사 결과 (안전·환경·사회)",
+    fieldPeriod: "2024-05 (16일간)",
+    sourceUrl: "https://kostat.go.kr/board.es?mid=a10301010000&bid=219",
+    drivers: [
+      {
+        factor: "사회안전·규제 요구",
+        issue: "규제선호",
+        weight: 0.55,
+        direction: "사회안전 체감 낮음 → 안전·환경 규제 강화 요구 우세, 규제선호 중상위",
+        targetStance: 64,
+      },
+    ],
+  },
+  {
+    title: "행정안전부 2022 전자정부서비스 이용실태조사 — 공공서비스 만족",
+    description:
+      "전국 만 16~74세 대상 전자정부서비스 이용실태조사. 전자정부서비스 이용자 만족도가 97.7%로 매우 높게 나타나 공공·행정 서비스 이용 경험에 대한 만족이 높은 수준 → 공공서비스만족 성향을 높게 보정.",
+    methodology: "이용자 대상 설문조사 (전자정부서비스 이용실태조사)",
+    sampleSize: 4000,
+    fieldedDate: "2022-12-31",
+    status: "active",
+    reliability: 95,
+    appliedToPopulation: true,
+    domain: "policy",
+    isReal: true,
+    sourceAgency: "행정안전부",
+    sourceTitle: "2022 전자정부서비스 이용실태조사",
+    fieldPeriod: "2022 (연간 조사)",
+    sourceUrl: "https://www.mois.go.kr/frt/bbs/type010/commonSelectBoardList.do?bbsId=BBSMSTR_000000000008",
+    drivers: [
+      {
+        factor: "공공서비스 만족",
+        issue: "공공서비스만족",
+        weight: 0.6,
+        direction: "전자정부서비스 만족도 97.7% → 공공서비스 만족 높음",
+        targetStance: 80,
+      },
+    ],
+  },
 ];
 
 const dataSources = [
@@ -386,6 +517,57 @@ const dataSources = [
     sourceUrl:
       "http://www.korcham.net/nCham/Service/Economy/appl/KcciReportDetail.asp?SEQ_NO_C010=20120938356&CHAM_CD=B001",
   },
+  // ── 정책조사: Seraph 정책트랙 정책·행정 태도 근거 ────────────────────────────
+  {
+    name: "한국행정연구원 사회통합실태조사 (정부신뢰)",
+    agency: "한국행정연구원(KIPA)",
+    category: "정책조사",
+    contributesTo: "정부신뢰(중앙정부 신뢰)",
+    recordCount: 8000,
+    coverage: "전국 만 19세 이상",
+    referenceYear: "2023",
+    sourceUrl: "https://www.kipa.re.kr/site/kipa/research/selectBaseList.do",
+  },
+  {
+    name: "한국행정연구원 사회통합실태조사 (정책수용성)",
+    agency: "한국행정연구원(KIPA)",
+    category: "정책조사",
+    contributesTo: "정책수용성(정책 결정 과정 신뢰)",
+    recordCount: 8000,
+    coverage: "전국 만 19세 이상",
+    referenceYear: "2023",
+    sourceUrl: "https://www.kipa.re.kr/site/kipa/research/selectBaseList.do",
+  },
+  {
+    name: "한국조세재정연구원 재정패널조사",
+    agency: "한국조세재정연구원(KIPF)",
+    category: "정책조사",
+    contributesTo: "증세수용(조세·재정 인식)",
+    recordCount: 5000,
+    coverage: "전국 가구·개인 패널",
+    referenceYear: "2023",
+    sourceUrl: "https://www.kipf.re.kr/panel/",
+  },
+  {
+    name: "통계청 2024 사회조사 (사회안전·규제)",
+    agency: "통계청",
+    category: "정책조사",
+    contributesTo: "규제선호(사회안전·규제 인식)",
+    recordCount: 36000,
+    coverage: "전국 만 13세 이상",
+    referenceYear: "2024",
+    sourceUrl: "https://kostat.go.kr/board.es?mid=a10301010000&bid=219",
+  },
+  {
+    name: "행정안전부 전자정부서비스 이용실태조사",
+    agency: "행정안전부",
+    category: "정책조사",
+    contributesTo: "공공서비스만족(전자정부 만족도)",
+    recordCount: 4000,
+    coverage: "전국 만 16~74세",
+    referenceYear: "2022",
+    sourceUrl: "https://www.mois.go.kr/frt/bbs/type010/commonSelectBoardList.do?bbsId=BBSMSTR_000000000008",
+  },
 ];
 
 async function main(): Promise<void> {
@@ -395,11 +577,13 @@ async function main(): Promise<void> {
 
     await tx
       .delete(dataSourcesTable)
-      .where(inArray(dataSourcesTable.category, ["여론조사", "소비자조사"]));
+      .where(
+        inArray(dataSourcesTable.category, ["여론조사", "소비자조사", "정책조사"]),
+      );
     await tx.insert(dataSourcesTable).values(dataSources);
   });
   console.log(
-    `Seeded ${surveys.length} real surveys + ${dataSources.length} data sources (여론조사 + 소비자조사).`,
+    `Seeded ${surveys.length} real surveys + ${dataSources.length} data sources (여론조사 + 소비자조사 + 정책조사).`,
   );
 }
 

@@ -693,6 +693,7 @@ components:
         - turnoutPropensity
         - issueStances
         - consumerStances
+        - policyStances
         - mediaDiet
         - values
         - personaSummary
@@ -716,6 +717,8 @@ components:
           $ref: "#/components/schemas/IssueStances"
         consumerStances:
           $ref: "#/components/schemas/ConsumerStances"
+        policyStances:
+          $ref: "#/components/schemas/PolicyStances"
         mediaDiet: { type: string }
         values:
           type: array
@@ -746,6 +749,21 @@ components:
         noveltySeeking: { type: integer }
         ecoConsciousness: { type: integer }
         digitalConsumption: { type: integer }
+
+    PolicyStances:
+      type: object
+      required:
+        - governmentTrust
+        - policyAcceptance
+        - taxTolerance
+        - regulationPreference
+        - publicServiceSatisfaction
+      properties:
+        governmentTrust: { type: integer }
+        policyAcceptance: { type: integer }
+        taxTolerance: { type: integer }
+        regulationPreference: { type: integer }
+        publicServiceSatisfaction: { type: integer }
 
     BreakdownItem:
       type: object
@@ -825,7 +843,7 @@ components:
           type: array
           items: { $ref: "#/components/schemas/SurveyDriver" }
         appliedToPopulation: { type: boolean }
-        domain: { type: string, enum: [political, commercial] }
+        domain: { type: string, enum: [political, commercial, policy] }
         isReal: { type: boolean }
         sourceAgency: { type: string, nullable: true }
         sourceTitle: { type: string, nullable: true }
@@ -844,7 +862,7 @@ components:
         fieldedDate: { type: string }
         reliability: { type: number }
         appliedToPopulation: { type: boolean }
-        domain: { type: string, enum: [political, commercial] }
+        domain: { type: string, enum: [political, commercial, policy] }
         isReal: { type: boolean }
         sourceAgency: { type: string }
         sourceTitle: { type: string }

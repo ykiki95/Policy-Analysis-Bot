@@ -74,6 +74,16 @@ export default function Products() {
                   </p>
                 </div>
               )}
+              {product.name.toLowerCase() === "seraph" && (
+                <div className="rounded-md border border-violet-500/30 bg-violet-50/40 dark:bg-violet-950/10 p-3 flex items-start gap-2">
+                  <Info className="h-4 w-4 text-violet-600 mt-0.5 shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    정책 태도는 사회통합실태조사·사회조사·전자정부 이용실태 등 공개
+                    국가승인 통계로 보정됩니다. 개별 원자료(마이크로데이터)·정책별 세부
+                    교차표 분석에는 별도 신청·승인 데이터가 필요합니다.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
