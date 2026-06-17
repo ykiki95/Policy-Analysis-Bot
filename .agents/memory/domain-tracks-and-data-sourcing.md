@@ -20,3 +20,9 @@ User confirmed (June 2026): after the political track lands (nationwide raking +
 - **Published aggregate survey results** (e.g., 한국갤럽 정당지지율, 통계청 사회조사, 한국행정연구원 사회통합실태조사, KGSS aggregate tables) are publicly available and can be sourced via web search and seeded with attribution.
 - **Respondent-level microdata** (KOSSDA, 통계청 MDIS) usually requires registration/licensing/agreement — NOT freely scrapable; respect terms.
 - **Commercial/consumer microdata** is mostly proprietary/paid (Nielsen, Kantar, 오픈서베이). Free public consumer sources are limited (통계청 가계동향, 소비자행태조사). Set expectations accordingly when building Lumen.
+
+# User directive (June 2026)
+
+- For ALL three tracks (political/commercial/policy), source **real published survey aggregates from the internet** as much as possible to build personas — replace synthetic opinion surveys with real numbers where feasible. Includes retrofitting the political track (its opinion surveys are currently synthetic; demographics + election results are already real).
+- Paid/licensed surveys are out of reach for now → build a **user-upload path** so users can supply paid survey data later.
+- Sequencing constraint: the political-track task is running in an isolated task-agent Repl and cannot take mid-flight changes; real-survey sourcing must be organized as follow-on tasks (political retrofit + Lumen + Seraph + upload feature), planned after it merges to avoid editing the same files on main concurrently.
