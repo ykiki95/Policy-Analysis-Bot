@@ -5,10 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CalibrationProduct } from './calibrationProduct';
 
 export interface Calibration {
   id: number;
   title: string;
+  product: CalibrationProduct;
   eventType: string;
   targetDate: string;
   metric: string;

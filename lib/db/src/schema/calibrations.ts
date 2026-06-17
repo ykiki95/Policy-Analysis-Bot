@@ -3,6 +3,8 @@ import { pgTable, serial, text, doublePrecision } from "drizzle-orm/pg-core";
 export const calibrationsTable = pgTable("calibrations", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
+  // 제품 라인: 'Lumen' | 'Seraph' | 'Dynamo'. 기존 행 백필용 기본값 Dynamo.
+  product: text("product").notNull().default("Dynamo"),
   eventType: text("event_type").notNull(),
   targetDate: text("target_date").notNull(),
   metric: text("metric").notNull(),

@@ -26,6 +26,7 @@ import {
   type SurveyDriver,
   type Calibration,
   type CalibrationInput,
+  type CalibrationInputProduct,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,12 @@ const METHOD_DESCRIPTIONS: Record<string, string> = {
 };
 
 const EVENT_TYPE_OPTIONS = ["선거", "정책 반응", "여론조사", "제품 반응", "기타"];
+
+const CALIBRATION_PRODUCT_OPTIONS: { value: CalibrationInputProduct; label: string }[] = [
+  { value: "Dynamo", label: "Dynamo (정치)" },
+  { value: "Lumen", label: "Lumen (비즈니스)" },
+  { value: "Seraph", label: "Seraph (정부)" },
+];
 
 const DEFAULT_CALIBRATION_SETTINGS = {
   method: "베이지안 축소 (Bayesian Shrinkage)",
@@ -1112,6 +1119,7 @@ function CalibrationEventsSection({
   onDelete: (id: number) => Promise<void>;
 }) {
   const [title, setTitle] = useState("");
+  const [product, setProduct] = useState(CALIBRATION_PRODUCT_OPTIONS[0].value);
   const [eventType, setEventType] = useState(EVENT_TYPE_OPTIONS[0]);
   const [targetDate, setTargetDate] = useState("");
   const [metric, setMetric] = useState("");
@@ -1129,6 +1137,7 @@ function CalibrationEventsSection({
     if (!valid) return;
     const ok = await onCreate({
       title: title.trim(),
+      product,
       eventType,
       targetDate: targetDate.trim(),
       metric: metric.trim(),
@@ -1159,6 +1168,15 @@ function CalibrationEventsSection({
             <div className="space-y-2">
               <Label>이벤트 제목</Label>
               <Input placeholder="예: 2024 서울시장 보궐선거" value={title} onChange={(e) => setTitle(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>제품 라인</Label>
+              <Select value={product} onValueChange={(v) => setProduct(v as CalibrationInputProduct)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CALIBRATION_PRODUCT_OPTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>이벤트 유형</Label>
@@ -1209,6 +1227,7 @@ function CalibrationEventsSection({
                 <TableHeader>
                   <TableRow>
                     <TableHead>이벤트</TableHead>
+                    <TableHead>제품</TableHead>
                     <TableHead>유형</TableHead>
                     <TableHead>기준일</TableHead>
                     <TableHead className="text-right">실제값</TableHead>
@@ -1226,6 +1245,7 @@ function CalibrationEventsSection({
                         {ev.title}
                         <div className="text-xs text-muted-foreground">{ev.metric}</div>
                       </TableCell>
+                      <TableCell><Badge variant="outline">{ev.product}</Badge></TableCell>
                       <TableCell><Badge variant="secondary">{ev.eventType}</Badge></TableCell>
                       <TableCell className="whitespace-nowrap">{ev.targetDate}</TableCell>
                       <TableCell className="text-right tabular-nums">{ev.actualValue}%</TableCell>

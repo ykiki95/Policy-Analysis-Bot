@@ -494,6 +494,7 @@ export const ListSimulationResponsesResponse = zod.array(ListSimulationResponses
 export const ListCalibrationsResponseItem = zod.object({
   "id": zod.number(),
   "title": zod.string(),
+  "product": zod.enum(['Lumen', 'Seraph', 'Dynamo']),
   "eventType": zod.string(),
   "targetDate": zod.string(),
   "metric": zod.string(),
@@ -771,6 +772,7 @@ export const createCalibrationBodyRawPredictionMax = 100;
 
 export const CreateCalibrationBody = zod.object({
   "title": zod.string().min(1),
+  "product": zod.enum(['Lumen', 'Seraph', 'Dynamo']),
   "eventType": zod.string().min(1),
   "targetDate": zod.string().min(1),
   "metric": zod.string().min(1),

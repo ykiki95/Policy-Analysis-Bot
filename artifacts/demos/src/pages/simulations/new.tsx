@@ -17,11 +17,21 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
   title: z.string().min(2, { message: "제목은 2자 이상이어야 합니다." }),
-  audience: z.string().min(1, { message: "대상을 선택해주세요." }),
   product: z.string().min(1, { message: "제품 라인을 선택해주세요." }),
   model: z.string().min(1),
   policyText: z.string().min(10, { message: "내용은 최소 10자 이상 입력해주세요." }),
 });
+
+/** 제품 라인이 트랙·대상을 결정한다 (audience는 설명용 라벨). */
+const PRODUCT_OPTIONS: { value: string; label: string; audience: string }[] = [
+  { value: "Lumen", label: "Lumen (비즈니스)", audience: "비즈니스" },
+  { value: "Seraph", label: "Seraph (정부/공공)", audience: "정부" },
+  { value: "Dynamo", label: "Dynamo (정치/캠페인)", audience: "정치" },
+];
+
+function audienceForProduct(product: string): string {
+  return PRODUCT_OPTIONS.find((p) => p.value === product)?.audience ?? "";
+}
 
 export default function NewSimulation() {
   const [, setLocation] = useLocation();
@@ -33,7 +43,6 @@ export default function NewSimulation() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
-      audience: "정부",
       product: "Seraph",
       model: "gpt-5-mini",
       policyText: "",
@@ -45,6 +54,8 @@ export default function NewSimulation() {
   const runMut = useRunSimulation();
 
   const watchModel = form.watch("model");
+  const watchProduct = form.watch("product");
+  const derivedAudience = audienceForProduct(watchProduct);
 
   useEffect(() => {
     // Automatically estimate when model changes
@@ -68,7 +79,7 @@ export default function NewSimulation() {
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     createMut.mutate(
-      { data: values },
+      { data: { ...values, audience: audienceForProduct(values.product) } },
       {
         onSuccess: (sim) => {
           queryClient.invalidateQueries({ queryKey: getListSimulationsQueryKey() });
@@ -115,52 +126,34 @@ export default function NewSimulation() {
                     )}
                   />
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="product"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>제품 라인</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="선택하세요" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Lumen">Lumen (비즈니스)</SelectItem>
-                              <SelectItem value="Seraph">Seraph (정부/공공)</SelectItem>
-                              <SelectItem value="Dynamo">Dynamo (정치/캠페인)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="audience"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>대상 부문</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="선택하세요" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="비즈니스">비즈니스</SelectItem>
-                              <SelectItem value="정부">정부</SelectItem>
-                              <SelectItem value="정치">정치</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="product"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>제품 라인</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="선택하세요" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {PRODUCT_OPTIONS.map((p) => (
+                              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          제품 라인이 시뮬레이션 트랙과 대상 부문을 결정합니다.{" "}
+                          {derivedAudience && (
+                            <>대상 부문: <span className="font-medium text-foreground">{derivedAudience}</span></>
+                          )}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <FormField
                     control={form.control}

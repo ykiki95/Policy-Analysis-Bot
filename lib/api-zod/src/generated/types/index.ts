@@ -11,6 +11,8 @@ export * from './agentSummary';
 export * from './breakdownItem';
 export * from './calibration';
 export * from './calibrationInput';
+export * from './calibrationInputProduct';
+export * from './calibrationProduct';
 export * from './calibrationSettings';
 export * from './calibrationSettingsInput';
 export * from './consumerStances';

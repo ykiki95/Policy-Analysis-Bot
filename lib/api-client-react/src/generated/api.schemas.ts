@@ -277,9 +277,19 @@ export interface SimulationResponse {
   reasoning: string;
 }
 
+export type CalibrationProduct = typeof CalibrationProduct[keyof typeof CalibrationProduct];
+
+
+export const CalibrationProduct = {
+  Lumen: 'Lumen',
+  Seraph: 'Seraph',
+  Dynamo: 'Dynamo',
+} as const;
+
 export interface Calibration {
   id: number;
   title: string;
+  product: CalibrationProduct;
   eventType: string;
   targetDate: string;
   metric: string;
@@ -291,9 +301,19 @@ export interface Calibration {
   method: string;
 }
 
+export type CalibrationInputProduct = typeof CalibrationInputProduct[keyof typeof CalibrationInputProduct];
+
+
+export const CalibrationInputProduct = {
+  Lumen: 'Lumen',
+  Seraph: 'Seraph',
+  Dynamo: 'Dynamo',
+} as const;
+
 export interface CalibrationInput {
   /** @minLength 1 */
   title: string;
+  product: CalibrationInputProduct;
   /** @minLength 1 */
   eventType: string;
   /** @minLength 1 */

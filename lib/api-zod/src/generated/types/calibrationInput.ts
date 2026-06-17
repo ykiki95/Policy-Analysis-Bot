@@ -5,10 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CalibrationInputProduct } from './calibrationInputProduct';
 
 export interface CalibrationInput {
   /** @minLength 1 */
   title: string;
+  product: CalibrationInputProduct;
   /** @minLength 1 */
   eventType: string;
   /** @minLength 1 */

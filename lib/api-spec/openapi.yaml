@@ -1081,6 +1081,7 @@ components:
       required:
         - id
         - title
+        - product
         - eventType
         - targetDate
         - metric
@@ -1093,6 +1094,7 @@ components:
       properties:
         id: { type: integer }
         title: { type: string }
+        product: { type: string, enum: [Lumen, Seraph, Dynamo] }
         eventType: { type: string }
         targetDate: { type: string }
         metric: { type: string }
@@ -1107,6 +1109,7 @@ components:
       type: object
       required:
         - title
+        - product
         - eventType
         - targetDate
         - metric
@@ -1114,6 +1117,7 @@ components:
         - rawPrediction
       properties:
         title: { type: string, minLength: 1 }
+        product: { type: string, enum: [Lumen, Seraph, Dynamo] }
         eventType: { type: string, minLength: 1 }
         targetDate: { type: string, minLength: 1 }
         metric: { type: string, minLength: 1 }

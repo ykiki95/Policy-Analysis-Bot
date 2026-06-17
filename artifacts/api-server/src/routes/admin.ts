@@ -197,7 +197,7 @@ router.post("/admin/calibrations", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { title, eventType, targetDate, metric, actualValue, rawPrediction } =
+  const { title, product, eventType, targetDate, metric, actualValue, rawPrediction } =
     parsed.data;
 
   // Derive calibrated values from the current calibration settings so an
@@ -221,6 +221,7 @@ router.post("/admin/calibrations", async (req, res): Promise<void> => {
     .insert(calibrationsTable)
     .values({
       title,
+      product,
       eventType,
       targetDate,
       metric,
