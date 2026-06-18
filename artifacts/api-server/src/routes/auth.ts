@@ -9,10 +9,11 @@ import {
   findUserById,
   findUserByUsername,
 } from "../lib/auth";
+import { authLimiter } from "../lib/rateLimit";
 
 const router: IRouter = Router();
 
-router.post("/auth/signup", async (req, res): Promise<void> => {
+router.post("/auth/signup", authLimiter, async (req, res): Promise<void> => {
   const parsed = SignupBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "입력값이 올바르지 않습니다." });
@@ -43,7 +44,7 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
   });
 });
 
-router.post("/auth/login", async (req, res): Promise<void> => {
+router.post("/auth/login", authLimiter, async (req, res): Promise<void> => {
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "입력값이 올바르지 않습니다." });

@@ -34,6 +34,17 @@ function productDomainLabel(product: string): string {
   return product === "Lumen" ? "비즈니스" : product === "Seraph" ? "정부" : "정치";
 }
 
+/** 남은 초 → 사람이 읽기 좋은 한국어 표기. */
+function formatEta(totalSeconds: number): string {
+  if (totalSeconds <= 0) return "곧 완료";
+  if (totalSeconds < 60) return `약 ${totalSeconds}초`;
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  if (m < 60) return s > 0 ? `약 ${m}분 ${s}초` : `약 ${m}분`;
+  const h = Math.floor(m / 60);
+  return `약 ${h}시간 ${m % 60}분`;
+}
+
 export default function SimulationDetail() {
   const params = useParams();
   const id = parseInt(params.id || "0", 10);
@@ -94,6 +105,38 @@ export default function SimulationDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, status]);
 
+  // 예상 남은 시간(ETA): 화면을 보는 동안 관측한 진행 속도로 추정한다. 진행은
+  // 이 화면이 열려 있을 때만 일어나므로(B1), 현재 세션의 처리 속도가 곧 ETA의 근거다.
+  const progress = simDetail?.simulation.progress ?? 0;
+  const totalAgents = simDetail?.simulation.totalAgents ?? 0;
+  const etaSamplesRef = useRef<{ t: number; done: number }[]>([]);
+  const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
+  useEffect(() => {
+    if (status !== "running" && status !== "queued") {
+      etaSamplesRef.current = [];
+      setEtaSeconds(null);
+      return;
+    }
+    if (totalAgents <= 0) return;
+    const done = Math.round((progress / 100) * totalAgents);
+    const samples = etaSamplesRef.current;
+    const last = samples[samples.length - 1];
+    if (!last || last.done !== done) {
+      samples.push({ t: Date.now(), done });
+      if (samples.length > 8) samples.shift();
+    }
+    if (samples.length >= 2) {
+      const first = samples[0];
+      const latest = samples[samples.length - 1];
+      const dDone = latest.done - first.done;
+      const dT = latest.t - first.t;
+      if (dDone > 0 && dT > 500) {
+        const remaining = Math.max(0, totalAgents - latest.done);
+        setEtaSeconds(Math.round(remaining / (dDone / dT) / 1000));
+      }
+    }
+  }, [status, progress, totalAgents]);
+
   const ageChartData = useMemo(() => {
     const rows = simDetail?.results?.byAgeBracket;
     if (!rows) return [];
@@ -129,6 +172,10 @@ export default function SimulationDetail() {
   const sim = simDetail.simulation;
   const isQueued = sim.status === "queued";
   const isRunning = sim.status === "running" || sim.status === "pending" || isQueued;
+  const completedAgents = Math.min(
+    sim.totalAgents,
+    Math.round(((sim.progress ?? 0) / 100) * (sim.totalAgents ?? 0)),
+  );
 
   const handleDelete = () => {
     deleteMut.mutate({ id }, {
@@ -200,15 +247,31 @@ export default function SimulationDetail() {
         </div>
 
         {isRunning && (
-          <div className="mt-8 space-y-2 bg-muted/30 p-4 rounded-lg">
+          <div className="mt-8 space-y-3 bg-muted/30 p-4 rounded-lg">
             <div className="flex justify-between text-sm">
               <span className="flex items-center gap-2 font-medium">
                 <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                에이전트 반응 생성 중...
+                {isQueued ? "대기열에서 시작 준비 중..." : "에이전트 반응 생성 중..."}
               </span>
               <span className="font-bold">{sim.progress}%</span>
             </div>
             <Progress value={sim.progress} className="h-2" />
+            <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span>
+                <span className="font-semibold text-foreground">{completedAgents.toLocaleString()}</span>
+                {" / "}
+                {sim.totalAgents.toLocaleString()} 에이전트 완료
+              </span>
+              {etaSeconds !== null && (
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  예상 남은 시간 {formatEta(etaSeconds)}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground/80 leading-relaxed">
+              이 화면이 열려 있는 동안만 진행됩니다. 탭을 닫으면 일시정지되고, 다시 열면 이어서 진행됩니다.
+            </p>
           </div>
         )}
 

@@ -27,8 +27,13 @@ export default function Login() {
         await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
         navigate("/");
       },
-      onError: () => {
-        setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+      onError: (err) => {
+        const status = (err as { status?: number })?.status;
+        if (status === 429) {
+          setError("로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.");
+        } else {
+          setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+        }
       },
     },
   });

@@ -5,3 +5,4 @@
 - [Session auth](session-auth.md) — custom express-session (not Clerk); connect-pg-simple needs createTableIfMissing:false + a hand-provisioned `session` table.
 - [Orval request-body naming](orval-request-body-naming.md) — name OpenAPI body components `XxxInput` not `XxxBody`, else zod const collides with TS interface (TS2308).
 - [data.go.kr election import](datagokr-election-import.md) — NEC 개표 API: numOfRows caps at 100 (paginate), 보수=국민의힘 dugsuNN/yutusu; only 20·21대 대선 supported.
+- [Rate limiter mounting](rate-limit-mounting.md) — `router.use(limiter, subRouter)` w/o a path throttles ALL /api traffic; B1 polling/tick → 429 storm (0%-stuck, auto-logout, login-as-401). Scope limiters per-route.
