@@ -2,6 +2,7 @@ import {
   pgTable,
   serial,
   text,
+  integer,
   boolean,
   doublePrecision,
   timestamp,
@@ -9,6 +10,7 @@ import {
 
 export const calibrationSettingsTable = pgTable("calibration_settings", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   method: text("method").notNull(),
   benchmarkWeight: doublePrecision("benchmark_weight").notNull(),
   recencyWeight: doublePrecision("recency_weight").notNull(),

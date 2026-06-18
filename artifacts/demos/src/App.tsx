@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/hooks/use-auth";
+import { AccountSwitcherProvider } from "@/hooks/use-account-switcher";
 import NotFound from "@/pages/not-found";
 
 import Login from "@/pages/login";
@@ -33,7 +34,7 @@ function ProtectedApp() {
         <Route path="/surveys/:id" component={SurveyDetail} />
         <Route path="/calibration" component={Calibration} />
         <Route path="/products" component={Products} />
-        <Route path="/admin" component={AdminGuard} />
+        <Route path="/admin" component={Admin} />
         <Route path="/simulations" component={Simulations} />
         <Route path="/simulations/new" component={NewSimulation} />
         <Route path="/simulations/:id" component={SimulationDetail} />
@@ -41,13 +42,6 @@ function ProtectedApp() {
       </Switch>
     </Layout>
   );
-}
-
-function AdminGuard() {
-  const { isAdmin, isLoading } = useAuth();
-  if (isLoading) return null;
-  if (!isAdmin) return <Redirect to="/" />;
-  return <Admin />;
 }
 
 function Router() {
@@ -86,12 +80,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+      <AccountSwitcherProvider>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </AccountSwitcherProvider>
     </QueryClientProvider>
   );
 }

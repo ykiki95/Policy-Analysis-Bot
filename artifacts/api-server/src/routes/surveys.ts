@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { jsonReady } from "../lib/serialize";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, surveysTable } from "@workspace/db";
+import { tenantId } from "../lib/tenant";
 import {
   ListSurveysResponse,
   GetSurveyParams,
@@ -15,10 +16,11 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/surveys", async (_req, res): Promise<void> => {
+router.get("/surveys", async (req, res): Promise<void> => {
   const rows = await db
     .select()
     .from(surveysTable)
+    .where(eq(surveysTable.userId, tenantId(req)))
     .orderBy(surveysTable.id);
   res.json(ListSurveysResponse.parse(jsonReady(rows)));
 });
@@ -33,6 +35,7 @@ router.post("/surveys", async (req, res): Promise<void> => {
   const [created] = await db
     .insert(surveysTable)
     .values({
+      userId: tenantId(req),
       title: d.title,
       description: d.description ?? "",
       methodology: d.methodology ?? "직접 입력",
@@ -62,7 +65,12 @@ router.get("/surveys/:id", async (req, res): Promise<void> => {
   const [survey] = await db
     .select()
     .from(surveysTable)
-    .where(eq(surveysTable.id, params.data.id));
+    .where(
+      and(
+        eq(surveysTable.id, params.data.id),
+        eq(surveysTable.userId, tenantId(req)),
+      ),
+    );
   if (!survey) {
     res.status(404).json({ error: "Survey not found" });
     return;
@@ -78,7 +86,12 @@ router.delete("/surveys/:id", async (req, res): Promise<void> => {
   }
   const [deleted] = await db
     .delete(surveysTable)
-    .where(eq(surveysTable.id, params.data.id))
+    .where(
+      and(
+        eq(surveysTable.id, params.data.id),
+        eq(surveysTable.userId, tenantId(req)),
+      ),
+    )
     .returning();
   if (!deleted) {
     res.status(404).json({ error: "Survey not found" });
@@ -101,7 +114,12 @@ router.patch("/surveys/:id/applied", async (req, res): Promise<void> => {
   const [updated] = await db
     .update(surveysTable)
     .set({ appliedToPopulation: body.data.appliedToPopulation })
-    .where(eq(surveysTable.id, params.data.id))
+    .where(
+      and(
+        eq(surveysTable.id, params.data.id),
+        eq(surveysTable.userId, tenantId(req)),
+      ),
+    )
     .returning();
   if (!updated) {
     res.status(404).json({ error: "Survey not found" });

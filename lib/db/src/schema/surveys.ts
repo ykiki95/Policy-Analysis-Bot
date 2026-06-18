@@ -24,6 +24,7 @@ export type SurveyDriver = {
 
 export const surveysTable = pgTable("surveys", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   description: text("description").notNull(),
   methodology: text("methodology").notNull(),

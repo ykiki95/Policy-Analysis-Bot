@@ -552,6 +552,76 @@ paths:
               schema:
                 $ref: "#/components/schemas/DashboardSummary"
 
+  /budget:
+    get:
+      operationId: getBudget
+      tags: [budget]
+      summary: 현재 사용자의 예산 한도/지출 현황(화면 표시 금액 ×10)
+      responses:
+        "200":
+          description: 예산 현황
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetStatus"
+        "401":
+          description: 미로그인
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/accounts:
+    get:
+      operationId: listAdminAccounts
+      tags: [admin]
+      summary: 전체 계정 목록 + 예산/지출(관리자 전용, 화면 표시 금액 ×10)
+      responses:
+        "200":
+          description: 계정 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminAccount"
+
+  /admin/accounts/{id}/budget:
+    put:
+      operationId: updateAccountBudget
+      tags: [admin]
+      summary: 계정별 예산 한도 설정(관리자 전용, 입력은 화면 표시 금액 ×10)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAccountBudgetInput"
+      responses:
+        "200":
+          description: 갱신된 계정
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAccount"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 계정 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /admin/data-sources:
     get:
       operationId: listDataSources
@@ -826,6 +896,50 @@ components:
         birthDate: { type: string, nullable: true }
         role: { type: string }
         createdAt: { type: string }
+
+    BudgetStatus:
+      type: object
+      description: 모든 금액은 화면 표시 금액(실비 ×10)이다.
+      required:
+        - limitUsd
+        - spentUsd
+        - remainingUsd
+        - multiplier
+      properties:
+        limitUsd: { type: number }
+        spentUsd: { type: number }
+        remainingUsd: { type: number }
+        multiplier: { type: integer }
+
+    AdminAccount:
+      type: object
+      description: 예산 금액은 화면 표시 금액(실비 ×10)이다.
+      required:
+        - id
+        - username
+        - name
+        - role
+        - createdAt
+        - budgetLimitUsd
+        - spentUsd
+        - remainingUsd
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        name: { type: string }
+        role: { type: string }
+        createdAt: { type: string }
+        budgetLimitUsd: { type: number }
+        spentUsd: { type: number }
+        remainingUsd: { type: number }
+
+    UpdateAccountBudgetInput:
+      type: object
+      description: 입력 금액은 화면 표시 금액(실비 ×10)이다.
+      required:
+        - budgetLimitUsd
+      properties:
+        budgetLimitUsd: { type: number, minimum: 0 }
 
     SignupInput:
       type: object

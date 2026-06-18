@@ -1,8 +1,9 @@
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { Users, Activity, BarChart3, Database, Box, Beaker, Menu, Settings, LogOut } from "lucide-react";
+import { Users, Activity, BarChart3, Database, Box, Beaker, Menu, Settings, LogOut, Wallet, ChevronDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,8 +12,69 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useLogout, getGetMeQueryKey, useGetBudget, useListAdminAccounts } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSwitcher } from "@/hooks/use-account-switcher";
+
+/** 화면 표시 금액 포맷($X.XX). */
+function fmtUsd(v: number): string {
+  return `$${v.toFixed(2)}`;
+}
+
+function BudgetBadge() {
+  const { data: budget } = useGetBudget();
+  if (!budget) return null;
+  const low = budget.remainingUsd <= budget.limitUsd * 0.1;
+  return (
+    <div className="hidden sm:flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm">
+      <Wallet className={`h-4 w-4 ${low ? "text-destructive" : "text-muted-foreground"}`} />
+      <span className={low ? "text-destructive font-medium" : "text-foreground"}>
+        {fmtUsd(budget.remainingUsd)}
+      </span>
+      <span className="text-muted-foreground">/ {fmtUsd(budget.limitUsd)} 잔여</span>
+    </div>
+  );
+}
+
+function AccountSwitcher() {
+  const { data: accounts } = useListAdminAccounts();
+  const { selectedAccountId, selectAccount } = useAccountSwitcher();
+  if (!accounts) return null;
+
+  const current = accounts.find((a) => a.id === selectedAccountId);
+  const label = current ? `${current.name} (@${current.username})` : "내 계정";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <Users className="h-4 w-4" />
+          <span className="hidden md:inline max-w-[14rem] truncate">{label}</span>
+          {selectedAccountId != null && (
+            <Badge variant="secondary" className="ml-1 hidden md:inline">계정 전환됨</Badge>
+          )}
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64 max-h-96 overflow-y-auto">
+        <DropdownMenuLabel>보기 계정 선택</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => selectAccount(null)}>
+          {selectedAccountId == null && <Check className="h-4 w-4 mr-2" />}
+          <span className={selectedAccountId == null ? "font-medium" : "ml-6"}>내 계정</span>
+        </DropdownMenuItem>
+        {accounts.map((a) => (
+          <DropdownMenuItem key={a.id} onClick={() => selectAccount(a.id)}>
+            {selectedAccountId === a.id && <Check className="h-4 w-4 mr-2" />}
+            <span className={selectedAccountId === a.id ? "font-medium" : "ml-6"}>
+              {a.name} <span className="text-muted-foreground">@{a.username}</span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 function AccountMenu() {
   const { user, isAdmin } = useAuth();
@@ -75,7 +137,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/surveys", label: "설문조사 기준", icon: Database },
     { href: "/calibration", label: "보정 및 검증", icon: BarChart3 },
     { href: "/products", label: "제품 라인업", icon: Box },
-    ...(isAdmin ? [{ href: "/admin", label: "관리자", icon: Settings }] : []),
+    { href: "/admin", label: isAdmin ? "관리자" : "설정", icon: Settings },
   ];
 
   return (
@@ -112,7 +174,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </nav>
       </aside>
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 border-b border-border flex items-center justify-end px-4 md:px-8 shrink-0">
+        <header className="h-16 border-b border-border flex items-center justify-end gap-3 px-4 md:px-8 shrink-0">
+          <BudgetBadge />
+          {isAdmin && <AccountSwitcher />}
           <AccountMenu />
         </header>
         <div className="flex-1 overflow-y-auto p-4 md:p-8">

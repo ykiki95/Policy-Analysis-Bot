@@ -37,6 +37,8 @@ export type AgeMarginal = {
 export type GenerationInputs = {
   count: number;
   seed?: number;
+  /** 생성되는 모든 에이전트의 소유자(테넌트) userId. */
+  userId: number;
   /** Region geo + political metadata for every region in scope. */
   regions: RegionMeta[];
   /** Official region marginal (population per region code). */
@@ -197,6 +199,7 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
   const {
     count,
     seed = 20260615,
+    userId,
     regions,
     regionMarginals,
     ageMarginals,
@@ -381,6 +384,7 @@ export function generateAgents(inputs: GenerationInputs): InsertAgent[] {
         GIVEN[Math.floor(rand() * GIVEN.length)];
 
       agents.push({
+        userId,
         name,
         age,
         ageBracket: cell.age,

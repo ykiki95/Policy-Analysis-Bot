@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, and } from "drizzle-orm";
 import {
   db,
   agentsTable,
@@ -10,9 +10,12 @@ import {
   calibrationsTable,
   demographicMarginsTable,
   electionsTable,
+  usersTable,
 } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { jsonReady } from "../lib/serialize";
+import { tenantId } from "../lib/tenant";
+import { getSpend, DISPLAY_MULTIPLIER } from "../lib/budget";
 import { generateAgents } from "../lib/agentGenerator";
 import {
   buildGenerationInputs,
@@ -44,6 +47,10 @@ import {
   ListElectionSourcesResponse,
   ImportElectionBody,
   ImportElectionResponse,
+  ListAdminAccountsResponse,
+  UpdateAccountBudgetParams,
+  UpdateAccountBudgetBody,
+  UpdateAccountBudgetResponse,
 } from "@workspace/api-zod";
 import {
   SUPPORTED_ELECTIONS,
@@ -73,6 +80,66 @@ router.get("/admin/data-sources", async (_req, res): Promise<void> => {
   res.json(ListDataSourcesResponse.parse(rows));
 });
 
+// 전체 계정 목록 + 예산/지출(화면 표시 금액 ×10). admin 전용.
+router.get("/admin/accounts", async (_req, res): Promise<void> => {
+  const users = await db.select().from(usersTable).orderBy(usersTable.id);
+  const accounts = await Promise.all(
+    users.map(async (u) => {
+      const spent = await getSpend(u.id);
+      const remaining = Math.max(0, u.budgetLimitUsd - spent);
+      return {
+        id: u.id,
+        username: u.username,
+        name: u.name,
+        role: u.role,
+        createdAt: u.createdAt,
+        budgetLimitUsd: u.budgetLimitUsd * DISPLAY_MULTIPLIER,
+        spentUsd: Math.round(spent * DISPLAY_MULTIPLIER * 100) / 100,
+        remainingUsd: Math.round(remaining * DISPLAY_MULTIPLIER * 100) / 100,
+      };
+    }),
+  );
+  res.json(ListAdminAccountsResponse.parse(jsonReady(accounts)));
+});
+
+// 계정별 예산 한도 설정(입력은 화면 표시 금액 ×10 → 실비로 환산 저장). admin 전용.
+router.put("/admin/accounts/:id/budget", async (req, res): Promise<void> => {
+  const params = UpdateAccountBudgetParams.safeParse(req.params);
+  const body = UpdateAccountBudgetBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res
+      .status(400)
+      .json({ error: (params.error ?? body.error)?.message ?? "Invalid input" });
+    return;
+  }
+  const realLimit = body.data.budgetLimitUsd / DISPLAY_MULTIPLIER;
+  const [updated] = await db
+    .update(usersTable)
+    .set({ budgetLimitUsd: realLimit })
+    .where(eq(usersTable.id, params.data.id))
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "계정을 찾을 수 없습니다." });
+    return;
+  }
+  const spent = await getSpend(updated.id);
+  const remaining = Math.max(0, updated.budgetLimitUsd - spent);
+  res.json(
+    UpdateAccountBudgetResponse.parse(
+      jsonReady({
+        id: updated.id,
+        username: updated.username,
+        name: updated.name,
+        role: updated.role,
+        createdAt: updated.createdAt,
+        budgetLimitUsd: updated.budgetLimitUsd * DISPLAY_MULTIPLIER,
+        spentUsd: Math.round(spent * DISPLAY_MULTIPLIER * 100) / 100,
+        remainingUsd: Math.round(remaining * DISPLAY_MULTIPLIER * 100) / 100,
+      }),
+    ),
+  );
+});
+
 router.get(
   "/admin/demographic-margins",
   async (_req, res): Promise<void> => {
@@ -93,35 +160,37 @@ router.post(
       return;
     }
     const { count, seed, regionScope } = parsed.data;
+    const uid = tenantId(req);
     const { inputs, scopeName } = await buildGenerationInputs(
       count,
       seed ?? undefined,
       regionScope ?? NATIONAL_SCOPE,
+      uid,
     );
     const agents = generateAgents(inputs);
 
+    // 해당 계정(테넌트)의 인구만 교체한다. agents id 공간은 모든 계정이 공유하므로
+    // 전역 시퀀스는 리셋하지 않는다(과거 시뮬레이션 집계는 응답 스냅샷 기반이라 무관).
     await db.transaction(async (tx) => {
-      await tx.delete(agentsTable);
-      await tx.execute(
-        sql`ALTER SEQUENCE agents_id_seq RESTART WITH 1`,
-      );
+      await tx.delete(agentsTable).where(eq(agentsTable.userId, uid));
       const chunkSize = 500;
       for (let i = 0; i < agents.length; i += chunkSize) {
         await tx.insert(agentsTable).values(agents.slice(i, i + chunkSize));
       }
     });
 
-    req.log.info({ count, scope: scopeName }, "Population regenerated");
+    req.log.info({ count, scope: scopeName, userId: uid }, "Population regenerated");
     res.json(
       RegeneratePopulationResponse.parse({ total: agents.length, scope: scopeName }),
     );
   },
 );
 
-router.get("/admin/survey-uploads", async (_req, res): Promise<void> => {
+router.get("/admin/survey-uploads", async (req, res): Promise<void> => {
   const rows = await db
     .select()
     .from(surveyUploadsTable)
+    .where(eq(surveyUploadsTable.userId, tenantId(req)))
     .orderBy(surveyUploadsTable.id);
   res.json(ListSurveyUploadsResponse.parse(jsonReady(rows)));
 });
@@ -137,6 +206,7 @@ router.post("/admin/survey-uploads", async (req, res): Promise<void> => {
   const [created] = await db
     .insert(surveyUploadsTable)
     .values({
+      userId: tenantId(req),
       fileName,
       description: description ?? "",
       format,
@@ -152,12 +222,17 @@ router.post("/admin/survey-uploads", async (req, res): Promise<void> => {
     .json(ListSurveyUploadsResponseItem.parse(jsonReady(created)));
 });
 
-router.get("/admin/calibration-settings", async (_req, res): Promise<void> => {
-  let [row] = await db.select().from(calibrationSettingsTable).limit(1);
+router.get("/admin/calibration-settings", async (req, res): Promise<void> => {
+  const uid = tenantId(req);
+  let [row] = await db
+    .select()
+    .from(calibrationSettingsTable)
+    .where(eq(calibrationSettingsTable.userId, uid))
+    .limit(1);
   if (!row) {
     [row] = await db
       .insert(calibrationSettingsTable)
-      .values(DEFAULT_CALIBRATION)
+      .values({ ...DEFAULT_CALIBRATION, userId: uid })
       .returning();
   }
   res.json(GetCalibrationSettingsResponse.parse(jsonReady(row)));
@@ -170,9 +245,11 @@ router.put("/admin/calibration-settings", async (req, res): Promise<void> => {
     return;
   }
   const data = parsed.data;
+  const uid = tenantId(req);
   const [existing] = await db
     .select()
     .from(calibrationSettingsTable)
+    .where(eq(calibrationSettingsTable.userId, uid))
     .limit(1);
 
   const values = {
@@ -192,12 +269,12 @@ router.put("/admin/calibration-settings", async (req, res): Promise<void> => {
     [saved] = await db
       .update(calibrationSettingsTable)
       .set(values)
-      .where(sql`${calibrationSettingsTable.id} = ${existing.id}`)
+      .where(eq(calibrationSettingsTable.id, existing.id))
       .returning();
   } else {
     [saved] = await db
       .insert(calibrationSettingsTable)
-      .values(values)
+      .values({ ...values, userId: uid })
       .returning();
   }
 
@@ -215,9 +292,11 @@ router.post("/admin/calibrations", async (req, res): Promise<void> => {
 
   // Derive calibrated values from the current calibration settings so an
   // uploaded event reflects the active validation loop (illustrative).
+  const uid = tenantId(req);
   const [settings] = await db
     .select()
     .from(calibrationSettingsTable)
+    .where(eq(calibrationSettingsTable.userId, uid))
     .limit(1);
   const shrinkage = settings?.shrinkageFactor ?? DEFAULT_CALIBRATION.shrinkageFactor;
   const method = settings?.method ?? DEFAULT_CALIBRATION.method;
@@ -233,6 +312,7 @@ router.post("/admin/calibrations", async (req, res): Promise<void> => {
   const [created] = await db
     .insert(calibrationsTable)
     .values({
+      userId: uid,
       title,
       product,
       eventType,
@@ -257,7 +337,12 @@ router.delete("/admin/calibrations/:id", async (req, res): Promise<void> => {
   }
   const [deleted] = await db
     .delete(calibrationsTable)
-    .where(eq(calibrationsTable.id, parsed.data.id))
+    .where(
+      and(
+        eq(calibrationsTable.id, parsed.data.id),
+        eq(calibrationsTable.userId, tenantId(req)),
+      ),
+    )
     .returning();
   if (!deleted) {
     res.status(404).json({ error: "Calibration not found" });
@@ -363,8 +448,11 @@ router.post(
   },
 );
 
-router.get("/admin/survey-impact", async (_req, res): Promise<void> => {
-  const surveys = await db.select().from(surveysTable);
+router.get("/admin/survey-impact", async (req, res): Promise<void> => {
+  const surveys = await db
+    .select()
+    .from(surveysTable)
+    .where(eq(surveysTable.userId, tenantId(req)));
   const adjustments = computeSurveyAdjustments(surveys);
   const appliedSurveyCount = surveys.filter(
     (s) => s.appliedToPopulation,

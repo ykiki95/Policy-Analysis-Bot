@@ -21,15 +21,19 @@ import {
   useGetSurveyImpact,
   useListElectionSources,
   useImportElection,
+  useListAdminAccounts,
+  useUpdateAccountBudget,
   getListCalibrationsQueryKey,
   getListSurveysQueryKey,
   getGetSurveyImpactQueryKey,
+  getListAdminAccountsQueryKey,
   type SurveyUploadColumn,
   type SurveyDriver,
   type Calibration,
   type CalibrationInput,
   type CalibrationInputProduct,
   type ElectionSource,
+  type AdminAccount,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,7 +52,8 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote } from "lucide-react";
+import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 const CALIBRATION_METHODS = [
   "베이지안 축소 (Bayesian Shrinkage)",
@@ -212,9 +217,123 @@ function ElectionImportSection({
   );
 }
 
+function AccountRow({ account }: { account: AdminAccount }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const updateBudget = useUpdateAccountBudget();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(String(account.budgetLimitUsd));
+
+  const save = async () => {
+    const next = Number(value);
+    if (!Number.isFinite(next) || next < 0) {
+      toast({ title: "올바른 금액을 입력하세요", variant: "destructive" });
+      return;
+    }
+    try {
+      await updateBudget.mutateAsync({ id: account.id, data: { budgetLimitUsd: next } });
+      await queryClient.invalidateQueries({ queryKey: getListAdminAccountsQueryKey() });
+      toast({ title: "한도 변경 완료", description: `${account.name}의 예산 한도를 $${next.toFixed(2)}로 설정했습니다.` });
+      setEditing(false);
+    } catch {
+      toast({ title: "한도 변경 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
+    }
+  };
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="flex flex-col">
+          <span className="font-medium">{account.name}</span>
+          <span className="text-xs text-muted-foreground">@{account.username}</span>
+        </div>
+      </TableCell>
+      <TableCell>
+        {account.role === "admin" ? (
+          <Badge variant="secondary">관리자</Badge>
+        ) : (
+          <Badge variant="outline">사용자</Badge>
+        )}
+      </TableCell>
+      <TableCell className="tabular-nums">
+        {editing ? (
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              className="w-28 h-8"
+            />
+            <Button size="sm" onClick={save} disabled={updateBudget.isPending}>
+              {updateBudget.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              저장
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setValue(String(account.budgetLimitUsd)); }}>
+              취소
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span>${account.budgetLimitUsd.toFixed(2)}</span>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+      </TableCell>
+      <TableCell className="tabular-nums text-muted-foreground">${account.spentUsd.toFixed(2)}</TableCell>
+      <TableCell className="tabular-nums font-medium">${account.remainingUsd.toFixed(2)}</TableCell>
+    </TableRow>
+  );
+}
+
+function AccountsSection() {
+  const { data: accounts, isLoading } = useListAdminAccounts();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Wallet className="h-5 w-5 text-primary" />
+          계정 및 예산 관리
+        </CardTitle>
+        <CardDescription>
+          모든 계정의 예산 한도와 누적 사용액을 관리합니다. 모든 금액은 화면 표시 금액(실비 ×10)
+          기준입니다. 상단의 계정 전환기로 각 계정의 데이터를 직접 조회할 수 있습니다.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading || !accounts ? (
+          <Skeleton className="h-40 w-full" />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>계정</TableHead>
+                <TableHead>역할</TableHead>
+                <TableHead>예산 한도</TableHead>
+                <TableHead>누적 사용</TableHead>
+                <TableHead>잔여</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {accounts.map((a) => (
+                <AccountRow key={a.id} account={a} />
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isAdmin } = useAuth();
 
   const { data: summary } = useGetAgentSummary();
   const { data: dataSources, isLoading: dsLoading } = useListDataSources();
@@ -256,17 +375,22 @@ export default function Admin() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">관리자</h1>
-        <p className="text-muted-foreground mt-1">합성 인구 구성, 데이터 출처, 설문 기준, 보정 방법을 관리합니다.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{isAdmin ? "관리자" : "설정"}</h1>
+        <p className="text-muted-foreground mt-1">
+          {isAdmin
+            ? "합성 인구 구성, 데이터 출처, 설문 기준, 보정 방법, 계정 예산을 관리합니다."
+            : "내 합성 인구 구성, 설문 업로드, 보정 방법, 검증 이벤트를 직접 관리합니다."}
+        </p>
       </div>
 
       <Tabs defaultValue="population">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
+        <TabsList className={`grid w-full grid-cols-2 ${isAdmin ? "md:grid-cols-6" : "md:grid-cols-5"}`}>
           <TabsTrigger value="population"><Users className="h-4 w-4 mr-1.5" />인구 구성</TabsTrigger>
           <TabsTrigger value="sources"><Database className="h-4 w-4 mr-1.5" />데이터 출처</TabsTrigger>
           <TabsTrigger value="surveys"><Upload className="h-4 w-4 mr-1.5" />설문 업로드</TabsTrigger>
           <TabsTrigger value="calibration"><SlidersHorizontal className="h-4 w-4 mr-1.5" />보정 설정</TabsTrigger>
           <TabsTrigger value="events"><CheckCircle2 className="h-4 w-4 mr-1.5" />검증 이벤트</TabsTrigger>
+          {isAdmin && <TabsTrigger value="accounts"><Wallet className="h-4 w-4 mr-1.5" />계정 관리</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="population" className="mt-6">
@@ -458,26 +582,28 @@ export default function Admin() {
         </TabsContent>
 
         <TabsContent value="calibration" className="mt-6 space-y-6">
-          <ElectionImportSection
-            sources={electionSources ?? []}
-            isPending={importElection.isPending}
-            onImport={async (sgId) => {
-              try {
-                const result = await importElection.mutateAsync({ data: { sgId } });
-                await queryClient.invalidateQueries();
-                toast({
-                  title: "실제 선거 데이터 연동 완료",
-                  description: `${result.electionName} · ${result.metric} · ${result.imported}개 시·도 (출처: ${result.source})`,
-                });
-              } catch {
-                toast({
-                  title: "연동 실패",
-                  description: "공공데이터포털 응답을 확인해 주세요. 활용신청 승인 상태가 필요할 수 있습니다.",
-                  variant: "destructive",
-                });
-              }
-            }}
-          />
+          {isAdmin && (
+            <ElectionImportSection
+              sources={electionSources ?? []}
+              isPending={importElection.isPending}
+              onImport={async (sgId) => {
+                try {
+                  const result = await importElection.mutateAsync({ data: { sgId } });
+                  await queryClient.invalidateQueries();
+                  toast({
+                    title: "실제 선거 데이터 연동 완료",
+                    description: `${result.electionName} · ${result.metric} · ${result.imported}개 시·도 (출처: ${result.source})`,
+                  });
+                } catch {
+                  toast({
+                    title: "연동 실패",
+                    description: "공공데이터포털 응답을 확인해 주세요. 활용신청 승인 상태가 필요할 수 있습니다.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            />
+          )}
           {calLoading || !calibration ? (
             <Card><CardContent className="py-10"><Skeleton className="h-40 w-full" /></CardContent></Card>
           ) : (
@@ -524,6 +650,12 @@ export default function Admin() {
             }}
           />
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="accounts" className="mt-6">
+            <AccountsSection />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

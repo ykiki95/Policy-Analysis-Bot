@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import {
   db,
   agentsTable,
@@ -47,12 +48,18 @@ export type ElectionCalibrationResult = {
  * Reads live agents (a current-population diagnostic) — this is intentionally
  * independent of stored simulation snapshots.
  */
-export async function computeElectionCalibration(): Promise<ElectionCalibrationResult> {
+export async function computeElectionCalibration(
+  userId: number,
+): Promise<ElectionCalibrationResult> {
   const [agents, elections, regions, settingsRow] = await Promise.all([
-    db.select().from(agentsTable),
+    db.select().from(agentsTable).where(eq(agentsTable.userId, userId)),
     db.select().from(electionsTable).orderBy(electionsTable.id),
     db.select().from(regionsTable),
-    db.select().from(calibrationSettingsTable).limit(1),
+    db
+      .select()
+      .from(calibrationSettingsTable)
+      .where(eq(calibrationSettingsTable.userId, userId))
+      .limit(1),
   ]);
 
   const shrinkage = settingsRow[0]?.shrinkageFactor ?? 0.4;

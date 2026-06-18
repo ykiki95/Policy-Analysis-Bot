@@ -17,6 +17,20 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _accountId: number | null = null;
+
+/**
+ * Register the account whose data should be acted upon. When set (admin only),
+ * an `accountId` query parameter is attached to every relative API request so
+ * the backend tenant resolver scopes data to that account. Pass `null` to clear
+ * (act on the caller's own account).
+ *
+ * NOTE: The backend ignores this for non-admin callers, so it is safe even if
+ * accidentally set; isolation is enforced server-side.
+ */
+export function setAccountId(id: number | null): void {
+  _accountId = id;
+}
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -76,6 +90,22 @@ function resolveUrl(input: RequestInfo | URL): string {
   if (typeof input === "string") return input;
   if (isUrl(input)) return input.toString();
   return input.url;
+}
+
+function appendQueryParam(url: string, key: string, value: string): string {
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}${key}=${encodeURIComponent(value)}`;
+}
+
+function applyAccountId(input: RequestInfo | URL): RequestInfo | URL {
+  if (_accountId == null) return input;
+  const url = resolveUrl(input);
+  // Don't duplicate if already present.
+  if (/[?&]accountId=/.test(url)) return input;
+  const next = appendQueryParam(url, "accountId", String(_accountId));
+  if (typeof input === "string") return next;
+  if (isUrl(input)) return new URL(next);
+  return new Request(next, input as Request);
 }
 
 function mergeHeaders(...sources: Array<HeadersInit | undefined>): Headers {
@@ -327,6 +357,7 @@ export async function customFetch<T = unknown>(
   options: CustomFetchOptions = {},
 ): Promise<T> {
   input = applyBaseUrl(input);
+  input = applyAccountId(input);
   const { responseType = "auto", headers: headersInit, ...init } = options;
 
   const method = resolveMethod(input, init.method);

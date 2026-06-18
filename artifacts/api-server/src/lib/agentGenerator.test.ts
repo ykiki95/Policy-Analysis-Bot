@@ -8,6 +8,7 @@ function baseInputs(): GenerationInputs {
   return {
     count: 240,
     seed: SEED,
+    userId: 1,
     regions: [
       { code: "11", name: "서울", lat: 37.5665, lng: 126.978, leaningBias: -8 },
       { code: "26", name: "부산", lat: 35.1796, lng: 129.0756, leaningBias: 12 },

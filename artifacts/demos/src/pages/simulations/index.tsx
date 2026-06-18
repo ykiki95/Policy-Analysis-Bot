@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Beaker, Clock, CheckCircle2 } from "lucide-react";
+import { Plus, Beaker, Clock, CheckCircle2, ListChecks, XCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function Simulations() {
@@ -23,6 +23,8 @@ export default function Simulations() {
     switch(status) {
       case "completed": return <Badge className="bg-green-500 hover:bg-green-600"><CheckCircle2 className="w-3 h-3 mr-1"/> 완료됨</Badge>;
       case "running": return <Badge variant="secondary" className="animate-pulse"><Clock className="w-3 h-3 mr-1"/> 실행 중</Badge>;
+      case "queued": return <Badge variant="outline" className="text-amber-600 border-amber-300"><ListChecks className="w-3 h-3 mr-1"/> 대기열</Badge>;
+      case "failed": return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1"/> 실패</Badge>;
       default: return <Badge variant="outline">대기 중</Badge>;
     }
   };

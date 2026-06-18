@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { resumeOrphanedSimulations } from "./lib/simulationRecovery";
+import { startSimulationWorker } from "./lib/worker";
 
 const rawPort = process.env["PORT"];
 
@@ -24,9 +24,7 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
 
-  // 부팅 시 직전 프로세스에서 멈춘(running) 시뮬레이션을 백그라운드로 재개한다.
-  // 서버 기동을 막지 않도록 await 하지 않는다.
-  void resumeOrphanedSimulations().catch((err) =>
-    logger.error({ err }, "Startup simulation recovery crashed"),
-  );
+  // 항상 가동되는 워커 루프를 시작한다. 큐(queued)에 적재된 작업과 직전
+  // 프로세스에서 멈춘(heartbeat 만료) 고아 작업을 claim 해 실행/재개한다.
+  startSimulationWorker();
 });

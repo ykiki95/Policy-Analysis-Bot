@@ -8,10 +8,10 @@
  * user-created surveys (isReal=false) and other data-source categories are left
  * untouched. Safe to run repeatedly (e.g. from the post-merge setup script).
  */
-import { db, surveysTable, dataSourcesTable, type InsertSurvey } from "@workspace/db";
+import { db, surveysTable, dataSourcesTable, usersTable, type InsertSurvey } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 
-const surveys: InsertSurvey[] = [
+const surveys: Omit<InsertSurvey, "userId">[] = [
   {
     title: "한국갤럽 데일리 오피니언 — 향후 1년 경기 전망",
     description:
@@ -571,9 +571,19 @@ const dataSources = [
 ];
 
 async function main(): Promise<void> {
+  // 기존(시드) 데이터는 test 계정 소유로 귀속한다.
+  const [owner] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.username, "test"));
+  if (!owner) {
+    throw new Error("seed-surveys: 'test' 사용자를 찾을 수 없습니다. 사용자 시드를 먼저 실행하세요.");
+  }
+  const ownedSurveys: InsertSurvey[] = surveys.map((s) => ({ ...s, userId: owner.id }));
+
   await db.transaction(async (tx) => {
     await tx.delete(surveysTable).where(eq(surveysTable.isReal, true));
-    await tx.insert(surveysTable).values(surveys);
+    await tx.insert(surveysTable).values(ownedSurveys);
 
     await tx
       .delete(dataSourcesTable)

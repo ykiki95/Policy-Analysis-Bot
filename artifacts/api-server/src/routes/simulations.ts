@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { jsonReady } from "../lib/serialize";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import {
   db,
   agentsTable,
@@ -22,16 +22,12 @@ import {
   ListSimulationResponsesParams,
   ListSimulationResponsesResponse,
 } from "@workspace/api-zod";
-import {
-  estimateCost,
-  DEFAULT_MODEL,
-  isSupportedModel,
-} from "../lib/pricing";
+import { estimateCost, DEFAULT_MODEL, isSupportedModel } from "../lib/pricing";
 import { runSimulation } from "../lib/simulationEngine";
-import {
-  POLICY_AXIS_KEYS,
-  POLICY_AXIS_LABELS,
-} from "../lib/policyWeighting";
+import { tenantId } from "../lib/tenant";
+import { assertWithinBudgetTx, BudgetExceededError, DISPLAY_MULTIPLIER } from "../lib/budget";
+import { runLimiter } from "../lib/rateLimit";
+import { POLICY_AXIS_KEYS, POLICY_AXIS_LABELS } from "../lib/policyWeighting";
 import {
   buildOutputCalibrationModel,
   applyOutputCalibration,
@@ -53,15 +49,19 @@ function policyAxisBucket(value: number): string {
 
 const POLICY_BUCKET_ORDER: Record<string, number> = { 상: 0, 중: 1, 하: 2 };
 
-async function countAgents(): Promise<number> {
-  const rows = await db.select({ id: agentsTable.id }).from(agentsTable);
+async function countAgents(userId: number): Promise<number> {
+  const rows = await db
+    .select({ id: agentsTable.id })
+    .from(agentsTable)
+    .where(eq(agentsTable.userId, userId));
   return rows.length;
 }
 
-router.get("/simulations", async (_req, res): Promise<void> => {
+router.get("/simulations", async (req, res): Promise<void> => {
   const rows = await db
     .select()
     .from(simulationsTable)
+    .where(eq(simulationsTable.userId, tenantId(req)))
     .orderBy(desc(simulationsTable.createdAt));
   res.json(ListSimulationsResponse.parse(jsonReady(rows)));
 });
@@ -72,7 +72,8 @@ router.post("/simulations/estimate", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const totalAgents = parsed.data.totalAgents ?? (await countAgents());
+  const totalAgents =
+    parsed.data.totalAgents ?? (await countAgents(tenantId(req)));
   if (!Number.isFinite(totalAgents) || totalAgents < 1) {
     res.status(400).json({ error: "totalAgents must be a positive integer" });
     return;
@@ -91,12 +92,13 @@ router.post("/simulations", async (req, res): Promise<void> => {
     parsed.data.model && isSupportedModel(parsed.data.model)
       ? parsed.data.model
       : DEFAULT_MODEL;
-  const totalAgents = await countAgents();
+  const totalAgents = await countAgents(tenantId(req));
   const estimate = estimateCost(model, totalAgents);
 
   const [sim] = await db
     .insert(simulationsTable)
     .values({
+      userId: tenantId(req),
       title: parsed.data.title,
       audience: parsed.data.audience,
       product: parsed.data.product,
@@ -118,10 +120,16 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const uid = tenantId(req);
   const [sim] = await db
     .select()
     .from(simulationsTable)
-    .where(eq(simulationsTable.id, params.data.id));
+    .where(
+      and(
+        eq(simulationsTable.id, params.data.id),
+        eq(simulationsTable.userId, uid),
+      ),
+    );
   if (!sim) {
     res.status(404).json({ error: "Simulation not found" });
     return;
@@ -151,7 +159,13 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
   ) => {
     const map = new Map<
       string,
-      { count: number; support: number; oppose: number; neutral: number; scoreSum: number }
+      {
+        count: number;
+        support: number;
+        oppose: number;
+        neutral: number;
+        scoreSum: number;
+      }
     >();
     for (const r of source) {
       const key = keyFn(r);
@@ -203,6 +217,7 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
 
   // 출력 보정(Lever 2): 이 시뮬레이션 제품의 과거 검증 이벤트에서 학습한
   // 평균 편향으로 원시 지지율을 사후 교정한다. 완료된 시뮬레이션에만 적용.
+  // 검증 이벤트/설정은 시뮬레이션 소유자(테넌트) 스코프로 조회한다.
   let calibration:
     | {
         applied: boolean;
@@ -234,9 +249,18 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
       db
         .select()
         .from(calibrationsTable)
-        .where(eq(calibrationsTable.product, sim.product))
+        .where(
+          and(
+            eq(calibrationsTable.product, sim.product),
+            eq(calibrationsTable.userId, uid),
+          ),
+        )
         .orderBy(desc(calibrationsTable.targetDate)),
-      db.select().from(calibrationSettingsTable).limit(1),
+      db
+        .select()
+        .from(calibrationSettingsTable)
+        .where(eq(calibrationSettingsTable.userId, uid))
+        .limit(1),
     ]);
     const model = buildOutputCalibrationModel(
       productEvents,
@@ -287,34 +311,79 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
   );
 });
 
-router.post("/simulations/:id/run", async (req, res): Promise<void> => {
+router.post("/simulations/:id/run", runLimiter, async (req, res): Promise<void> => {
   const params = RunSimulationParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const uid = tenantId(req);
   const [sim] = await db
     .select()
     .from(simulationsTable)
-    .where(eq(simulationsTable.id, params.data.id));
+    .where(
+      and(
+        eq(simulationsTable.id, params.data.id),
+        eq(simulationsTable.userId, uid),
+      ),
+    );
   if (!sim) {
     res.status(404).json({ error: "Simulation not found" });
     return;
   }
-  if (sim.status === "running") {
+  if (sim.status === "running" || sim.status === "queued") {
     res.status(202).json(ListSimulationsResponseItem.parse(jsonReady(sim)));
     return;
   }
 
-  const [updated] = await db
-    .update(simulationsTable)
-    .set({ status: "running", progress: 0, summary: null, completedAt: null })
-    .where(eq(simulationsTable.id, params.data.id))
-    .returning();
+  // 실행 시점 기준으로 추정 비용을 재계산한다(생성 후 인구 규모가 바뀌었을 수
+  // 있으므로 저장된 costEstimateUsd 를 그대로 신뢰하지 않는다).
+  const freshAgents = await countAgents(uid);
+  const freshEstimate = estimateCost(sim.model, freshAgents).estimatedCostUsd;
 
-  void runSimulation(params.data.id, { resume: false }).catch((err) =>
-    req.log.error({ err, id: params.data.id }, "Background simulation run crashed"),
-  );
+  // 예산 검사 + 큐 적재를 하나의 트랜잭션으로 묶는다. 사용자 행을 FOR UPDATE 로
+  // 잠가 동시 enqueue 를 직렬화하고, 대기열/실행중 예약분까지 합산해 한도 초과를
+  // 막는다. 통과 시에만 status='queued' + 재계산 추정치로 갱신한다.
+  let updated;
+  try {
+    updated = await db.transaction(async (tx) => {
+      await assertWithinBudgetTx(tx, uid, freshEstimate);
+      const [row] = await tx
+        .update(simulationsTable)
+        .set({
+          status: "queued",
+          progress: 0,
+          summary: null,
+          completedAt: null,
+          totalAgents: freshAgents,
+          costEstimateUsd: freshEstimate,
+          lockedBy: null,
+          lockedAt: null,
+          heartbeatAt: null,
+          lastError: null,
+        })
+        .where(eq(simulationsTable.id, params.data.id))
+        .returning();
+      return row;
+    });
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      // 예산 수치는 화면 표시 단위(×10)로 변환해 /budget·admin API 와 일관성 유지.
+      const d = err.detail;
+      res.status(402).json({
+        error: err.message,
+        budget: {
+          limitUsd: Math.round(d.limitUsd * DISPLAY_MULTIPLIER * 100) / 100,
+          spentUsd: Math.round(d.spentUsd * DISPLAY_MULTIPLIER * 100) / 100,
+          remainingUsd: Math.round(d.remainingUsd * DISPLAY_MULTIPLIER * 100) / 100,
+          estimateUsd: Math.round(d.estimateUsd * DISPLAY_MULTIPLIER * 100) / 100,
+          multiplier: DISPLAY_MULTIPLIER,
+        },
+      });
+      return;
+    }
+    throw err;
+  }
 
   res.status(202).json(ListSimulationsResponseItem.parse(jsonReady(updated)));
 });
@@ -323,6 +392,19 @@ router.get("/simulations/:id/responses", async (req, res): Promise<void> => {
   const params = ListSimulationResponsesParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [sim] = await db
+    .select({ id: simulationsTable.id })
+    .from(simulationsTable)
+    .where(
+      and(
+        eq(simulationsTable.id, params.data.id),
+        eq(simulationsTable.userId, tenantId(req)),
+      ),
+    );
+  if (!sim) {
+    res.status(404).json({ error: "Simulation not found" });
     return;
   }
   const rows = await db
@@ -339,17 +421,25 @@ router.delete("/simulations/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  await db
-    .delete(simulationResponsesTable)
-    .where(eq(simulationResponsesTable.simulationId, params.data.id));
-  const [deleted] = await db
-    .delete(simulationsTable)
-    .where(eq(simulationsTable.id, params.data.id))
-    .returning();
-  if (!deleted) {
+  const [owned] = await db
+    .select({ id: simulationsTable.id })
+    .from(simulationsTable)
+    .where(
+      and(
+        eq(simulationsTable.id, params.data.id),
+        eq(simulationsTable.userId, tenantId(req)),
+      ),
+    );
+  if (!owned) {
     res.status(404).json({ error: "Simulation not found" });
     return;
   }
+  await db
+    .delete(simulationResponsesTable)
+    .where(eq(simulationResponsesTable.simulationId, params.data.id));
+  await db
+    .delete(simulationsTable)
+    .where(eq(simulationsTable.id, params.data.id));
   res.sendStatus(204);
 });
 

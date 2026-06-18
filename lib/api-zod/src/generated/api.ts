@@ -694,6 +694,60 @@ export const GetDashboardSummaryResponse = zod.object({
 
 
 /**
+ * @summary 현재 사용자의 예산 한도/지출 현황(화면 표시 금액 ×10)
+ */
+export const GetBudgetResponse = zod.object({
+  "limitUsd": zod.number(),
+  "spentUsd": zod.number(),
+  "remainingUsd": zod.number(),
+  "multiplier": zod.number()
+}).describe('모든 금액은 화면 표시 금액(실비 ×10)이다.')
+
+
+/**
+ * @summary 전체 계정 목록 + 예산/지출(관리자 전용, 화면 표시 금액 ×10)
+ */
+export const ListAdminAccountsResponseItem = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "name": zod.string(),
+  "role": zod.string(),
+  "createdAt": zod.string(),
+  "budgetLimitUsd": zod.number(),
+  "spentUsd": zod.number(),
+  "remainingUsd": zod.number()
+}).describe('예산 금액은 화면 표시 금액(실비 ×10)이다.')
+export const ListAdminAccountsResponse = zod.array(ListAdminAccountsResponseItem)
+
+
+/**
+ * @summary 계정별 예산 한도 설정(관리자 전용, 입력은 화면 표시 금액 ×10)
+ */
+export const UpdateAccountBudgetParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateAccountBudgetBodyBudgetLimitUsdMin = 0;
+
+
+
+export const UpdateAccountBudgetBody = zod.object({
+  "budgetLimitUsd": zod.number().min(updateAccountBudgetBodyBudgetLimitUsdMin)
+}).describe('입력 금액은 화면 표시 금액(실비 ×10)이다.')
+
+export const UpdateAccountBudgetResponse = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "name": zod.string(),
+  "role": zod.string(),
+  "createdAt": zod.string(),
+  "budgetLimitUsd": zod.number(),
+  "spentUsd": zod.number(),
+  "remainingUsd": zod.number()
+}).describe('예산 금액은 화면 표시 금액(실비 ×10)이다.')
+
+
+/**
  * @summary Public data sources the synthetic population is derived from
  */
 export const ListDataSourcesResponseItem = zod.object({

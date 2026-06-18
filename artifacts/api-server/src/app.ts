@@ -5,6 +5,7 @@ import connectPgSimple from "connect-pg-simple";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { errorHandler, notFoundHandler } from "./lib/errorHandler";
 import { pool } from "@workspace/db";
 
 const app: Express = express();
@@ -56,5 +57,9 @@ app.use(
 );
 
 app.use("/api", router);
+
+// 일관된 404 + 전역 에러 핸들러(반드시 라우트 등록 이후에 위치)
+app.use("/api", notFoundHandler);
+app.use(errorHandler);
 
 export default app;

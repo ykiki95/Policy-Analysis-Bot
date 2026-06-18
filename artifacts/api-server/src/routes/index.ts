@@ -8,17 +8,22 @@ import calibrationRouter from "./calibration";
 import regionsRouter from "./regions";
 import productsRouter from "./products";
 import dashboardRouter from "./dashboard";
+import budgetRouter from "./budget";
 import adminRouter from "./admin";
 import { requireAuth, requireAdmin } from "../lib/auth";
+import { withTenant } from "../lib/tenant";
+import { authLimiter } from "../lib/rateLimit";
 
 const router: IRouter = Router();
 
 // 비로그인 접근 허용 — 헬스체크 + 인증(로그인/회원가입)
 router.use(healthRouter);
-router.use(authRouter);
+// 인증 라우트는 무차별 대입 방지를 위해 rate limit 적용
+router.use(authLimiter, authRouter);
 
-// 이하 모든 데이터 라우트는 로그인 필수
+// 이하 모든 데이터 라우트는 로그인 필수 + 테넌트 컨텍스트(소유자 스코프) 부여
 router.use(requireAuth);
+router.use(withTenant);
 router.use(agentsRouter);
 router.use(surveysRouter);
 router.use(simulationsRouter);
@@ -26,8 +31,11 @@ router.use(calibrationRouter);
 router.use(regionsRouter);
 router.use(productsRouter);
 router.use(dashboardRouter);
+router.use(budgetRouter);
 
-// 관리자 전용
-router.use(requireAdmin, adminRouter);
+// 관리자 전용 — /admin/* 경로에만 admin 게이트를 적용한다(미등록 경로의 404
+// 핸들러를 가리지 않도록 catch-all 미들웨어로 두지 않는다).
+router.use("/admin", requireAdmin);
+router.use(adminRouter);
 
 export default router;

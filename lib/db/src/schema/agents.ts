@@ -61,6 +61,7 @@ export const DEFAULT_POLICY_STANCES: AgentPolicyStances = {
 
 export const agentsTable = pgTable("agents", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   name: text("name").notNull(),
   age: integer("age").notNull(),
   ageBracket: text("age_bracket").notNull(),

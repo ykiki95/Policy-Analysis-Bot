@@ -9,6 +9,7 @@ import {
 
 export const simulationsTable = pgTable("simulations", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   audience: text("audience").notNull(),
   product: text("product").notNull(),
@@ -24,6 +25,13 @@ export const simulationsTable = pgTable("simulations", {
   opposePct: doublePrecision("oppose_pct"),
   neutralPct: doublePrecision("neutral_pct"),
   summary: text("summary"),
+  // 워커 분리(durable job): 단일 active 러너 보장을 위한 DB lease.
+  // status='queued' 작업을 워커가 원자적으로 claim(lockedBy/lockedAt 설정)→running,
+  // 실행 중 heartbeatAt 주기 갱신. heartbeat 만료(stale) 시 다른 워커가 회수한다.
+  lockedBy: text("locked_by"),
+  lockedAt: timestamp("locked_at", { withTimezone: true }),
+  heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
+  lastError: text("last_error"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

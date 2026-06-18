@@ -1,7 +1,14 @@
-import { pgTable, serial, text, doublePrecision } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  serial,
+  text,
+  integer,
+  doublePrecision,
+} from "drizzle-orm/pg-core";
 
 export const calibrationsTable = pgTable("calibrations", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   // 제품 라인: 'Lumen' | 'Seraph' | 'Dynamo'. 기존 행 백필용 기본값 Dynamo.
   product: text("product").notNull().default("Dynamo"),

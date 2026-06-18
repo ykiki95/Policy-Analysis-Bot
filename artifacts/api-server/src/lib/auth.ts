@@ -54,13 +54,14 @@ export const requireAuth: RequestHandler = (req, res, next) => {
 
 /** 관리자(role=admin) 전용. requireAuth 이후에 사용한다. */
 export const requireAdmin: RequestHandler = async (req, res, next) => {
-  const userId = req.session.userId;
-  if (!userId) {
+  const user =
+    req.currentUser ??
+    (req.session.userId ? await findUserById(req.session.userId) : undefined);
+  if (!user) {
     res.status(401).json({ error: "로그인이 필요합니다." });
     return;
   }
-  const user = await findUserById(userId);
-  if (!user || user.role !== "admin") {
+  if (user.role !== "admin") {
     res.status(403).json({ error: "관리자 권한이 필요합니다." });
     return;
   }

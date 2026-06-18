@@ -20,8 +20,10 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminAccount,
   Agent,
   AgentSummary,
+  BudgetStatus,
   Calibration,
   CalibrationInput,
   CalibrationSettings,
@@ -57,6 +59,7 @@ import type {
   SurveyInput,
   SurveyUpload,
   SurveyUploadInput,
+  UpdateAccountBudgetInput,
   User
 } from './api.schemas';
 
@@ -2095,6 +2098,232 @@ export function useGetDashboardSummary<TData = Awaited<ReturnType<typeof getDash
 
 
 
+
+export const getGetBudgetUrl = () => {
+
+
+
+
+  return `/api/budget`
+}
+
+/**
+ * @summary 현재 사용자의 예산 한도/지출 현황(화면 표시 금액 ×10)
+ */
+export const getBudget = async ( options?: RequestInit): Promise<BudgetStatus> => {
+
+  return customFetch<BudgetStatus>(getGetBudgetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBudgetQueryKey = () => {
+    return [
+    `/api/budget`
+    ] as const;
+    }
+
+
+export const getGetBudgetQueryOptions = <TData = Awaited<ReturnType<typeof getBudget>>, TError = ErrorType<Error>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBudget>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBudgetQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBudget>>> = ({ signal }) => getBudget({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBudget>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBudgetQueryResult = NonNullable<Awaited<ReturnType<typeof getBudget>>>
+export type GetBudgetQueryError = ErrorType<Error>
+
+
+/**
+ * @summary 현재 사용자의 예산 한도/지출 현황(화면 표시 금액 ×10)
+ */
+
+export function useGetBudget<TData = Awaited<ReturnType<typeof getBudget>>, TError = ErrorType<Error>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBudget>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBudgetQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListAdminAccountsUrl = () => {
+
+
+
+
+  return `/api/admin/accounts`
+}
+
+/**
+ * @summary 전체 계정 목록 + 예산/지출(관리자 전용, 화면 표시 금액 ×10)
+ */
+export const listAdminAccounts = async ( options?: RequestInit): Promise<AdminAccount[]> => {
+
+  return customFetch<AdminAccount[]>(getListAdminAccountsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminAccountsQueryKey = () => {
+    return [
+    `/api/admin/accounts`
+    ] as const;
+    }
+
+
+export const getListAdminAccountsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminAccounts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminAccountsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminAccounts>>> = ({ signal }) => listAdminAccounts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminAccounts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminAccounts>>>
+export type ListAdminAccountsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary 전체 계정 목록 + 예산/지출(관리자 전용, 화면 표시 금액 ×10)
+ */
+
+export function useListAdminAccounts<TData = Awaited<ReturnType<typeof listAdminAccounts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminAccountsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateAccountBudgetUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/accounts/${id}/budget`
+}
+
+/**
+ * @summary 계정별 예산 한도 설정(관리자 전용, 입력은 화면 표시 금액 ×10)
+ */
+export const updateAccountBudget = async (id: number,
+    updateAccountBudgetInput: UpdateAccountBudgetInput, options?: RequestInit): Promise<AdminAccount> => {
+
+  return customFetch<AdminAccount>(getUpdateAccountBudgetUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateAccountBudgetInput,)
+  }
+);}
+
+
+
+
+export const getUpdateAccountBudgetMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccountBudget>>, TError,{id: number;data: BodyType<UpdateAccountBudgetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAccountBudget>>, TError,{id: number;data: BodyType<UpdateAccountBudgetInput>}, TContext> => {
+
+const mutationKey = ['updateAccountBudget'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAccountBudget>>, {id: number;data: BodyType<UpdateAccountBudgetInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAccountBudget(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAccountBudgetMutationResult = NonNullable<Awaited<ReturnType<typeof updateAccountBudget>>>
+    export type UpdateAccountBudgetMutationBody = BodyType<UpdateAccountBudgetInput>
+    export type UpdateAccountBudgetMutationError = ErrorType<Error>
+
+    /**
+ * @summary 계정별 예산 한도 설정(관리자 전용, 입력은 화면 표시 금액 ×10)
+ */
+export const useUpdateAccountBudget = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccountBudget>>, TError,{id: number;data: BodyType<UpdateAccountBudgetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAccountBudget>>,
+        TError,
+        {id: number;data: BodyType<UpdateAccountBudgetInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAccountBudgetMutationOptions(options));
+    }
 
 export const getListDataSourcesUrl = () => {
 

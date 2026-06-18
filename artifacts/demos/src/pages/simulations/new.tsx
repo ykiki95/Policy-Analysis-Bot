@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useEstimateSimulation, useCreateSimulation, useRunSimulation, getListSimulationsQueryKey, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
+import { useEstimateSimulation, useCreateSimulation, useRunSimulation, getListSimulationsQueryKey, getGetDashboardSummaryQueryKey, getGetBudgetQueryKey, ApiError } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,7 +12,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Calculator, PlayCircle } from "lucide-react";
+import { Loader2, Calculator, PlayCircle, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
@@ -38,6 +38,7 @@ export default function NewSimulation() {
   const queryClient = useQueryClient();
   const [estimateLoading, setEstimateLoading] = useState(false);
   const [estimatedCost, setEstimatedCost] = useState<{min: number, max: number, time: number, totalAgents: number} | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -78,20 +79,31 @@ export default function NewSimulation() {
   }, [watchModel]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    setRunError(null);
     createMut.mutate(
       { data: { ...values, audience: audienceForProduct(values.product) } },
       {
         onSuccess: (sim) => {
           queryClient.invalidateQueries({ queryKey: getListSimulationsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          
-          // Instantly start the run
+
+          // 큐에 적재(워커가 실행). 예산 초과 시 402.
           runMut.mutate({ id: sim.id }, {
             onSuccess: () => {
+              queryClient.invalidateQueries({ queryKey: getGetBudgetQueryKey() });
               setLocation(`/simulations/${sim.id}`);
-            }
+            },
+            onError: (err) => {
+              if (err instanceof ApiError && err.status === 402) {
+                setRunError(
+                  "예산 한도를 초과하여 실행할 수 없습니다. 관리자에게 한도 상향을 요청하세요. (시뮬레이션은 생성되었으나 대기 상태입니다.)",
+                );
+              } else {
+                setRunError("실행 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+              }
+            },
           });
-        }
+        },
       }
     );
   };
@@ -198,6 +210,14 @@ export default function NewSimulation() {
                       </FormItem>
                     )}
                   />
+
+                  {runError && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>실행할 수 없습니다</AlertTitle>
+                      <AlertDescription>{runError}</AlertDescription>
+                    </Alert>
+                  )}
 
                   <Button type="submit" disabled={createMut.isPending || runMut.isPending} className="w-full">
                     {createMut.isPending || runMut.isPending ? (

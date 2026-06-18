@@ -204,6 +204,9 @@ async function finalizeSimulation(
       costActualUsd: costActual,
       summary: buildSummary(sim, supportPct, opposePct, neutralPct, topDistrict),
       completedAt: new Date(),
+      lockedBy: null,
+      lockedAt: null,
+      heartbeatAt: null,
     })
     .where(eq(simulationsTable.id, sim.id));
 
@@ -249,7 +252,10 @@ export async function runSimulation(
       return;
     }
 
-    const agents = await db.select().from(agentsTable);
+    const agents = await db
+      .select()
+      .from(agentsTable)
+      .where(eq(agentsTable.userId, sim.userId));
 
     // 신규 실행은 이전 결과를 초기화한다. resume 은 보존한다.
     if (!resume) {
@@ -346,7 +352,7 @@ export async function runSimulation(
             lastWritten = progress;
             db
               .update(simulationsTable)
-              .set({ progress })
+              .set({ progress, heartbeatAt: new Date() })
               .where(eq(simulationsTable.id, simulationId))
               .then(undefined, (err) =>
                 logger.error({ err, simulationId }, "Progress update failed"),
@@ -368,7 +374,13 @@ export async function runSimulation(
     try {
       await db
         .update(simulationsTable)
-        .set({ status: "failed" })
+        .set({
+          status: "failed",
+          lastError: String((err as Error)?.message ?? err).slice(0, 500),
+          lockedBy: null,
+          lockedAt: null,
+          heartbeatAt: null,
+        })
         .where(eq(simulationsTable.id, simulationId));
     } catch (updateErr) {
       logger.error(

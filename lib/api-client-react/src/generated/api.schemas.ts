@@ -22,6 +22,38 @@ export interface User {
   createdAt: string;
 }
 
+/**
+ * 모든 금액은 화면 표시 금액(실비 ×10)이다.
+ */
+export interface BudgetStatus {
+  limitUsd: number;
+  spentUsd: number;
+  remainingUsd: number;
+  multiplier: number;
+}
+
+/**
+ * 예산 금액은 화면 표시 금액(실비 ×10)이다.
+ */
+export interface AdminAccount {
+  id: number;
+  username: string;
+  name: string;
+  role: string;
+  createdAt: string;
+  budgetLimitUsd: number;
+  spentUsd: number;
+  remainingUsd: number;
+}
+
+/**
+ * 입력 금액은 화면 표시 금액(실비 ×10)이다.
+ */
+export interface UpdateAccountBudgetInput {
+  /** @minimum 0 */
+  budgetLimitUsd: number;
+}
+
 export interface SignupInput {
   /** @minLength 1 */
   name: string;

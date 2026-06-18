@@ -5,6 +5,7 @@ import { buildPrompt, isCommercialSim, isPolicySim } from "./prompts";
 function makeAgent(): Agent {
   return {
     id: 1,
+    userId: 1,
     name: "김민준",
     age: 34,
     ageBracket: "30-39",
@@ -49,6 +50,7 @@ function makeAgent(): Agent {
 function makeSim(overrides: Partial<Simulation>): Simulation {
   return {
     id: 1,
+    userId: 1,
     title: "테스트 시뮬레이션",
     audience: "정치",
     product: "Dynamo",
@@ -64,6 +66,10 @@ function makeSim(overrides: Partial<Simulation>): Simulation {
     opposePct: null,
     neutralPct: null,
     summary: null,
+    lockedBy: null,
+    lockedAt: null,
+    heartbeatAt: null,
+    lastError: null,
     createdAt: new Date("2026-06-15T00:00:00Z"),
     completedAt: null,
     ...overrides,

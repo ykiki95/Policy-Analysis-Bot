@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, type SQL } from "drizzle-orm";
 import { db, agentsTable } from "@workspace/db";
 import { jsonReady } from "../lib/serialize";
+import { tenantId } from "../lib/tenant";
 import {
   ListAgentsResponse,
   ListAgentsQueryParams,
@@ -26,27 +27,29 @@ router.get("/agents", async (req, res): Promise<void> => {
   }
   const { district, gender, ageBracket, limit } = query.data;
 
-  const conditions: SQL[] = [];
+  const conditions: SQL[] = [eq(agentsTable.userId, tenantId(req))];
   if (district) conditions.push(eq(agentsTable.district, district));
   if (gender) conditions.push(eq(agentsTable.gender, gender));
   if (ageBracket) conditions.push(eq(agentsTable.ageBracket, ageBracket));
 
-  const base = db.select().from(agentsTable);
-  const filtered =
-    conditions.length > 0 ? base.where(and(...conditions)) : base;
-  const ordered = filtered.orderBy(agentsTable.id);
+  const ordered = db
+    .select()
+    .from(agentsTable)
+    .where(and(...conditions))
+    .orderBy(agentsTable.id);
   const rows = await (limit ? ordered.limit(limit) : ordered);
 
   res.json(ListAgentsResponse.parse(jsonReady(rows)));
 });
 
-router.get("/agents/summary", async (_req, res): Promise<void> => {
-  const rows = await db.select().from(agentsTable);
+router.get("/agents/summary", async (req, res): Promise<void> => {
+  const rows = await db
+    .select()
+    .from(agentsTable)
+    .where(eq(agentsTable.userId, tenantId(req)));
   const total = rows.length;
 
-  const breakdown = (
-    keyFn: (a: (typeof rows)[number]) => string,
-  ) => {
+  const breakdown = (keyFn: (a: (typeof rows)[number]) => string) => {
     const map = new Map<string, { count: number; leaningSum: number }>();
     for (const a of rows) {
       const key = keyFn(a);
@@ -99,7 +102,12 @@ router.get("/agents/:id", async (req, res): Promise<void> => {
   const [agent] = await db
     .select()
     .from(agentsTable)
-    .where(eq(agentsTable.id, params.data.id));
+    .where(
+      and(
+        eq(agentsTable.id, params.data.id),
+        eq(agentsTable.userId, tenantId(req)),
+      ),
+    );
   if (!agent) {
     res.status(404).json({ error: "Agent not found" });
     return;

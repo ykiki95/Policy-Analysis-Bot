@@ -49,7 +49,7 @@ export default function SimulationDetail() {
       // Poll every 1s if running or pending
       refetchInterval: (query) => {
         const status = query.state.data?.simulation.status;
-        return status === "running" || status === "pending" ? 1000 : false;
+        return status === "running" || status === "pending" || status === "queued" ? 1000 : false;
       }
     }
   });
@@ -96,7 +96,8 @@ export default function SimulationDetail() {
   }
 
   const sim = simDetail.simulation;
-  const isRunning = sim.status === "running" || sim.status === "pending";
+  const isQueued = sim.status === "queued";
+  const isRunning = sim.status === "running" || sim.status === "pending" || isQueued;
 
   const handleDelete = () => {
     deleteMut.mutate({ id }, {
@@ -142,6 +143,10 @@ export default function SimulationDetail() {
               <h1 className="text-3xl font-bold tracking-tight">{sim.title}</h1>
               {sim.status === "completed" ? (
                 <Badge className="bg-green-500"><CheckCircle2 className="w-3 h-3 mr-1"/> 완료됨</Badge>
+              ) : sim.status === "failed" ? (
+                <Badge variant="destructive"><Clock className="w-3 h-3 mr-1"/> 실패</Badge>
+              ) : isQueued ? (
+                <Badge variant="outline" className="text-amber-600 border-amber-300 animate-pulse"><Clock className="w-3 h-3 mr-1"/> 대기열</Badge>
               ) : (
                 <Badge variant="secondary" className="animate-pulse"><Clock className="w-3 h-3 mr-1"/> 진행 중</Badge>
               )}

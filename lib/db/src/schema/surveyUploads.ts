@@ -15,6 +15,7 @@ export type SurveyUploadColumn = {
 
 export const surveyUploadsTable = pgTable("survey_uploads", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   fileName: text("file_name").notNull(),
   description: text("description").notNull(),
   format: text("format").notNull(),

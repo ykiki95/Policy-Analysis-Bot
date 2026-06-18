@@ -54,6 +54,7 @@ export async function buildGenerationInputs(
   count: number,
   seed: number | undefined,
   regionScope: string,
+  userId: number,
 ): Promise<{ inputs: GenerationInputs; scopeName: string }> {
   const { regions, regionMarginals, ageMarginals, genderMarginals } =
     await loadMargins();
@@ -74,16 +75,26 @@ export async function buildGenerationInputs(
     scopeName = r?.name ?? regionScope;
   }
 
-  const surveys = await db.select().from(surveysTable);
+  const surveys = await db
+    .select()
+    .from(surveysTable)
+    .where(eq(surveysTable.userId, userId));
   const adjustments = computeSurveyAdjustments(surveys);
   const consumerAdjustments = computeConsumerAdjustments(surveys);
   const policyAdjustments = computePolicyAdjustments(surveys);
 
   // 입력 보정(Lever 1): 토글이 켜져 있으면 검증 이벤트 편향을 페르소나
-  // 기준선 이동량으로 환산해 주입한다. 꺼져 있으면 모두 0.
+  // 기준선 이동량으로 환산해 주입한다. 꺼져 있으면 모두 0. (테넌트 스코프)
   const [calibrationEvents, [settings]] = await Promise.all([
-    db.select().from(calibrationsTable),
-    db.select().from(calibrationSettingsTable).limit(1),
+    db
+      .select()
+      .from(calibrationsTable)
+      .where(eq(calibrationsTable.userId, userId)),
+    db
+      .select()
+      .from(calibrationSettingsTable)
+      .where(eq(calibrationSettingsTable.userId, userId))
+      .limit(1),
   ]);
   const calibrationOffsets = computeCalibrationOffsets(
     calibrationEvents,
@@ -95,6 +106,7 @@ export async function buildGenerationInputs(
     inputs: {
       count,
       seed,
+      userId,
       regions: regionMeta,
       regionMarginals: scopedRegionMarginals,
       ageMarginals,
