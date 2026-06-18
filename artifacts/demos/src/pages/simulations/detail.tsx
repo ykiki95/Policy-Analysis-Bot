@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey, useTickSimulation, useRunSimulation, ApiError } from "@workspace/api-client-react";
+import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey, useTickSimulation, useRunSimulation } from "@workspace/api-client-react";
+import { runErrorMessage } from "@/lib/utils";
 import { useParams, Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -189,11 +190,7 @@ export default function SimulationDetail() {
           queryClient.invalidateQueries({ queryKey: getGetSimulationQueryKey(id) });
         },
         onError: (err) => {
-          if (err instanceof ApiError && err.status === 402) {
-            setRunError("예산 한도를 초과하여 실행할 수 없습니다. 관리자에게 한도 상향을 요청하세요.");
-          } else {
-            setRunError("실행 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-          }
+          setRunError(runErrorMessage(err));
         },
       },
     );

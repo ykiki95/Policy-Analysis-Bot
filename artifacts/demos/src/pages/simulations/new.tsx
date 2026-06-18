@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useEstimateSimulation, useCreateSimulation, useRunSimulation, getListSimulationsQueryKey, getGetDashboardSummaryQueryKey, getGetBudgetQueryKey, ApiError } from "@workspace/api-client-react";
+import { useEstimateSimulation, useCreateSimulation, useRunSimulation, getListSimulationsQueryKey, getGetDashboardSummaryQueryKey, getGetBudgetQueryKey } from "@workspace/api-client-react";
+import { runErrorMessage } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -94,13 +95,7 @@ export default function NewSimulation() {
               setLocation(`/simulations/${sim.id}`);
             },
             onError: (err) => {
-              if (err instanceof ApiError && err.status === 402) {
-                setRunError(
-                  "예산 한도를 초과하여 실행할 수 없습니다. 관리자에게 한도 상향을 요청하세요. (시뮬레이션은 생성되었으나 대기 상태입니다.)",
-                );
-              } else {
-                setRunError("실행 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-              }
+              setRunError(runErrorMessage(err, { createdPending: true }));
             },
           });
         },
