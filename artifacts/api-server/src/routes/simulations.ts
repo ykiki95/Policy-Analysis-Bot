@@ -23,7 +23,7 @@ import {
   ListSimulationResponsesResponse,
 } from "@workspace/api-zod";
 import { estimateCost, DEFAULT_MODEL, isSupportedModel } from "../lib/pricing";
-import { runSimulation } from "../lib/simulationEngine";
+import { processSimulationBatch } from "../lib/simulationEngine";
 import { tenantId } from "../lib/tenant";
 import { assertWithinBudgetTx, BudgetExceededError, DISPLAY_MULTIPLIER } from "../lib/budget";
 import { runLimiter } from "../lib/rateLimit";
@@ -348,6 +348,14 @@ router.post("/simulations/:id/run", runLimiter, async (req, res): Promise<void> 
   try {
     updated = await db.transaction(async (tx) => {
       await assertWithinBudgetTx(tx, uid, freshEstimate);
+      // (재)실행은 항상 깨끗한 상태에서 시작한다 — 이전 실행/완료의 응답을 비운다.
+      // 처리(processSimulationBatch)는 resume 의미이므로, 비우지 않으면 재실행이
+      // 기존 응답을 "이미 완료"로 보고 즉시 종료하거나(인구 재생성 시) 과거+신규
+      // 응답이 섞여 집계가 오염된다. 크래시 중단 후 이어하기는 /tick(resume)이
+      // 담당하며 /run 을 다시 호출하지 않으므로 여기서 비워도 안전하다.
+      await tx
+        .delete(simulationResponsesTable)
+        .where(eq(simulationResponsesTable.simulationId, params.data.id));
       const [row] = await tx
         .update(simulationsTable)
         .set({
@@ -386,6 +394,40 @@ router.post("/simulations/:id/run", runLimiter, async (req, res): Promise<void> 
   }
 
   res.status(202).json(ListSimulationsResponseItem.parse(jsonReady(updated)));
+});
+
+// 클라이언트 구동(B1) 처리: 진행률 화면이 이 엔드포인트를 주기적으로 호출하면
+// 시뮬레이션을 한 배치씩 전진시킨다. 항상 가동되는 워커 없이도 진행되므로
+// Autoscale(유휴 시 0 축소) 배포에서 "보는 동안만" 비용이 든다. 예산 검사는 /run
+// (enqueue)에서 이미 끝났으므로 여기서는 다시 하지 않는다. queued/running 만 전진.
+router.post("/simulations/:id/tick", async (req, res): Promise<void> => {
+  const params = RunSimulationParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const uid = tenantId(req);
+  const [owned] = await db
+    .select({ id: simulationsTable.id })
+    .from(simulationsTable)
+    .where(
+      and(
+        eq(simulationsTable.id, params.data.id),
+        eq(simulationsTable.userId, uid),
+      ),
+    );
+  if (!owned) {
+    res.status(404).json({ error: "Simulation not found" });
+    return;
+  }
+
+  await processSimulationBatch(params.data.id);
+
+  const [sim] = await db
+    .select()
+    .from(simulationsTable)
+    .where(eq(simulationsTable.id, params.data.id));
+  res.json(ListSimulationsResponseItem.parse(jsonReady(sim)));
 });
 
 router.get("/simulations/:id/responses", async (req, res): Promise<void> => {

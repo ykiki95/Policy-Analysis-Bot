@@ -431,6 +431,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /simulations/{id}/tick:
+    post:
+      operationId: tickSimulation
+      tags: [simulations]
+      summary: Advance a queued/running simulation by one batch (client-driven processing; call repeatedly while viewing progress)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Updated simulation after the batch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Simulation"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /simulations/{id}/responses:
     get:
       operationId: listSimulationResponses

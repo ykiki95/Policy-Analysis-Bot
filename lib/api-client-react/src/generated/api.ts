@@ -1483,6 +1483,76 @@ export const useRunSimulation = <TError = ErrorType<Error>,
       return useMutation(getRunSimulationMutationOptions(options));
     }
 
+export const getTickSimulationUrl = (id: number,) => {
+
+
+
+
+  return `/api/simulations/${id}/tick`
+}
+
+/**
+ * @summary Advance a queued/running simulation by one batch (client-driven processing; call repeatedly while viewing progress)
+ */
+export const tickSimulation = async (id: number, options?: RequestInit): Promise<Simulation> => {
+
+  return customFetch<Simulation>(getTickSimulationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getTickSimulationMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tickSimulation>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof tickSimulation>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['tickSimulation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof tickSimulation>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  tickSimulation(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TickSimulationMutationResult = NonNullable<Awaited<ReturnType<typeof tickSimulation>>>
+
+    export type TickSimulationMutationError = ErrorType<Error>
+
+    /**
+ * @summary Advance a queued/running simulation by one batch (client-driven processing; call repeatedly while viewing progress)
+ */
+export const useTickSimulation = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tickSimulation>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof tickSimulation>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getTickSimulationMutationOptions(options));
+    }
+
 export const getListSimulationResponsesUrl = (id: number,) => {
 
 

@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey } from "@workspace/api-client-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey, useTickSimulation } from "@workspace/api-client-react";
 import { useParams, Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -62,6 +62,37 @@ export default function SimulationDetail() {
   });
 
   const deleteMut = useDeleteSimulation();
+  const tickMut = useTickSimulation();
+
+  // 클라이언트 구동(B1) 처리: 이 화면을 열어 두는 동안 시뮬레이션을 한 배치씩
+  // 전진시킨다. /tick 요청이 서버에서 에이전트 일부를 평가하고 진행률을 갱신하면,
+  // 위의 GET 폴링이 새 진행률을 가져온다. 한 번에 하나의 tick만 진행하도록 ref로
+  // 직렬화한다(겹친 호출은 서버에서도 즉시 반환되지만 요청 자체를 줄인다).
+  const status = simDetail?.simulation.status;
+  const tickingRef = useRef(false);
+  useEffect(() => {
+    if (!id) return;
+    if (status !== "queued" && status !== "running") return;
+
+    const advance = () => {
+      if (tickingRef.current) return;
+      tickingRef.current = true;
+      tickMut.mutate(
+        { id },
+        {
+          onSettled: () => {
+            tickingRef.current = false;
+            queryClient.invalidateQueries({ queryKey: getGetSimulationQueryKey(id) });
+          },
+        },
+      );
+    };
+
+    advance(); // 화면 진입 즉시 첫 배치 시작
+    const timer = setInterval(advance, 1500);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, status]);
 
   const ageChartData = useMemo(() => {
     const rows = simDetail?.results?.byAgeBracket;

@@ -263,7 +263,7 @@ export default function NewSimulation() {
               <ul className="list-disc pl-4 space-y-1">
                 <li>실제 비용은 생성되는 응답의 길이에 따라 약간의 오차가 있을 수 있습니다.</li>
                 <li>실행 버튼을 누르면 비용이 청구되며 취소할 수 없습니다.</li>
-                <li>응답 수집 중 브라우저를 닫아도 서버에서 실행이 계속됩니다.</li>
+                <li>응답은 <strong>결과 화면을 열어 두는 동안</strong> 수집됩니다. 창을 닫으면 일시 중지되고, 다시 열면 이어서 진행됩니다.</li>
               </ul>
             </CardContent>
           </Card>

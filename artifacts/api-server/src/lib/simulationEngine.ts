@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   db,
   agentsTable,
@@ -371,6 +371,217 @@ export async function runSimulation(
     );
   } catch (err) {
     logger.error({ err, simulationId }, "Simulation run failed");
+    try {
+      await db
+        .update(simulationsTable)
+        .set({
+          status: "failed",
+          lastError: String((err as Error)?.message ?? err).slice(0, 500),
+          lockedBy: null,
+          lockedAt: null,
+          heartbeatAt: null,
+        })
+        .where(eq(simulationsTable.id, simulationId));
+    } catch (updateErr) {
+      logger.error(
+        { err: updateErr, simulationId },
+        "Failed to mark simulation as failed",
+      );
+    }
+  } finally {
+    activeRuns.delete(simulationId);
+  }
+}
+
+/**
+ * 한 틱(tick)에서 처리할 최대 에이전트 수. 클라이언트 구동(B1) 처리에서 한 번의
+ * HTTP 요청이 이 수만큼만 평가하고 반환한다. Autoscale 요청 타임아웃 안에 한 틱이
+ * 끝나야 하므로 동시성(8)의 배수로 작게 잡는다(기본 16 = 2웨이브). 한 틱이 타임아웃에
+ * 잘려도 증분 저장 + 멱등 insert 덕분에 다음 틱이 이어받으므로 데이터 손실은 없다.
+ * 배포 환경(모델 속도)에 맞춰 `TICK_MAX_AGENTS` env 로 조정 가능.
+ */
+const TICK_MAX_AGENTS = (() => {
+  const v = Number(process.env["TICK_MAX_AGENTS"]);
+  return Number.isFinite(v) && v >= 1 ? Math.floor(v) : 16;
+})();
+
+/**
+ * 이 프로세스의 tick 워커 식별자 + 리스 만료 시간. Autoscale 다중 인스턴스에서
+ * 같은 시뮬레이션을 두 인스턴스가 동시에 전진시켜 중복 LLM 호출이 발생하지 않도록,
+ * 워커(worker.ts)와 동일한 DB 리스(claim) 규약을 tick 경로에도 적용한다.
+ */
+const TICK_WORKER_ID = `tick-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
+const TICK_STALE_MS = 60_000;
+
+/**
+ * 시뮬레이션을 "한 배치(batch)"만 전진시킨다 — 클라이언트 구동(B1) 처리용.
+ *
+ * 프런트엔드(진행률 화면)가 이 함수를 트리거하는 `/tick` 요청을 주기적으로 호출해
+ * 시뮬레이션을 조금씩 진행시킨다. 항상 가동되는 워커에 의존하지 않으므로,
+ * Autoscale 배포(유휴 시 0으로 축소)에서도 사용자가 화면을 보는 동안만 비용이 든다.
+ *
+ * 내구성/멱등성은 runSimulation 과 동일한 규약을 따른다:
+ *  - 항상 resume 의미(이미 응답 있는 에이전트는 건너뜀), 기존 결과를 지우지 않는다.
+ *  - 각 에이전트 응답을 즉시 영속화(증분 저장 + onConflictDoNothing).
+ *  - 남은 에이전트가 없으면 finalize(완료 집계). 비용은 다중 세션이라 추정치로 보정.
+ *  - activeRuns 인메모리 가드로 같은 프로세스 내 동시 배치를 직렬화한다(중복 호출은 즉시 반환).
+ *  - DB 리스(claim)로 다중 인스턴스(Autoscale)에서도 한 번에 한 인스턴스만 전진시킨다.
+ */
+export async function processSimulationBatch(
+  simulationId: number,
+  opts: { maxAgents?: number } = {},
+): Promise<void> {
+  const maxAgents = opts.maxAgents ?? TICK_MAX_AGENTS;
+  if (activeRuns.has(simulationId)) {
+    // 이미 이 프로세스에서 배치가 진행 중 — 즉시 반환(겹친 tick 요청은 무비용).
+    return;
+  }
+  activeRuns.add(simulationId);
+  try {
+    // DB 리스(claim): queued, 또는 running 이지만 우리 소유/리스 만료(고아)인 경우에만
+    // 원자적으로 점유한다. claim 실패 = pending/completed/failed 이거나 다른 살아있는
+    // 인스턴스가 처리 중 → 즉시 반환(중복 LLM 호출 방지). worker.ts 와 동일 규약.
+    const staleCutoff = new Date(Date.now() - TICK_STALE_MS);
+    const claim = await db.execute<{ id: number }>(sql`
+      UPDATE simulations
+         SET status = 'running',
+             locked_by = ${TICK_WORKER_ID},
+             locked_at = now(),
+             heartbeat_at = now(),
+             last_error = NULL
+       WHERE id = ${simulationId}
+         AND (
+           status = 'queued'
+           OR (
+             status = 'running'
+             AND (
+               locked_by = ${TICK_WORKER_ID}
+               OR locked_by IS NULL
+               OR heartbeat_at IS NULL
+               OR heartbeat_at < ${staleCutoff}
+             )
+           )
+         )
+      RETURNING id`);
+    if (claim.rows.length === 0) {
+      // claim 불가 — pending/completed/failed 이거나 다른 살아있는 인스턴스가 점유 중.
+      logger.debug(
+        { simulationId, worker: TICK_WORKER_ID },
+        "Tick lease not acquired; another driver owns this simulation",
+      );
+      return;
+    }
+
+    const [sim] = await db
+      .select()
+      .from(simulationsTable)
+      .where(eq(simulationsTable.id, simulationId));
+    if (!sim) {
+      logger.warn({ simulationId }, "processSimulationBatch: simulation not found");
+      return;
+    }
+
+    const agents = await db
+      .select()
+      .from(agentsTable)
+      .where(eq(agentsTable.userId, sim.userId));
+
+    const existing = await db
+      .select({ agentId: simulationResponsesTable.agentId })
+      .from(simulationResponsesTable)
+      .where(eq(simulationResponsesTable.simulationId, simulationId));
+    const doneAgentIds = new Set<number>(existing.map((r) => r.agentId));
+    const alreadyDone = doneAgentIds.size;
+    const pending = agents.filter((a) => !doneAgentIds.has(a.id));
+
+    // 리스는 이미 우리 소유 — totalAgents/진행률/하트비트만 갱신.
+    await db
+      .update(simulationsTable)
+      .set({
+        totalAgents: agents.length,
+        progress:
+          agents.length === 0
+            ? 0
+            : Math.floor((alreadyDone / agents.length) * 100),
+        heartbeatAt: new Date(),
+      })
+      .where(eq(simulationsTable.id, simulationId));
+
+    if (pending.length === 0) {
+      // 남은 에이전트가 없다 — 완료 집계 후 종료.
+      await finalizeSimulation(sim, 0, 0, false);
+      return;
+    }
+
+    const slice = pending.slice(0, maxAgents);
+    const snapshotPolicy = isPolicySim(sim);
+
+    logger.info(
+      {
+        simulationId,
+        totalAgents: agents.length,
+        alreadyDone,
+        batchSize: slice.length,
+        remaining: pending.length,
+      },
+      "Processing simulation batch (client-driven tick)",
+    );
+
+    await batchProcess(
+      slice,
+      async (agent) => {
+        let verdict: AgentVerdict;
+        try {
+          const r = await evaluateAgent(agent, sim);
+          verdict = r.verdict;
+        } catch (err) {
+          logger.warn(
+            { err, agentId: agent.id },
+            "Agent evaluation failed after retries; using neutral fallback",
+          );
+          verdict = {
+            stance: "neutral",
+            score: 50,
+            confidence: 40,
+            reasoning: "평가 중 오류가 발생하여 중립으로 처리되었습니다.",
+          };
+        }
+        await db
+          .insert(simulationResponsesTable)
+          .values(buildResponseRow(simulationId, agent, verdict, snapshotPolicy))
+          .onConflictDoNothing({
+            target: [
+              simulationResponsesTable.simulationId,
+              simulationResponsesTable.agentId,
+            ],
+          });
+        return null;
+      },
+      { concurrency: RUN_CONCURRENCY, retries: 4 },
+    );
+
+    // 배치 후 실제 영속된 응답 수로 진행률 재계산(정확성). 모두 끝났으면 finalize.
+    const after = await db
+      .select({ agentId: simulationResponsesTable.agentId })
+      .from(simulationResponsesTable)
+      .where(eq(simulationResponsesTable.simulationId, simulationId));
+    const nowDone = after.length;
+    if (nowDone >= agents.length) {
+      await finalizeSimulation(sim, 0, 0, false);
+    } else {
+      await db
+        .update(simulationsTable)
+        .set({
+          progress:
+            agents.length === 0
+              ? 100
+              : Math.floor((nowDone / agents.length) * 100),
+          heartbeatAt: new Date(),
+        })
+        .where(eq(simulationsTable.id, simulationId));
+    }
+  } catch (err) {
+    logger.error({ err, simulationId }, "Simulation batch failed");
     try {
       await db
         .update(simulationsTable)

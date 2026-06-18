@@ -535,6 +535,35 @@ export const RunSimulationParams = zod.object({
 
 
 /**
+ * @summary Advance a queued/running simulation by one batch (client-driven processing; call repeatedly while viewing progress)
+ */
+export const TickSimulationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const TickSimulationResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "audience": zod.string(),
+  "product": zod.string(),
+  "policyText": zod.string(),
+  "model": zod.string(),
+  "status": zod.string(),
+  "progress": zod.number(),
+  "totalAgents": zod.number(),
+  "costEstimateUsd": zod.number(),
+  "costActualUsd": zod.number().nullish(),
+  "overallSupport": zod.number().nullish(),
+  "supportPct": zod.number().nullish(),
+  "opposePct": zod.number().nullish(),
+  "neutralPct": zod.number().nullish(),
+  "summary": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullish()
+})
+
+
+/**
  * @summary Per-agent responses for a simulation
  */
 export const ListSimulationResponsesParams = zod.object({
