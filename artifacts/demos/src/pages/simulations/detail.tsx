@@ -262,10 +262,20 @@ export default function SimulationDetail() {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xs text-muted-foreground mb-1">소요 비용</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              소요 비용{needsRun && budget ? " / 잔여 예산" : ""}
+            </p>
             <div className="flex items-center justify-end gap-1 text-xl font-semibold">
               <DollarSign className="w-5 h-5 text-muted-foreground" />
-              {((sim.costActualUsd ?? sim.costEstimateUsd) * 10).toFixed(2)}
+              <span className={needsRun && insufficientBudget ? "text-destructive" : ""}>
+                {((sim.costActualUsd ?? sim.costEstimateUsd) * 10).toFixed(2)}
+              </span>
+              {needsRun && budget && (
+                <>
+                  <span className="text-muted-foreground font-normal">/</span>
+                  <span className="text-muted-foreground font-normal">{budget.remainingUsd.toFixed(2)}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -278,21 +288,7 @@ export default function SimulationDetail() {
                   {sim.status === "failed" ? "실행이 중단되었습니다." : "아직 실행되지 않았습니다."}
                 </p>
                 <p className="text-muted-foreground mt-1">
-                  실행하면 {sim.totalAgents.toLocaleString()}명의 합성 에이전트가 반응을 생성합니다.
-                </p>
-                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span className="text-muted-foreground">
-                    소요 비용 <span className="font-medium text-foreground">${runCost.toFixed(2)}</span>
-                  </span>
-                  {budget && (
-                    <>
-                      <span className="text-muted-foreground/50">·</span>
-                      <span className={insufficientBudget ? "text-destructive font-medium" : "text-muted-foreground"}>
-                        잔여 예산 ${budget.remainingUsd.toFixed(2)}
-                        {insufficientBudget && " (부족)"}
-                      </span>
-                    </>
-                  )}
+                  실행하면 {sim.totalAgents.toLocaleString()}명의 합성 에이전트가 반응을 생성합니다. 예상 비용 ${runCost.toFixed(2)}.
                 </p>
               </div>
               <Button onClick={handleRun} disabled={runMut.isPending || insufficientBudget}>
