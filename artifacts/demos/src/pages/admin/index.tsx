@@ -412,7 +412,7 @@ export default function Admin() {
                   <SelectTrigger className="w-full md:w-72">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent position="popper" side="bottom" sideOffset={4} avoidCollisions={false}>
+                  <SelectContent>
                     <SelectItem value="NATIONAL">전국 (17개 시·도)</SelectItem>
                     {regions?.map((r) => (
                       <SelectItem key={r.code} value={r.code}>{r.name}</SelectItem>
