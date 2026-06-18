@@ -312,7 +312,7 @@ router.post("/simulations/:id/run", async (req, res): Promise<void> => {
     .where(eq(simulationsTable.id, params.data.id))
     .returning();
 
-  void runSimulation(params.data.id).catch((err) =>
+  void runSimulation(params.data.id, { resume: false }).catch((err) =>
     req.log.error({ err, id: params.data.id }, "Background simulation run crashed"),
   );
 
