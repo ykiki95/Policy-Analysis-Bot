@@ -1,4 +1,5 @@
 - [Attitude-track PRNG streams](attitude-track-prng-streams.md) — each attitude domain (political/commercial/policy) uses its own mulberry32 stream (distinct XOR seed) so adding a track never shifts others.
 - [Calibration feedback loop](calibration-feedback-loop.md) — two levers (output post-hoc vs input persona-baseline); Dynamo bias = conservative-direction; input lever opt-in & only on next regenerate.
+- [Session auth](session-auth.md) — custom express-session (not Clerk); connect-pg-simple needs createTableIfMissing:false + a hand-provisioned `session` table.
 - [Orval request-body naming](orval-request-body-naming.md) — name OpenAPI body components `XxxInput` not `XxxBody`, else zod const collides with TS interface (TS2308).
 - [data.go.kr election import](datagokr-election-import.md) — NEC 개표 API: numOfRows caps at 100 (paginate), 보수=국민의힘 dugsuNN/yutusu; only 20·21대 대선 supported.

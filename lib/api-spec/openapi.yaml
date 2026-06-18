@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: 인증 (회원가입 / 로그인 / 로그아웃)
   - name: agents
     description: Synthetic population agents
   - name: surveys
@@ -23,6 +25,96 @@ tags:
   - name: dashboard
     description: Dashboard aggregates
 paths:
+  /auth/signup:
+    post:
+      operationId: signup
+      tags: [auth]
+      summary: 회원가입 후 자동 로그인
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupInput"
+      responses:
+        "201":
+          description: 생성된 사용자
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: 잘못된 입력
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 아이디 중복
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: 로그인
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: 로그인한 사용자
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: 잘못된 입력
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: 로그아웃
+      responses:
+        "204":
+          description: 로그아웃 완료
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: 현재 로그인 사용자
+      responses:
+        "200":
+          description: 현재 사용자
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: 미로그인
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /healthz:
     get:
       operationId: healthCheck
@@ -718,6 +810,43 @@ components:
       properties:
         error: { type: string }
       required: [error]
+
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - name
+        - role
+        - createdAt
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        name: { type: string }
+        birthDate: { type: string, nullable: true }
+        role: { type: string }
+        createdAt: { type: string }
+
+    SignupInput:
+      type: object
+      required:
+        - name
+        - username
+        - password
+      properties:
+        name: { type: string, minLength: 1 }
+        username: { type: string, minLength: 1 }
+        birthDate: { type: string }
+        password: { type: string, minLength: 1 }
+
+    LoginInput:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username: { type: string, minLength: 1 }
+        password: { type: string, minLength: 1 }
 
     Agent:
       type: object

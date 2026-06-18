@@ -13,6 +13,32 @@ export interface Error {
   error: string;
 }
 
+export interface User {
+  id: number;
+  username: string;
+  name: string;
+  birthDate?: string | null;
+  role: string;
+  createdAt: string;
+}
+
+export interface SignupInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  username: string;
+  birthDate?: string;
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface LoginInput {
+  /** @minLength 1 */
+  username: string;
+  /** @minLength 1 */
+  password: string;
+}
+
 export interface IssueStances {
   economy: number;
   welfare: number;

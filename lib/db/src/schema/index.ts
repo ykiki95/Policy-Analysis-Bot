@@ -9,3 +9,4 @@ export * from "./calibrationSettings";
 export * from "./regions";
 export * from "./demographicMargins";
 export * from "./elections";
+export * from "./users";

@@ -1,10 +1,13 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
+import { useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
 
+import Login from "@/pages/login";
+import Signup from "@/pages/signup";
 import Dashboard from "@/pages/dashboard";
 import Products from "@/pages/products";
 import Calibration from "@/pages/calibration";
@@ -19,7 +22,7 @@ import Admin from "@/pages/admin";
 
 const queryClient = new QueryClient();
 
-function Router() {
+function ProtectedApp() {
   return (
     <Layout>
       <Switch>
@@ -30,7 +33,7 @@ function Router() {
         <Route path="/surveys/:id" component={SurveyDetail} />
         <Route path="/calibration" component={Calibration} />
         <Route path="/products" component={Products} />
-        <Route path="/admin" component={Admin} />
+        <Route path="/admin" component={AdminGuard} />
         <Route path="/simulations" component={Simulations} />
         <Route path="/simulations/new" component={NewSimulation} />
         <Route path="/simulations/:id" component={SimulationDetail} />
@@ -38,6 +41,46 @@ function Router() {
       </Switch>
     </Layout>
   );
+}
+
+function AdminGuard() {
+  const { isAdmin, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!isAdmin) return <Redirect to="/" />;
+  return <Admin />;
+}
+
+function Router() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
+
+  const isAuthPage = location === "/login" || location === "/signup";
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        불러오는 중…
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Switch>
+        <Route path="/login" component={Login} />
+        <Route path="/signup" component={Signup} />
+        <Route>
+          <Redirect to="/login" />
+        </Route>
+      </Switch>
+    );
+  }
+
+  if (isAuthPage) {
+    return <Redirect to="/" />;
+  }
+
+  return <ProtectedApp />;
 }
 
 function App() {

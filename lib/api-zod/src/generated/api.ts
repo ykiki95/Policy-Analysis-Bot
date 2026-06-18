@@ -9,6 +9,57 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary 회원가입 후 자동 로그인
+ */
+
+
+
+
+
+export const SignupBody = zod.object({
+  "name": zod.string().min(1),
+  "username": zod.string().min(1),
+  "birthDate": zod.string().optional(),
+  "password": zod.string().min(1)
+})
+
+
+/**
+ * @summary 로그인
+ */
+
+
+
+
+export const LoginBody = zod.object({
+  "username": zod.string().min(1),
+  "password": zod.string().min(1)
+})
+
+export const LoginResponse = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "name": zod.string(),
+  "birthDate": zod.string().nullish(),
+  "role": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary 현재 로그인 사용자
+ */
+export const GetMeResponse = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "name": zod.string(),
+  "birthDate": zod.string().nullish(),
+  "role": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */
