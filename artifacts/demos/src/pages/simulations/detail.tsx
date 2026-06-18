@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey, useTickSimulation, useRunSimulation } from "@workspace/api-client-react";
+import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey, useTickSimulation, useRunSimulation, useGetBudget } from "@workspace/api-client-react";
 import { runErrorMessage } from "@/lib/utils";
 import { useParams, Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -76,6 +76,7 @@ export default function SimulationDetail() {
   const deleteMut = useDeleteSimulation();
   const tickMut = useTickSimulation();
   const runMut = useRunSimulation();
+  const { data: budget } = useGetBudget();
   const [runError, setRunError] = useState<string | null>(null);
 
   // 클라이언트 구동(B1) 처리: 이 화면을 열어 두는 동안 시뮬레이션을 한 배치씩
@@ -176,6 +177,8 @@ export default function SimulationDetail() {
   const isQueued = sim.status === "queued";
   const isRunning = sim.status === "running" || isQueued;
   const needsRun = sim.status === "pending" || sim.status === "failed";
+  const runCost = (sim.costEstimateUsd ?? 0) * 10;
+  const insufficientBudget = budget != null && budget.remainingUsd < runCost;
   const completedAgents = Math.min(
     sim.totalAgents,
     Math.round(((sim.progress ?? 0) / 100) * (sim.totalAgents ?? 0)),
@@ -275,10 +278,24 @@ export default function SimulationDetail() {
                   {sim.status === "failed" ? "실행이 중단되었습니다." : "아직 실행되지 않았습니다."}
                 </p>
                 <p className="text-muted-foreground mt-1">
-                  실행하면 {sim.totalAgents.toLocaleString()}명의 합성 에이전트가 반응을 생성합니다. 예상 비용 ${((sim.costEstimateUsd ?? 0) * 10).toFixed(2)}.
+                  실행하면 {sim.totalAgents.toLocaleString()}명의 합성 에이전트가 반응을 생성합니다.
+                </p>
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="text-muted-foreground">
+                    소요 비용 <span className="font-medium text-foreground">${runCost.toFixed(2)}</span>
+                  </span>
+                  {budget && (
+                    <>
+                      <span className="text-muted-foreground/50">·</span>
+                      <span className={insufficientBudget ? "text-destructive font-medium" : "text-muted-foreground"}>
+                        잔여 예산 ${budget.remainingUsd.toFixed(2)}
+                        {insufficientBudget && " (부족)"}
+                      </span>
+                    </>
+                  )}
                 </p>
               </div>
-              <Button onClick={handleRun} disabled={runMut.isPending}>
+              <Button onClick={handleRun} disabled={runMut.isPending || insufficientBudget}>
                 {runMut.isPending ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 시작하는 중…</>
                 ) : (
