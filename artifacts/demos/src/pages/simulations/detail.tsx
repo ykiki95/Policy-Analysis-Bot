@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey, useTickSimulation } from "@workspace/api-client-react";
+import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey, useTickSimulation, useRunSimulation, ApiError } from "@workspace/api-client-react";
 import { useParams, Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -60,7 +60,7 @@ export default function SimulationDetail() {
       // Poll every 1s if running or pending
       refetchInterval: (query) => {
         const status = query.state.data?.simulation.status;
-        return status === "running" || status === "pending" || status === "queued" ? 1000 : false;
+        return status === "running" || status === "queued" ? 1000 : false;
       }
     }
   });
@@ -74,6 +74,8 @@ export default function SimulationDetail() {
 
   const deleteMut = useDeleteSimulation();
   const tickMut = useTickSimulation();
+  const runMut = useRunSimulation();
+  const [runError, setRunError] = useState<string | null>(null);
 
   // 클라이언트 구동(B1) 처리: 이 화면을 열어 두는 동안 시뮬레이션을 한 배치씩
   // 전진시킨다. /tick 요청이 서버에서 에이전트 일부를 평가하고 진행률을 갱신하면,
@@ -171,11 +173,31 @@ export default function SimulationDetail() {
 
   const sim = simDetail.simulation;
   const isQueued = sim.status === "queued";
-  const isRunning = sim.status === "running" || sim.status === "pending" || isQueued;
+  const isRunning = sim.status === "running" || isQueued;
+  const needsRun = sim.status === "pending" || sim.status === "failed";
   const completedAgents = Math.min(
     sim.totalAgents,
     Math.round(((sim.progress ?? 0) / 100) * (sim.totalAgents ?? 0)),
   );
+
+  const handleRun = () => {
+    setRunError(null);
+    runMut.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetSimulationQueryKey(id) });
+        },
+        onError: (err) => {
+          if (err instanceof ApiError && err.status === 402) {
+            setRunError("예산 한도를 초과하여 실행할 수 없습니다. 관리자에게 한도 상향을 요청하세요.");
+          } else {
+            setRunError("실행 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+          }
+        },
+      },
+    );
+  };
 
   const handleDelete = () => {
     deleteMut.mutate({ id }, {
@@ -225,6 +247,8 @@ export default function SimulationDetail() {
                 <Badge variant="destructive"><Clock className="w-3 h-3 mr-1"/> 실패</Badge>
               ) : isQueued ? (
                 <Badge variant="outline" className="text-amber-600 border-amber-300 animate-pulse"><Clock className="w-3 h-3 mr-1"/> 대기열</Badge>
+              ) : sim.status === "pending" ? (
+                <Badge variant="outline" className="text-muted-foreground"><Clock className="w-3 h-3 mr-1"/> 미실행</Badge>
               ) : (
                 <Badge variant="secondary" className="animate-pulse"><Clock className="w-3 h-3 mr-1"/> 진행 중</Badge>
               )}
@@ -245,6 +269,32 @@ export default function SimulationDetail() {
             </div>
           </div>
         </div>
+
+        {needsRun && (
+          <div className="mt-8 space-y-3 bg-muted/30 p-4 rounded-lg">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="text-sm">
+                <p className="font-medium">
+                  {sim.status === "failed" ? "실행이 중단되었습니다." : "아직 실행되지 않았습니다."}
+                </p>
+                <p className="text-muted-foreground mt-1">
+                  실행하면 {sim.totalAgents.toLocaleString()}명의 합성 에이전트가 반응을 생성합니다. 예상 비용 ${((sim.costEstimateUsd ?? 0) * 10).toFixed(2)}.
+                </p>
+              </div>
+              <Button onClick={handleRun} disabled={runMut.isPending}>
+                {runMut.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 시작하는 중…</>
+                ) : (
+                  <><Sparkles className="w-4 h-4 mr-2" /> {sim.status === "failed" ? "다시 실행" : "실행"}</>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground/80 leading-relaxed">
+              실행은 이 화면이 열려 있는 동안 진행됩니다. 시작 후 화면을 열어 두세요.
+            </p>
+            {runError && <p className="text-sm text-destructive">{runError}</p>}
+          </div>
+        )}
 
         {isRunning && (
           <div className="mt-8 space-y-3 bg-muted/30 p-4 rounded-lg">
