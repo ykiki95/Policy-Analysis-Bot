@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey, useTickSimulation, useRunSimulation, useGetBudget } from "@workspace/api-client-react";
+import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey, useTickSimulation, useRunSimulation, useStopSimulation, useGetBudget } from "@workspace/api-client-react";
 import { runErrorMessage } from "@/lib/utils";
 import { useParams, Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Clock, CheckCircle2, Trash2, Loader2, DollarSign, Search, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle2, Trash2, Loader2, DollarSign, Search, ChevronLeft, ChevronRight, Sparkles, Pause, Play, Square } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import {
   AlertDialog,
@@ -76,8 +76,12 @@ export default function SimulationDetail() {
   const deleteMut = useDeleteSimulation();
   const tickMut = useTickSimulation();
   const runMut = useRunSimulation();
+  const stopMut = useStopSimulation();
   const { data: budget } = useGetBudget();
   const [runError, setRunError] = useState<string | null>(null);
+  // 일시정지: 클라이언트 측에서 틱 전송만 멈춘다(서버 상태는 그대로 running).
+  // 진행 응답은 내구적으로 저장돼 있으므로 재개하면 남은 에이전트부터 이어간다.
+  const [paused, setPaused] = useState(false);
 
   // 클라이언트 구동(B1) 처리: 이 화면을 열어 두는 동안 시뮬레이션을 한 배치씩
   // 전진시킨다. /tick 요청이 서버에서 에이전트 일부를 평가하고 진행률을 갱신하면,
@@ -88,6 +92,7 @@ export default function SimulationDetail() {
   useEffect(() => {
     if (!id) return;
     if (status !== "queued" && status !== "running") return;
+    if (paused) return;
 
     const advance = () => {
       if (tickingRef.current) return;
@@ -107,7 +112,7 @@ export default function SimulationDetail() {
     const timer = setInterval(advance, 1500);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, status]);
+  }, [id, status, paused]);
 
   // 예상 남은 시간(ETA): 화면을 보는 동안 관측한 진행 속도로 추정한다. 진행은
   // 이 화면이 열려 있을 때만 일어나므로(B1), 현재 세션의 처리 속도가 곧 ETA의 근거다.
@@ -204,6 +209,16 @@ export default function SimulationDetail() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListSimulationsQueryKey() });
         setLocation("/simulations");
+      }
+    });
+  };
+
+  const handleStop = () => {
+    stopMut.mutate({ id }, {
+      onSuccess: () => {
+        setPaused(false);
+        queryClient.invalidateQueries({ queryKey: getGetSimulationQueryKey(id) });
+        queryClient.invalidateQueries({ queryKey: getListSimulationsQueryKey() });
       }
     });
   };
@@ -310,8 +325,11 @@ export default function SimulationDetail() {
           <div className="mt-8 space-y-3 bg-muted/30 p-4 rounded-lg">
             <div className="flex justify-between text-sm">
               <span className="flex items-center gap-2 font-medium">
-                <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                {isQueued ? "대기열에서 시작 준비 중..." : "에이전트 반응 생성 중..."}
+                {paused ? (
+                  <><Pause className="w-4 h-4 text-muted-foreground" /> 일시정지됨</>
+                ) : (
+                  <><Loader2 className="w-4 h-4 animate-spin text-primary" /> {isQueued ? "대기열에서 시작 준비 중..." : "에이전트 반응 생성 중..."}</>
+                )}
               </span>
               <span className="font-bold">{sim.progress}%</span>
             </div>
@@ -322,15 +340,38 @@ export default function SimulationDetail() {
                 {" / "}
                 {sim.totalAgents.toLocaleString()} 에이전트 완료
               </span>
-              {etaSeconds !== null && (
+              {!paused && etaSeconds !== null && (
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   예상 남은 시간 {formatEta(etaSeconds)}
                 </span>
               )}
             </div>
+            <div className="flex items-center gap-2 pt-1">
+              {paused ? (
+                <Button size="sm" variant="default" onClick={() => setPaused(false)}>
+                  <Play className="w-4 h-4 mr-1.5" /> 재개
+                </Button>
+              ) : (
+                <Button size="sm" variant="secondary" onClick={() => setPaused(true)}>
+                  <Pause className="w-4 h-4 mr-1.5" /> 일시정지
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleStop}
+                disabled={stopMut.isPending}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+              >
+                <Square className="w-3.5 h-3.5 mr-1.5" /> 중단
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground/80 leading-relaxed">
-              이 화면이 열려 있는 동안만 진행됩니다. 탭을 닫으면 일시정지되고, 다시 열면 이어서 진행됩니다.
+              {paused
+                ? "일시정지 상태입니다. 재개를 누르면 멈춘 지점부터 이어서 진행됩니다."
+                : "이 화면이 열려 있는 동안만 진행됩니다. 탭을 닫거나 일시정지하면 멈추고, 다시 열거나 재개하면 이어서 진행됩니다."}
+              {" "}중단을 누르면 처음 상태로 되돌아가며, 진행된 응답은 삭제됩니다.
             </p>
           </div>
         )}

@@ -535,6 +535,35 @@ export const RunSimulationParams = zod.object({
 
 
 /**
+ * @summary Stop a queued/running simulation and reset it to a re-runnable (pending) state
+ */
+export const StopSimulationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const StopSimulationResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "audience": zod.string(),
+  "product": zod.string(),
+  "policyText": zod.string(),
+  "model": zod.string(),
+  "status": zod.string(),
+  "progress": zod.number(),
+  "totalAgents": zod.number(),
+  "costEstimateUsd": zod.number(),
+  "costActualUsd": zod.number().nullish(),
+  "overallSupport": zod.number().nullish(),
+  "supportPct": zod.number().nullish(),
+  "opposePct": zod.number().nullish(),
+  "neutralPct": zod.number().nullish(),
+  "summary": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullish()
+})
+
+
+/**
  * @summary Advance a queued/running simulation by one batch (client-driven processing; call repeatedly while viewing progress)
  */
 export const TickSimulationParams = zod.object({

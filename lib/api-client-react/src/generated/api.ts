@@ -1483,6 +1483,76 @@ export const useRunSimulation = <TError = ErrorType<Error>,
       return useMutation(getRunSimulationMutationOptions(options));
     }
 
+export const getStopSimulationUrl = (id: number,) => {
+
+
+
+
+  return `/api/simulations/${id}/stop`
+}
+
+/**
+ * @summary Stop a queued/running simulation and reset it to a re-runnable (pending) state
+ */
+export const stopSimulation = async (id: number, options?: RequestInit): Promise<Simulation> => {
+
+  return customFetch<Simulation>(getStopSimulationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getStopSimulationMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopSimulation>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof stopSimulation>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['stopSimulation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof stopSimulation>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  stopSimulation(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StopSimulationMutationResult = NonNullable<Awaited<ReturnType<typeof stopSimulation>>>
+
+    export type StopSimulationMutationError = ErrorType<Error>
+
+    /**
+ * @summary Stop a queued/running simulation and reset it to a re-runnable (pending) state
+ */
+export const useStopSimulation = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopSimulation>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof stopSimulation>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getStopSimulationMutationOptions(options));
+    }
+
 export const getTickSimulationUrl = (id: number,) => {
 
 

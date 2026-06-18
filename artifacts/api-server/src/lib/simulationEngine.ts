@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   db,
   agentsTable,
@@ -141,7 +141,11 @@ async function finalizeSimulation(
   promptTokens: number,
   completionTokens: number,
   tokensCoverAllAgents: boolean,
-): Promise<void> {
+  // 지정되면 이 lease 소유자에 한해 완료 처리한다. tick 경로는 무거운 배치 직후
+  // 사용자가 중단(stop → pending, 리스 해제)했을 수 있으므로 TICK_WORKER_ID 를 넘겨
+  // 중단 승리(stopped sim 부활 방지)를 보장한다. 워커 경로는 생략(무조건 완료).
+  requireLockedBy?: string,
+): Promise<boolean> {
   const persisted = await db
     .select({
       stance: simulationResponsesTable.stance,
@@ -192,7 +196,7 @@ async function finalizeSimulation(
       ? costFromUsage(sim.model, promptTokens, completionTokens)
       : estimateCost(sim.model, total).estimatedCostUsd;
 
-  await db
+  const finalized = await db
     .update(simulationsTable)
     .set({
       status: "completed",
@@ -208,9 +212,26 @@ async function finalizeSimulation(
       lockedAt: null,
       heartbeatAt: null,
     })
-    .where(eq(simulationsTable.id, sim.id));
+    .where(
+      requireLockedBy
+        ? and(
+            eq(simulationsTable.id, sim.id),
+            eq(simulationsTable.lockedBy, requireLockedBy),
+          )
+        : eq(simulationsTable.id, sim.id),
+    )
+    .returning({ id: simulationsTable.id });
+
+  if (finalized.length === 0) {
+    logger.info(
+      { simulationId: sim.id },
+      "Finalize skipped: lease lost or simulation stopped before completion",
+    );
+    return false;
+  }
 
   logger.info({ simulationId: sim.id, total }, "Simulation completed");
+  return true;
 }
 
 /**
@@ -494,7 +515,9 @@ export async function processSimulationBatch(
     const alreadyDone = doneAgentIds.size;
     const pending = agents.filter((a) => !doneAgentIds.has(a.id));
 
-    // 리스는 이미 우리 소유 — totalAgents/진행률/하트비트만 갱신.
+    // 리스는 이미 우리 소유 — totalAgents/진행률/하트비트만 갱신. 단 claim 직후의
+    // 좁은 틈에 stop(리스 해제)이 들어올 수 있으므로 이 쓰기도 lease-조건부로 둬서
+    // 멈춘(pending) 시뮬레이션에 progress/heartbeat 가 남지 않도록 한다.
     await db
       .update(simulationsTable)
       .set({
@@ -505,11 +528,16 @@ export async function processSimulationBatch(
             : Math.floor((alreadyDone / agents.length) * 100),
         heartbeatAt: new Date(),
       })
-      .where(eq(simulationsTable.id, simulationId));
+      .where(
+        and(
+          eq(simulationsTable.id, simulationId),
+          eq(simulationsTable.lockedBy, TICK_WORKER_ID),
+        ),
+      );
 
     if (pending.length === 0) {
       // 남은 에이전트가 없다 — 완료 집계 후 종료.
-      await finalizeSimulation(sim, 0, 0, false);
+      await finalizeSimulation(sim, 0, 0, false, TICK_WORKER_ID);
       return;
     }
 
@@ -560,6 +588,29 @@ export async function processSimulationBatch(
       { concurrency: RUN_CONCURRENCY, retries: 4 },
     );
 
+    // 배치 후: 무거운 LLM 호출 중에 사용자가 중단(stop → status=pending, 리스 해제)
+    // 했거나 다른 인스턴스가 리스를 가져갔을 수 있다. 진행률/완료 집계를 쓰기 전에
+    // 우리가 여전히 running 리스를 소유하는지 재확인한다 — 아니면 멈춘 시뮬레이션을
+    // 되살리지 않도록 즉시 종료한다(이 배치가 삽입한 일부 응답은 다음 /run 이 비운다).
+    const [current] = await db
+      .select({
+        status: simulationsTable.status,
+        lockedBy: simulationsTable.lockedBy,
+      })
+      .from(simulationsTable)
+      .where(eq(simulationsTable.id, simulationId));
+    if (
+      !current ||
+      current.status !== "running" ||
+      current.lockedBy !== TICK_WORKER_ID
+    ) {
+      logger.info(
+        { simulationId, status: current?.status },
+        "Batch result discarded: lease lost or simulation stopped mid-batch",
+      );
+      return;
+    }
+
     // 배치 후 실제 영속된 응답 수로 진행률 재계산(정확성). 모두 끝났으면 finalize.
     const after = await db
       .select({ agentId: simulationResponsesTable.agentId })
@@ -567,8 +618,10 @@ export async function processSimulationBatch(
       .where(eq(simulationResponsesTable.simulationId, simulationId));
     const nowDone = after.length;
     if (nowDone >= agents.length) {
-      await finalizeSimulation(sim, 0, 0, false);
+      await finalizeSimulation(sim, 0, 0, false, TICK_WORKER_ID);
     } else {
+      // 진행률/heartbeat 쓰기도 lease-조건부로 — 재확인과 이 update 사이의 미세한
+      // 틈에 stop 이 들어오면(리스 해제) 멈춘 시뮬레이션을 되살리지 않도록 no-op.
       await db
         .update(simulationsTable)
         .set({
@@ -578,11 +631,18 @@ export async function processSimulationBatch(
               : Math.floor((nowDone / agents.length) * 100),
           heartbeatAt: new Date(),
         })
-        .where(eq(simulationsTable.id, simulationId));
+        .where(
+          and(
+            eq(simulationsTable.id, simulationId),
+            eq(simulationsTable.lockedBy, TICK_WORKER_ID),
+          ),
+        );
     }
   } catch (err) {
     logger.error({ err, simulationId }, "Simulation batch failed");
     try {
+      // 우리가 여전히 소유한 리스에 대해서만 failed 로 전환한다 — 그 사이 사용자가
+      // 중단(stop → pending, 리스 해제)했다면 pending 을 failed 로 덮어쓰지 않는다.
       await db
         .update(simulationsTable)
         .set({
@@ -592,7 +652,12 @@ export async function processSimulationBatch(
           lockedAt: null,
           heartbeatAt: null,
         })
-        .where(eq(simulationsTable.id, simulationId));
+        .where(
+          and(
+            eq(simulationsTable.id, simulationId),
+            eq(simulationsTable.lockedBy, TICK_WORKER_ID),
+          ),
+        );
     } catch (updateErr) {
       logger.error(
         { err: updateErr, simulationId },

@@ -396,6 +396,61 @@ router.post("/simulations/:id/run", runLimiter, async (req, res): Promise<void> 
   res.status(202).json(ListSimulationsResponseItem.parse(jsonReady(updated)));
 });
 
+// 사용자가 진행 중(queued/running)인 시뮬레이션을 중단한다. 상태를 'pending' 으로
+// 되돌리고 부분 응답을 비워 깨끗한 재실행 상태로 만든다. lease(lockedBy/At,
+// heartbeatAt)도 초기화한다. costActualUsd 는 건드리지 않는다 — 이 값은 완료
+// (finalize) 시에만 기록되는 "확정 실비"이므로, 완료된 시뮬레이션을 재실행(queued)
+// 했다가 중단하는 경로에서 과거 실비를 지우면 누적 한도(lifetime cap)를 우회하게
+// 된다(/run 의 리셋도 동일하게 costActualUsd 를 보존한다). 진행 중이 아니면 변경
+// 없이 현재 상태를 반환한다(멱등).
+router.post("/simulations/:id/stop", async (req, res): Promise<void> => {
+  const params = RunSimulationParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const uid = tenantId(req);
+  const [sim] = await db
+    .select()
+    .from(simulationsTable)
+    .where(
+      and(
+        eq(simulationsTable.id, params.data.id),
+        eq(simulationsTable.userId, uid),
+      ),
+    );
+  if (!sim) {
+    res.status(404).json({ error: "Simulation not found" });
+    return;
+  }
+  if (sim.status !== "running" && sim.status !== "queued") {
+    res.status(200).json(ListSimulationsResponseItem.parse(jsonReady(sim)));
+    return;
+  }
+
+  const [updated] = await db.transaction(async (tx) => {
+    await tx
+      .delete(simulationResponsesTable)
+      .where(eq(simulationResponsesTable.simulationId, params.data.id));
+    return tx
+      .update(simulationsTable)
+      .set({
+        status: "pending",
+        progress: 0,
+        summary: null,
+        completedAt: null,
+        lockedBy: null,
+        lockedAt: null,
+        heartbeatAt: null,
+        lastError: null,
+      })
+      .where(eq(simulationsTable.id, params.data.id))
+      .returning();
+  });
+
+  res.json(ListSimulationsResponseItem.parse(jsonReady(updated)));
+});
+
 // 클라이언트 구동(B1) 처리: 진행률 화면이 이 엔드포인트를 주기적으로 호출하면
 // 시뮬레이션을 한 배치씩 전진시킨다. 항상 가동되는 워커 없이도 진행되므로
 // Autoscale(유휴 시 0 축소) 배포에서 "보는 동안만" 비용이 든다. 예산 검사는 /run

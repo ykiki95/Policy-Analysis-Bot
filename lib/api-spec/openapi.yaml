@@ -431,6 +431,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /simulations/{id}/stop:
+    post:
+      operationId: stopSimulation
+      tags: [simulations]
+      summary: Stop a queued/running simulation and reset it to a re-runnable (pending) state
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Stopped simulation (reset to pending)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Simulation"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /simulations/{id}/tick:
     post:
       operationId: tickSimulation
