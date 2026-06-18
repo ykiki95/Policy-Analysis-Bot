@@ -1,15 +1,10 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { setAccountId } from "@workspace/api-client-react";
-
-type AccountSwitcherValue = {
-  /** 현재 보고 있는 계정 id. null 이면 내 계정. (admin 전용 기능) */
-  selectedAccountId: number | null;
-  /** 보는 계정을 변경한다. 모든 쿼리를 무효화해 즉시 재조회한다. */
-  selectAccount: (id: number | null) => void;
-};
-
-const AccountSwitcherContext = createContext<AccountSwitcherValue | null>(null);
+import {
+  AccountSwitcherContext,
+  type AccountSwitcherValue,
+} from "@/hooks/account-switcher-context";
 
 export function AccountSwitcherProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
