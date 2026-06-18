@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import L from "leaflet";
 import { useGetAgentSummary, useListAgents } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
-import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip, useMap } from "react-leaflet";
 import { Link } from "wouter";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -18,6 +19,18 @@ function getAgentColor(leaning: number) {
   if (leaning < -20) return "#2563eb"; // 진보 (blue)
   if (leaning > 20) return "#dc2626"; // 보수 (red)
   return "#9ca3af"; // 중도 (gray)
+}
+
+// 지도를 실제 에이전트들의 좌표 범위에 맞춰 자동으로 확대/이동한다.
+// 관리자가 지역을 서울로 제한하면 서울로, 전국이면 전국으로 맞춰진다.
+function FitBounds({ points }: { points: [number, number][] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length === 0) return;
+    const bounds = L.latLngBounds(points);
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+  }, [points, map]);
+  return null;
 }
 
 export default function Population() {
@@ -38,6 +51,11 @@ export default function Population() {
       a.localeCompare(b, "ko"),
     );
   }, [allAgents]);
+
+  const mapPoints = useMemo<[number, number][]>(
+    () => (allAgents ?? []).map((a) => [a.lat, a.lng]),
+    [allAgents],
+  );
 
   const ageChartData = useMemo(() => {
     if (!summary) return [];
@@ -81,7 +99,7 @@ export default function Population() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">합성 인구</h1>
-        <p className="text-muted-foreground mt-1">전국 17개 시·도 합성 시민 {summary.total.toLocaleString()}명의 인구통계 및 지리적 분포</p>
+        <p className="text-muted-foreground mt-1">{summary.byDistrict.length}개 지역 합성 시민 {summary.total.toLocaleString()}명의 인구통계 및 지리적 분포</p>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
@@ -101,6 +119,7 @@ export default function Population() {
                   attribution='&copy; OpenStreetMap'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                <FitBounds points={mapPoints} />
                 {allAgents?.map((agent) => (
                   <CircleMarker
                     key={agent.id}
