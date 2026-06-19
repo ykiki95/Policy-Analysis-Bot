@@ -582,28 +582,6 @@ export default function Admin() {
         </TabsContent>
 
         <TabsContent value="calibration" className="mt-6 space-y-6">
-          {isAdmin && (
-            <ElectionImportSection
-              sources={electionSources ?? []}
-              isPending={importElection.isPending}
-              onImport={async (sgId) => {
-                try {
-                  const result = await importElection.mutateAsync({ data: { sgId } });
-                  await queryClient.invalidateQueries();
-                  toast({
-                    title: "실제 선거 데이터 연동 완료",
-                    description: `${result.electionName} · ${result.metric} · ${result.imported}개 시·도 (출처: ${result.source})`,
-                  });
-                } catch {
-                  toast({
-                    title: "연동 실패",
-                    description: "공공데이터포털 응답을 확인해 주세요. 활용신청 승인 상태가 필요할 수 있습니다.",
-                    variant: "destructive",
-                  });
-                }
-              }}
-            />
-          )}
           {calLoading || !calibration ? (
             <Card><CardContent className="py-10"><Skeleton className="h-40 w-full" /></CardContent></Card>
           ) : (
@@ -652,8 +630,28 @@ export default function Admin() {
         </TabsContent>
 
         {isAdmin && (
-          <TabsContent value="accounts" className="mt-6">
+          <TabsContent value="accounts" className="mt-6 space-y-6">
             <AccountsSection />
+            <ElectionImportSection
+              sources={electionSources ?? []}
+              isPending={importElection.isPending}
+              onImport={async (sgId) => {
+                try {
+                  const result = await importElection.mutateAsync({ data: { sgId } });
+                  await queryClient.invalidateQueries();
+                  toast({
+                    title: "실제 선거 데이터 연동 완료",
+                    description: `${result.electionName} · ${result.metric} · ${result.imported}개 시·도 (출처: ${result.source})`,
+                  });
+                } catch {
+                  toast({
+                    title: "연동 실패",
+                    description: "공공데이터포털 응답을 확인해 주세요. 활용신청 승인 상태가 필요할 수 있습니다.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            />
           </TabsContent>
         )}
       </Tabs>

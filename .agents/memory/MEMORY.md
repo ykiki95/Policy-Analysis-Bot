@@ -8,3 +8,4 @@
 - [Rate limiter mounting](rate-limit-mounting.md) — `router.use(limiter, subRouter)` w/o a path throttles ALL /api traffic; B1 polling/tick → 429 storm (0%-stuck, auto-logout, login-as-401). Scope limiters per-route.
 - [Stop vs tick lease race](stop-tick-lease-race.md) — every post-claim tick write must be lease-conditional (WHERE lockedBy=TICK_WORKER_ID) so stop wins atomically; stop/run must NOT clear costActualUsd (confirmed lifetime spend → cap bypass).
 - [Prod vs dev DB separate](prod-dev-db-separation.md) — deployed Autoscale app uses its OWN Postgres, NOT the dev DATABASE_URL; query prod via executeSql({environment:"production"}) or deployment logs, never dev.
+- [Admin vs user feature parity](admin-vs-user-feature-parity.md) — self-service tabs (인구~검증이벤트) identical for users & admins; only global/shared-data mutations (election ground-truth import) stay admin-only in 계정 관리.
