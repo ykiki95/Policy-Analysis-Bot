@@ -7,7 +7,10 @@ export type ModelPricing = {
 export const DEFAULT_TOTAL_AGENTS = 500;
 
 export const INPUT_TOKENS_PER_AGENT = 700;
-export const OUTPUT_TOKENS_PER_AGENT = 200;
+// gpt-5 계열은 추론 토큰(reasoning_tokens)이 completion 에 포함된다. 실측상 에이전트당
+// 추론 ~800 + 실제 답변 ~100 ≈ 900 토큰이 소비되므로 추정치도 이를 반영한다(과소 추정 시
+// 예산 한도 검사가 헐거워지고 표시 비용이 비현실적으로 낮아진다).
+export const OUTPUT_TOKENS_PER_AGENT = 900;
 
 export const DEFAULT_MODEL = "gpt-5-mini";
 

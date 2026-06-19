@@ -43,7 +43,10 @@ async function evaluateAgent(
 ): Promise<{ verdict: AgentVerdict; promptTokens: number; completionTokens: number }> {
   const response = await openai.chat.completions.create({
     model: sim.model,
-    max_completion_tokens: 600,
+    // gpt-5 계열은 추론 모델이라 max_completion_tokens 에 "추론 토큰"이 포함된다.
+    // 값이 작으면(예: 600) 추론에 전부 소진돼 finish_reason='length' + content=''가 되어
+    // 모든 응답이 빈 JSON → 기본값(neutral/50)으로 떨어진다. 충분히 크게 둔다.
+    max_completion_tokens: 8192,
     messages: [
       {
         role: "system",
