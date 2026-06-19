@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict PKbsFLPFb97vxexD4Yk0UxxnBuui6uUVadEvCJbsryhdcH2l5GTYiHIlQSTP0Z3
+\restrict u1Fz5IHY064izwbS9eTselGxhIVNU77tIc3moyqgvQUzxH40YTIw247Rg0afrHW
 
 -- Dumped from database version 16.10
 -- Dumped by pg_dump version 16.10
@@ -773,53 +773,6 @@ COPY public.regions (code, name, lat, lng, leaning_bias, macro_region, display_o
 47	경상북도	36.576	128.5056	32	영남권	15
 48	경상남도	35.4606	128.2132	15	영남권	16
 50	제주특별자치도	33.4996	126.5312	-8	제주권	17
-\.
-
-
---
--- Data for Name: session; Type: TABLE DATA; Schema: public; Owner: -
---
-
-COPY public.session (sid, sess, expire) FROM stdin;
-GcCXQk1Swp2fpco2WHLjv_VJ52iztEOz	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T00:34:37.493Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 00:34:38
-0qT3D2dYKgUJfmDge_iPv7jiZ-BKD2fy	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T04:28:27.411Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 04:28:28
-w1XS92eMsPIX-Iy-pbnvp33JD3Tv6O7T	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T07:00:13.025Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 07:00:14
-cfbZ64Sdsr4Goli6Nqi1guP_bY1HC9RF	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-26T00:58:07.447Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-26 00:58:08
-gAywOh8Y16ykFl1cNv_zZXOsfzAuB0Cb	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-26T01:18:13.133Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-26 01:18:14
-rFQtmhTPBoMGxrHvyYCdRmrWnwlceCXb	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T04:28:27.285Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 04:28:28
-jGojkHQ9SQjZk_BjmVxFAxrOdtfpbXj0	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T02:57:33.463Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 02:57:34
-fiX-h8BPxqc1wWIbHA2Mm1Q5K7H7K3vP	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T07:00:12.785Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 07:00:13
-SonDNlm6UHu-d-qPQnhhFG73trCsNOss	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:12:35.403Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 03:12:50
-xUtdwfvfE4DS16EGls7dHva22E5Qrcr_	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T02:57:33.321Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 02:57:34
-BZNcqDfXD5kvHP-WzT6PiGRxA5hHk3Ey	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-26T01:24:05.339Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-26 01:24:06
-pHunAka9OGuG5xU2RiqFRphb3MTizxyS	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T00:39:48.219Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":3}	2026-06-25 00:39:49
-rVuGgkAYPH3BvSIcg0-QifTiBKsYbznZ	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:15:08.021Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 03:15:09
-9kN2miQiGTtTsGN0R3y7gOIetzIGqBcL	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T00:42:49.330Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 00:42:50
-0rQ9UgFErWmm9o42dysoN0-6xKnhQziP	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-26T01:18:02.612Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-26 01:18:14
-yl6yKzAfaFGrKh_A71tXF-0yXrmtCHOA	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-26T01:18:13.466Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":3}	2026-06-26 01:18:14
-bj2OwxyCz7ajOqo-6pBrd7_AhXVfWXPh	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:14:53.690Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 03:14:55
-ZAAgVIRldKYGmAFlL_jUlU_vJFJBLfSR	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T02:58:23.305Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 02:58:24
-VCfhI0a4P_wF5QWm67Lo8D0RqHRCPtVD	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:15:40.796Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 03:15:42
-4CWFtR4qp35K-IZoex7OUvxhs77Rb8lu	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T02:54:08.140Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 02:54:09
-6NpMP1iLkd-cyG6h0arF7g4dXbi2WpZa	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T02:53:39.384Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 02:54:34
-5puNHyu7QmFhGkaHeRNMOPdeXrXtuWe6	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:13:46.448Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 03:13:47
-iBHeisIlDpCZcrnZWMPAA0UI9Eifg9Gd	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T02:58:23.192Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 02:58:24
-RzOfM_SCHhAF0eYuVD11nt0mEN4L2u9I	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:08:10.487Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 03:08:11
-gwqq7IeXfmGSopEldL9wIvxw9EHMTulA	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:13:46.308Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 03:13:47
-LKh3xAJ1AF4J8ZzTT6NepT8tk8n1vyZe	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:19:56.237Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 03:19:57
-pLKMpw4dDlvbp4uC1od7PCKENb8NyrNk	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:14:02.392Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 03:14:03
-3g06sk7CfQ6VWgFLNZWzG9fTXBLLFJGo	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-26T01:49:23.444Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-26 01:49:55
-xqhT5yGNE1m-h9ldT7_oKpI39f2o3Hic	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:14:53.405Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 03:14:55
-xyPgNMP0d1oGRtmzdiNyo1MsZKhrDXQf	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:15:40.683Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 03:15:42
-On5rbY8_hJDOIZvU9wLuz42ktNmloddd	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:15:07.908Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 03:15:09
-F3e_w5DtURm3b2g3MhzgSEnpDrTcDMME	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:20:10.870Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 03:20:12
-USEPpVaGbJZeAl9vFX8HDXu6WRUEA_1G	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:20:10.980Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 03:20:12
-DkC7tKd9wHDVRXxybPPZaJumNw23vgly	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T03:19:56.129Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 03:19:57
-F18rgj_K0y4u9nLBbWt_YxRw3WCxHK3Q	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-26T02:04:11.945Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-26 03:39:14
-O7NhT7YjkMfRBQ0w7O78H4JWqsK9xz2B	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T04:35:53.441Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":2}	2026-06-25 04:35:54
-w8qF93Rp_adEDoiBrW2TGZgKGtro091_	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-25T04:35:53.322Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-25 04:35:55
-hA1kjfDhpmHCasQgaA0bu_onb0EVpvYh	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-26T01:19:37.229Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-26 01:20:06
-98ovbsNaTuVQXTitkBwe16h1TlIxLnn6	{"cookie":{"originalMaxAge":604800000,"expires":"2026-06-26T02:06:27.064Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"userId":1}	2026-06-26 02:06:56
 \.
 
 
@@ -1928,9 +1881,9 @@ COPY public.surveys (id, title, description, methodology, sample_size, fielded_d
 --
 
 COPY public.users (id, username, name, birth_date, password_hash, role, created_at, budget_limit_usd, avatar) FROM stdin;
-2	admin	관리자	\N	$2b$10$/OP9Y/Kro.0XeC5wPjekQePHQZUOcBagf2LLpI4EYRil2cJcXPtkG	admin	2026-06-18 00:33:26.079448	1	\N
-3	newuser_1781743078203	신규유저	\N	$2b$10$erfcqRSrelm1Gjfo/nqL9ey./yEH4g5DXdqJbPSn/2LViFpIXwP6.	user	2026-06-18 00:39:48.213796	1	\N
-1	test	테스트 사용자	1990-05-15	$2b$10$fZqGgUSqJppn1EtNBiM5NOTimCuvTJJwPrV4igwuH3LKt2ApI4s6m	user	2026-06-18 00:33:26.079448	3	av4
+2	admin	관리자	\N	***MASKED***	admin	2026-06-18 00:33:26.079448	1	\N
+3	newuser_1781743078203	신규유저	\N	***MASKED***	user	2026-06-18 00:39:48.213796	1	\N
+1	test	테스트 사용자	1990-05-15	***MASKED***	user	2026-06-18 00:33:26.079448	3	av4
 \.
 
 
@@ -2224,5 +2177,5 @@ ALTER TABLE ONLY public.surveys
 -- PostgreSQL database dump complete
 --
 
-\unrestrict PKbsFLPFb97vxexD4Yk0UxxnBuui6uUVadEvCJbsryhdcH2l5GTYiHIlQSTP0Z3
+\unrestrict u1Fz5IHY064izwbS9eTselGxhIVNU77tIc3moyqgvQUzxH40YTIw247Rg0afrHW
 
