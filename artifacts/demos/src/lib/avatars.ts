@@ -21,16 +21,73 @@ export const AVATARS: { key: string; src: string }[] = [
 
 /**
  * 사용자에게 보여줄 아바타 이미지 URL.
- * avatar 키가 설정돼 있으면 해당 프리셋, 없으면 id 기반으로 결정론적 기본 아바타를 고른다
- * (계정마다 항상 같은 가상 인물이 보이도록).
+ * - avatar 가 업로드한 사진(data URL / http / 절대경로)이면 그대로 사용
+ * - 프리셋 키(av1..av8)면 해당 일러스트
+ * - 비어 있으면 id 기반으로 결정론적 기본 아바타를 고른다(가입 전/레거시 계정 대비)
  */
 export function avatarSrc(
   user?: { id?: number; avatar?: string | null } | null,
 ): string {
-  if (user?.avatar) {
-    const found = AVATARS.find((a) => a.key === user.avatar);
+  const v = user?.avatar;
+  if (v) {
+    if (
+      v.startsWith("data:") ||
+      v.startsWith("http://") ||
+      v.startsWith("https://") ||
+      v.startsWith("/")
+    ) {
+      return v;
+    }
+    const found = AVATARS.find((a) => a.key === v);
     if (found) return found.src;
   }
   const id = user?.id ?? 0;
   return AVATARS[id % AVATARS.length].src;
+}
+
+/** avatar 값이 사용자가 직접 올린 사진(프리셋이 아님)인지 여부. */
+export function isUploadedAvatar(value?: string | null): boolean {
+  return (
+    !!value &&
+    (value.startsWith("data:") ||
+      value.startsWith("http://") ||
+      value.startsWith("https://") ||
+      value.startsWith("/"))
+  );
+}
+
+/**
+ * 사용자가 고른 이미지 파일/blob 을 정사각형으로 잘라 축소한 JPEG data URL 로 변환한다.
+ * (파일 업로드·드래그앤드롭·붙여넣기 모두 동일 경로로 처리)
+ */
+export async function fileToAvatarDataUrl(
+  file: Blob,
+  size = 256,
+): Promise<string> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("이미지 파일만 사용할 수 있습니다.");
+  }
+  const sourceUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error("파일을 읽을 수 없습니다."));
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("이미지를 불러올 수 없습니다."));
+    image.src = sourceUrl;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("이미지를 처리할 수 없습니다.");
+  // 정사각형 중앙 크롭 후 size×size 로 그린다.
+  const side = Math.min(img.width, img.height);
+  const sx = (img.width - side) / 2;
+  const sy = (img.height - side) / 2;
+  ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+  return canvas.toDataURL("image/jpeg", 0.85);
 }

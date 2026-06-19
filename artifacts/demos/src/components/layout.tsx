@@ -158,7 +158,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <aside className="w-full md:w-64 border-r border-border bg-card flex flex-col shrink-0">
         <div className="p-6 border-b border-border flex items-center justify-between md:block">
           <div>
-            <h1 className="font-bold text-lg tracking-tight text-foreground">DEMOS</h1>
+            <h1 className="font-bold text-lg tracking-tight text-foreground">AI Analytics Platform</h1>
             <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Synthetic Electorate</p>
           </div>
           <Button

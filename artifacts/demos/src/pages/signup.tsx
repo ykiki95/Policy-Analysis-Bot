@@ -77,15 +77,6 @@ export default function Signup() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="birthDate">생년월일</Label>
-              <Input
-                id="birthDate"
-                type="date"
-                value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="password">비밀번호</Label>
               <Input
                 id="password"
@@ -94,6 +85,15 @@ export default function Signup() {
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
                 required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="birthDate">생년월일</Label>
+              <Input
+                id="birthDate"
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
               />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}

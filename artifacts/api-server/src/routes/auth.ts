@@ -28,9 +28,11 @@ router.post("/auth/signup", authLimiter, async (req, res): Promise<void> => {
   }
 
   const passwordHash = await hashPassword(password);
+  // 가입 시 기본 아바타를 무작위 프리셋(av1..av8)으로 부여한다.
+  const avatar = `av${1 + Math.floor(Math.random() * 8)}`;
   const [created] = await db
     .insert(usersTable)
-    .values({ name, username, birthDate, passwordHash, role: "user" })
+    .values({ name, username, birthDate, passwordHash, role: "user", avatar })
     .returning();
 
   req.session.regenerate((err) => {
