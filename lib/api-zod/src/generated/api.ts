@@ -69,7 +69,8 @@ export const GetMeResponse = zod.object({
 
 export const UpdateProfileBody = zod.object({
   "name": zod.string().min(1),
-  "avatar": zod.string().nullish()
+  "avatar": zod.string().nullish(),
+  "birthDate": zod.string().nullish()
 })
 
 export const UpdateProfileResponse = zod.object({

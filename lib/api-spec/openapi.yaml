@@ -1084,6 +1084,7 @@ components:
       properties:
         name: { type: string, minLength: 1 }
         avatar: { type: string, nullable: true }
+        birthDate: { type: string, nullable: true }
 
     ChangePasswordInput:
       type: object

@@ -10,4 +10,5 @@ export interface UpdateProfileInput {
   /** @minLength 1 */
   name: string;
   avatar?: string | null;
+  birthDate?: string | null;
 }

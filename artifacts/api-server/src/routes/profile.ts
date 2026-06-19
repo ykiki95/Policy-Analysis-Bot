@@ -38,14 +38,19 @@ router.put("/me/profile", async (req, res): Promise<void> => {
     res.status(400).json({ error: "입력값이 올바르지 않습니다." });
     return;
   }
-  const { name, avatar } = parsed.data;
+  const { name, avatar, birthDate } = parsed.data;
   if (!isAllowedAvatar(avatar)) {
     res.status(400).json({ error: "아바타 형식이 올바르지 않습니다." });
     return;
   }
+  const update: { name: string; avatar: string | null; birthDate?: string | null } = {
+    name,
+    avatar: avatar ?? null,
+  };
+  if (birthDate !== undefined) update.birthDate = birthDate || null;
   const [updated] = await db
     .update(usersTable)
-    .set({ name, avatar: avatar ?? null })
+    .set(update)
     .where(eq(usersTable.id, userId))
     .returning();
   if (!updated) {

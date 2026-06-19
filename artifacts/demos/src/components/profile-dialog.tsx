@@ -44,6 +44,7 @@ export function ProfileDialog({
   const changePassword = useChangePassword();
 
   const [name, setName] = useState(user.name);
+  const [birthDate, setBirthDate] = useState(user.birthDate ?? "");
   const [avatar, setAvatar] = useState<string | null>(user.avatar ?? null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -55,13 +56,14 @@ export function ProfileDialog({
   useEffect(() => {
     if (open) {
       setName(user.name);
+      setBirthDate(user.birthDate ?? "");
       setAvatar(user.avatar ?? null);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setIsDragging(false);
     }
-  }, [open, user.name, user.avatar]);
+  }, [open, user.name, user.avatar, user.birthDate]);
 
   // 이미지 파일/blob → 축소된 data URL 로 변환해 아바타로 설정한다.
   const applyImage = useCallback(
@@ -109,7 +111,9 @@ export function ProfileDialog({
       return;
     }
     try {
-      await updateProfile.mutateAsync({ data: { name: name.trim(), avatar } });
+      await updateProfile.mutateAsync({
+        data: { name: name.trim(), avatar, birthDate: birthDate || null },
+      });
       await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
       await queryClient.invalidateQueries({ queryKey: getListAdminAccountsQueryKey() });
       toast({ title: "프로필 저장 완료", description: "변경 사항이 적용되었습니다." });
@@ -276,6 +280,16 @@ export function ProfileDialog({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="이름"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="profile-birthdate">생년월일</Label>
+              <Input
+                id="profile-birthdate"
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
               />
             </div>
 
