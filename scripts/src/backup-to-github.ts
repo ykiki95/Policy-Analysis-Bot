@@ -4,7 +4,9 @@
  * 한 번의 명령으로:
  *   1) pg_dump 로 최신 DB 덤프 생성 (`db/backup/demos_full_dump.sql`)
  *   2) 민감정보(users.password_hash, public.session) 기본 마스킹/제외
- *   3) `github` 리모트로 백업 파일만 커밋 후 푸시
+ *   3) 날짜별 스냅샷 사본 보관 (`db/backup/snapshots/demos_YYYY-MM-DD.sql`)
+ *      → 보존 정책(retention)으로 오래된 스냅샷 정리
+ *   4) `github` 리모트로 백업 파일만 커밋 후 푸시
  *
  * 인증: 설정된 GitHub 연동(access token)을 런타임에 가져와 사용한다.
  *   - 토큰은 git config 에 저장하지 않고, 명령줄/로그에도 남기지 않는다.
@@ -20,11 +22,19 @@
  *   DATABASE_URL                필수. 덤프 대상 DB.
  *   BACKUP_REMOTE               푸시 리모트 이름 (기본: github)
  *   BACKUP_BRANCH               푸시 대상 브랜치 (기본: 현재 브랜치)
+ *   BACKUP_RETENTION            보존할 날짜별 스냅샷 최대 개수 (기본: 14, 0=비활성)
  *   REPLIT_CONNECTORS_HOSTNAME / REPL_IDENTITY / WEB_REPL_RENEWAL
  *                               Replit 이 자동 주입 — GitHub 연동 토큰 조회에 사용.
  */
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, chmodSync } from "node:fs";
+import {
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+  mkdirSync,
+  chmodSync,
+  readdirSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,6 +43,17 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, "..", "..");
 const BACKUP_REL = "db/backup/demos_full_dump.sql";
 const BACKUP_ABS = join(REPO_ROOT, BACKUP_REL);
+
+// 날짜별 스냅샷 보관 디렉터리. 최신본(demos_full_dump.sql)과 별개로,
+// 타임스탬프가 붙은 사본을 남겨 과거 시점으로 되돌릴 수 있게 한다.
+const SNAPSHOT_DIR_REL = "db/backup/snapshots";
+const SNAPSHOT_DIR_ABS = join(REPO_ROOT, SNAPSHOT_DIR_REL);
+const SNAPSHOT_PREFIX = "demos_";
+const SNAPSHOT_SUFFIX = ".sql";
+// 같은 날짜의 스냅샷 파일명을 찾기 위한 패턴 (demos_YYYY-MM-DD.sql).
+const SNAPSHOT_RE = /^demos_(\d{4}-\d{2}-\d{2})\.sql$/;
+// 보존할 최대 스냅샷 개수 (기본 14일치). BACKUP_RETENTION 으로 조정.
+const DEFAULT_RETENTION = 14;
 
 const SENSITIVE_TABLE = "public.session";
 const MASK_PLACEHOLDER = "***MASKED***";
@@ -164,6 +185,68 @@ function maskPasswordHash(dump: string): string {
   return dump;
 }
 
+/** UTC 기준 오늘 날짜(YYYY-MM-DD). 스냅샷 파일명에 사용. */
+function todayStamp(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** BACKUP_RETENTION 환경변수를 정수로 해석. 유효하지 않으면 기본값. */
+function resolveRetention(): number {
+  const raw = process.env.BACKUP_RETENTION;
+  if (raw == null || raw.trim() === "") return DEFAULT_RETENTION;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0) {
+    console.warn(
+      `BACKUP_RETENTION 값이 올바르지 않습니다('${raw}'). 기본값 ${DEFAULT_RETENTION} 사용.`,
+    );
+    return DEFAULT_RETENTION;
+  }
+  return n;
+}
+
+/**
+ * 최신 덤프 내용을 날짜별 스냅샷 파일로도 보관한다.
+ * 같은 날 여러 번 실행하면 그날 스냅샷을 덮어쓴다(날짜당 1개).
+ * 보관된 스냅샷의 상대 경로를 반환.
+ */
+function writeSnapshot(dump: string): string {
+  mkdirSync(SNAPSHOT_DIR_ABS, { recursive: true });
+  const fileName = `${SNAPSHOT_PREFIX}${todayStamp()}${SNAPSHOT_SUFFIX}`;
+  const rel = `${SNAPSHOT_DIR_REL}/${fileName}`;
+  writeFileSync(join(SNAPSHOT_DIR_ABS, fileName), dump, "utf8");
+  console.log(`스냅샷 보관: ${rel}`);
+  return rel;
+}
+
+/**
+ * 보존 정책: 날짜순으로 가장 최신 `retention` 개만 남기고 오래된 스냅샷을 삭제.
+ * retention=0 이면 정리하지 않는다. 삭제된 파일 수를 반환.
+ */
+function pruneSnapshots(retention: number): number {
+  if (retention <= 0) return 0;
+  let entries: string[];
+  try {
+    entries = readdirSync(SNAPSHOT_DIR_ABS);
+  } catch {
+    return 0;
+  }
+  // 날짜 형식 파일만 골라 내림차순 정렬(최신 우선). 파일명이 곧 날짜라 사전순=날짜순.
+  const snapshots = entries
+    .filter((name) => SNAPSHOT_RE.test(name))
+    .sort()
+    .reverse();
+  const toDelete = snapshots.slice(retention);
+  for (const name of toDelete) {
+    rmSync(join(SNAPSHOT_DIR_ABS, name), { force: true });
+  }
+  if (toDelete.length > 0) {
+    console.log(
+      `보존 정책: 최신 ${retention}개 유지, 오래된 스냅샷 ${toDelete.length}개 삭제.`,
+    );
+  }
+  return toDelete.length;
+}
+
 /**
  * GitHub 연동 access token 을 Replit connectors 프록시에서 런타임 조회.
  * 토큰은 메모리에만 두고 디스크/로그/ git config 에 남기지 않는다.
@@ -215,14 +298,20 @@ function currentBranch(): string {
   return res.stdout.trim();
 }
 
-/** 백업 파일만 스테이징 후, 변경이 있을 때만 커밋. 커밋 여부 반환. */
+/**
+ * 백업 파일(최신본 + 날짜별 스냅샷)만 스테이징 후, 변경이 있을 때만 커밋.
+ * 보존 정책으로 삭제된 스냅샷도 함께 스테이징되도록 `git add --all` 사용.
+ * 커밋 여부 반환.
+ */
 function stageAndCommit(dryRun: boolean): boolean {
-  const add = run("git", ["add", "--", BACKUP_REL]);
+  const paths = [BACKUP_REL, SNAPSHOT_DIR_REL];
+  // --all: 추가/수정/삭제(보존 정책 정리분)를 모두 스테이징.
+  const add = run("git", ["add", "--all", "--", ...paths]);
   if (add.status !== 0) {
     throw new Error(`git add 실패:\n${add.stderr}`);
   }
-  // 백업 파일에 스테이징된 변경이 있는지 확인.
-  const diff = run("git", ["diff", "--cached", "--quiet", "--", BACKUP_REL]);
+  // 백업 경로에 스테이징된 변경이 있는지 확인.
+  const diff = run("git", ["diff", "--cached", "--quiet", "--", ...paths]);
   if (diff.status === 0) {
     console.log("변경된 백업 데이터가 없습니다. 커밋/푸시를 건너뜁니다.");
     return false;
@@ -237,7 +326,7 @@ function stageAndCommit(dryRun: boolean): boolean {
     "-m",
     `chore(db): automated backup ${stamp}`,
     "--",
-    BACKUP_REL,
+    ...paths,
   ]);
   if (commit.status !== 0) {
     throw new Error(`git commit 실패:\n${commit.stderr || commit.stdout}`);
@@ -307,6 +396,10 @@ async function main(): Promise<void> {
   console.log(
     `덤프 작성 완료: ${BACKUP_REL} (${(dump.length / 1024).toFixed(0)} KB)`,
   );
+
+  // 날짜별 스냅샷 사본 보관 + 보존 정책 적용.
+  writeSnapshot(dump);
+  pruneSnapshots(resolveRetention());
 
   const committed = stageAndCommit(opts.dryRun);
   if (!committed || opts.noPush) {
