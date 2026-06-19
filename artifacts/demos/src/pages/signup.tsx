@@ -53,7 +53,7 @@ export default function Signup() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl tracking-tight">회원가입</CardTitle>
-          <CardDescription>DEMOS 계정을 만들어 시작하세요</CardDescription>
+          <CardDescription>AI Analytics Platform 계정을 만들어 시작하세요</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

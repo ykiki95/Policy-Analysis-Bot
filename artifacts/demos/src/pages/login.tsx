@@ -48,7 +48,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl tracking-tight">DEMOS</CardTitle>
+          <CardTitle className="text-2xl tracking-tight">AI Analytics Platform</CardTitle>
           <CardDescription>합성 인구 인텔리전스 플랫폼 로그인</CardDescription>
         </CardHeader>
         <CardContent>
