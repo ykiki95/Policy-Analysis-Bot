@@ -15,6 +15,7 @@ import {
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { jsonReady } from "../lib/serialize";
 import { tenantId } from "../lib/tenant";
+import { requireAdmin } from "../lib/auth";
 import { getSpend, DISPLAY_MULTIPLIER } from "../lib/budget";
 import { generateAgents } from "../lib/agentGenerator";
 import {
@@ -81,7 +82,7 @@ router.get("/admin/data-sources", async (_req, res): Promise<void> => {
 });
 
 // 전체 계정 목록 + 예산/지출(화면 표시 금액 ×10). admin 전용.
-router.get("/admin/accounts", async (_req, res): Promise<void> => {
+router.get("/admin/accounts", requireAdmin, async (_req, res): Promise<void> => {
   const users = await db.select().from(usersTable).orderBy(usersTable.id);
   const accounts = await Promise.all(
     users.map(async (u) => {
@@ -103,7 +104,7 @@ router.get("/admin/accounts", async (_req, res): Promise<void> => {
 });
 
 // 계정별 예산 한도 설정(입력은 화면 표시 금액 ×10 → 실비로 환산 저장). admin 전용.
-router.put("/admin/accounts/:id/budget", async (req, res): Promise<void> => {
+router.put("/admin/accounts/:id/budget", requireAdmin, async (req, res): Promise<void> => {
   const params = UpdateAccountBudgetParams.safeParse(req.params);
   const body = UpdateAccountBudgetBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -470,11 +471,11 @@ router.get("/admin/survey-impact", async (req, res): Promise<void> => {
   res.json(GetSurveyImpactResponse.parse({ appliedSurveyCount, items }));
 });
 
-router.get("/admin/elections/sources", async (_req, res): Promise<void> => {
+router.get("/admin/elections/sources", requireAdmin, async (_req, res): Promise<void> => {
   res.json(ListElectionSourcesResponse.parse(SUPPORTED_ELECTIONS));
 });
 
-router.post("/admin/elections/import", async (req, res): Promise<void> => {
+router.post("/admin/elections/import", requireAdmin, async (req, res): Promise<void> => {
   const parsed = ImportElectionBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

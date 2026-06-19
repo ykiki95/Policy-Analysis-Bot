@@ -10,7 +10,7 @@ import productsRouter from "./products";
 import dashboardRouter from "./dashboard";
 import budgetRouter from "./budget";
 import adminRouter from "./admin";
-import { requireAuth, requireAdmin } from "../lib/auth";
+import { requireAuth } from "../lib/auth";
 import { withTenant } from "../lib/tenant";
 
 const router: IRouter = Router();
@@ -34,9 +34,11 @@ router.use(productsRouter);
 router.use(dashboardRouter);
 router.use(budgetRouter);
 
-// 관리자 전용 — /admin/* 경로에만 admin 게이트를 적용한다(미등록 경로의 404
-// 핸들러를 가리지 않도록 catch-all 미들웨어로 두지 않는다).
-router.use("/admin", requireAdmin);
+// adminRouter 는 자기서비스(테넌트 스코프) 라우트와 관리자 전용 라우트를 함께 담는다.
+// 자기서비스(데이터 출처·설문 업로드·보정 설정·검증 이벤트·인구 재생성)는 모든 로그인
+// 사용자가 본인 스코프로 사용하고, 관리자 전용(계정 관리·실선거 데이터 import)은 각
+// 핸들러에 requireAdmin 을 직접 건다(routes/admin.ts). 따라서 전역 /admin 게이트는
+// 두지 않는다 — 그래야 일반 사용자도 자기서비스 탭의 데이터를 볼 수 있다.
 router.use(adminRouter);
 
 export default router;
