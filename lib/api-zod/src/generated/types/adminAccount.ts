@@ -13,6 +13,7 @@ export interface AdminAccount {
   id: number;
   username: string;
   name: string;
+  avatar?: string | null;
   role: string;
   createdAt: string;
   budgetLimitUsd: number;

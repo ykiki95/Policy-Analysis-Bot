@@ -115,6 +115,68 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /me/profile:
+    put:
+      operationId: updateProfile
+      tags: [auth]
+      summary: 내 프로필(이름·아바타) 수정
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileInput"
+      responses:
+        "200":
+          description: 갱신된 사용자
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: 잘못된 입력
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: 미로그인
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /me/password:
+    put:
+      operationId: changePassword
+      tags: [auth]
+      summary: 내 비밀번호 변경
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordInput"
+      responses:
+        "200":
+          description: 변경 완료
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+        "400":
+          description: 잘못된 입력
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: 현재 비밀번호 불일치 또는 미로그인
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /healthz:
     get:
       operationId: healthCheck
@@ -670,6 +732,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /admin/accounts/{id}/reset-password:
+    post:
+      operationId: resetAccountPassword
+      tags: [admin]
+      summary: 회원 비밀번호 초기화(관리자 전용, "1111")
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: 초기화 완료
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+        "404":
+          description: 계정 없음
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /admin/data-sources:
     get:
       operationId: listDataSources
@@ -942,6 +1028,7 @@ components:
         username: { type: string }
         name: { type: string }
         birthDate: { type: string, nullable: true }
+        avatar: { type: string, nullable: true }
         role: { type: string }
         createdAt: { type: string }
 
@@ -975,6 +1062,7 @@ components:
         id: { type: integer }
         username: { type: string }
         name: { type: string }
+        avatar: { type: string, nullable: true }
         role: { type: string }
         createdAt: { type: string }
         budgetLimitUsd: { type: number }
@@ -988,6 +1076,30 @@ components:
         - budgetLimitUsd
       properties:
         budgetLimitUsd: { type: number, minimum: 0 }
+
+    UpdateProfileInput:
+      type: object
+      required:
+        - name
+      properties:
+        name: { type: string, minLength: 1 }
+        avatar: { type: string, nullable: true }
+
+    ChangePasswordInput:
+      type: object
+      required:
+        - currentPassword
+        - newPassword
+      properties:
+        currentPassword: { type: string, minLength: 1 }
+        newPassword: { type: string, minLength: 4 }
+
+    OkResult:
+      type: object
+      required:
+        - ok
+      properties:
+        ok: { type: boolean }
 
     SignupInput:
       type: object

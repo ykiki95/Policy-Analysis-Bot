@@ -17,6 +17,8 @@ export const usersTable = pgTable("users", {
   username: text("username").notNull().unique(),
   name: text("name").notNull(),
   birthDate: text("birth_date"),
+  // 프로필 아바타 프리셋 키(예: "av1"). null 이면 프런트에서 id 기반 기본 아바타 표시.
+  avatar: text("avatar"),
   passwordHash: text("password_hash").notNull(),
   role: text("role").notNull().default("user"),
   // LLM 지출 한도(실제 USD). 화면 표시는 ×10 (기본 $1 실비 = 화면 $10).

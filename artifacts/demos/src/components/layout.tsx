@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { Users, Activity, BarChart3, Database, Box, Beaker, Menu, X, Settings, LogOut, Wallet, ChevronDown, Check } from "lucide-react";
+import { Users, Activity, BarChart3, Database, Box, Beaker, Menu, X, Settings, LogOut, Wallet, ChevronDown, Check, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfileDialog } from "@/components/profile-dialog";
+import { avatarSrc } from "@/lib/avatars";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -80,6 +82,7 @@ function AccountSwitcher() {
 function AccountMenu() {
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
+  const [profileOpen, setProfileOpen] = useState(false);
   const logout = useLogout({
     mutation: {
       onSuccess: () => {
@@ -95,35 +98,43 @@ function AccountMenu() {
   const initial = user.name?.charAt(0) || user.username.charAt(0);
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="flex items-center gap-2 px-2">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="text-xs">{initial}</AvatarFallback>
-          </Avatar>
-          <span className="hidden sm:inline text-sm font-medium">{user.name}</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
-          <div className="flex flex-col">
-            <span className="font-medium">{user.name}</span>
-            <span className="text-xs text-muted-foreground font-normal">
-              @{user.username}
-              {isAdmin && " · 관리자"}
-            </span>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => logout.mutate()}
-          disabled={logout.isPending}
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          로그아웃
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="flex items-center gap-2 px-2">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={avatarSrc(user)} alt={user.name} />
+              <AvatarFallback className="text-xs">{initial}</AvatarFallback>
+            </Avatar>
+            <span className="hidden sm:inline text-sm font-medium">{user.name}</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel>
+            <div className="flex flex-col">
+              <span className="font-medium">{user.name}</span>
+              <span className="text-xs text-muted-foreground font-normal">
+                @{user.username}
+                {isAdmin && " · 관리자"}
+              </span>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setProfileOpen(true)}>
+            <UserCog className="h-4 w-4 mr-2" />
+            프로필 수정
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => logout.mutate()}
+            disabled={logout.isPending}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            로그아웃
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ProfileDialog user={user} open={profileOpen} onOpenChange={setProfileOpen} />
+    </>
   );
 }
 

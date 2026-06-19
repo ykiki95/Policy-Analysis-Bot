@@ -18,6 +18,7 @@ export interface User {
   username: string;
   name: string;
   birthDate?: string | null;
+  avatar?: string | null;
   role: string;
   createdAt: string;
 }
@@ -39,6 +40,7 @@ export interface AdminAccount {
   id: number;
   username: string;
   name: string;
+  avatar?: string | null;
   role: string;
   createdAt: string;
   budgetLimitUsd: number;
@@ -52,6 +54,23 @@ export interface AdminAccount {
 export interface UpdateAccountBudgetInput {
   /** @minimum 0 */
   budgetLimitUsd: number;
+}
+
+export interface UpdateProfileInput {
+  /** @minLength 1 */
+  name: string;
+  avatar?: string | null;
+}
+
+export interface ChangePasswordInput {
+  /** @minLength 1 */
+  currentPassword: string;
+  /** @minLength 4 */
+  newPassword: string;
+}
+
+export interface OkResult {
+  ok: boolean;
 }
 
 export interface SignupInput {

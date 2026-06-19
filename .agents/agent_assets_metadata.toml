@@ -1,0 +1,50 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "rF_fwzLcqUIuFhPY-fhB1"
+uri = "file://artifacts/demos/src/assets/avatars/av1.png"
+type = "image"
+title = "avatar 1"
+
+[[generated]]
+id = "Sg76TelR5bpUzlsPl2C_D"
+uri = "file://artifacts/demos/src/assets/avatars/av2.png"
+type = "image"
+title = "avatar 2"
+
+[[generated]]
+id = "-PzzOj8ch8CGqpp_y_JJh"
+uri = "file://artifacts/demos/src/assets/avatars/av3.png"
+type = "image"
+title = "avatar 3"
+
+[[generated]]
+id = "ER1CJFk5E6nlQRjMUscPE"
+uri = "file://artifacts/demos/src/assets/avatars/av4.png"
+type = "image"
+title = "avatar 4"
+
+[[generated]]
+id = "qaDLCOoGENgn7pVDWsA96"
+uri = "file://artifacts/demos/src/assets/avatars/av5.png"
+type = "image"
+title = "avatar 5"
+
+[[generated]]
+id = "c2S6bVeZti27tfaIA3rew"
+uri = "file://artifacts/demos/src/assets/avatars/av6.png"
+type = "image"
+title = "avatar 6"
+
+[[generated]]
+id = "T2NOiaXo2UeKZJEwBTeHD"
+uri = "file://artifacts/demos/src/assets/avatars/av7.png"
+type = "image"
+title = "avatar 7"
+
+[[generated]]
+id = "PMe_oL_hl2TA-LEAJoqNX"
+uri = "file://artifacts/demos/src/assets/avatars/av8.png"
+type = "image"
+title = "avatar 8"

@@ -9,6 +9,7 @@ import regionsRouter from "./regions";
 import productsRouter from "./products";
 import dashboardRouter from "./dashboard";
 import budgetRouter from "./budget";
+import profileRouter from "./profile";
 import adminRouter from "./admin";
 import { requireAuth } from "../lib/auth";
 import { withTenant } from "../lib/tenant";
@@ -33,6 +34,7 @@ router.use(regionsRouter);
 router.use(productsRouter);
 router.use(dashboardRouter);
 router.use(budgetRouter);
+router.use(profileRouter);
 
 // adminRouter 는 자기서비스(테넌트 스코프) 라우트와 관리자 전용 라우트를 함께 담는다.
 // 자기서비스(데이터 출처·설문 업로드·보정 설정·검증 이벤트·인구 재생성)는 모든 로그인

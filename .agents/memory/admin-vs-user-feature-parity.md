@@ -9,6 +9,6 @@ The `/admin` ("설정" for non-admins) page tabs 인구 구성 → 데이터 출
 
 **Rule:** any feature that mutates *shared/global* ground-truth (the `elections` table — real 개표결과 import) stays admin-only and lives inside the admin-only 계정 관리 tab, NOT in a shared tab.
 
-**Why:** election import overwrites the global `elections` ground-truth shared by all tenants, so one user's import would change everyone's validation. Per-user data (agents/surveys/calibrations/calibration events) is genuinely self-service and belongs in the shared tabs. User explicitly confirmed (2026-06) the want for shared-tab parity + keeping election import admin-only.
+**Why:** election import overwrites the global `elections` ground-truth shared by all tenants, so one user's import would change everyone's validation. Per-user data (agents/surveys/calibrations/calibration events) is genuinely self-service and belongs in the shared tabs. User explicitly confirmed they want shared-tab parity + keeping election import admin-only.
 
 **How to apply:** when adding a new admin-page feature, ask "does it write per-user data or global/shared data?" Per-user → shared tab (no `isAdmin` gate). Global/shared mutation → admin-only (`{isAdmin && ...}` + a `requireAdmin` backend route).

@@ -23,6 +23,7 @@ import {
   useImportElection,
   useListAdminAccounts,
   useUpdateAccountBudget,
+  useResetAccountPassword,
   getListCalibrationsQueryKey,
   getListSurveysQueryKey,
   getGetSurveyImpactQueryKey,
@@ -52,7 +53,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet } from "lucide-react";
+import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet, KeyRound } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const CALIBRATION_METHODS = [
@@ -221,8 +222,18 @@ function AccountRow({ account }: { account: AdminAccount }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const updateBudget = useUpdateAccountBudget();
+  const resetPassword = useResetAccountPassword();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(account.budgetLimitUsd));
+
+  const resetPw = async () => {
+    try {
+      await resetPassword.mutateAsync({ id: account.id });
+      toast({ title: "비밀번호 초기화 완료", description: `${account.name}의 비밀번호를 "1111"로 초기화했습니다.` });
+    } catch {
+      toast({ title: "초기화 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
+    }
+  };
 
   const save = async () => {
     const next = Number(value);
@@ -285,6 +296,33 @@ function AccountRow({ account }: { account: AdminAccount }) {
       </TableCell>
       <TableCell className="tabular-nums text-muted-foreground">${account.spentUsd.toFixed(2)}</TableCell>
       <TableCell className="tabular-nums font-medium">${account.remainingUsd.toFixed(2)}</TableCell>
+      <TableCell className="text-right">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="outline" disabled={resetPassword.isPending}>
+              {resetPassword.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              ) : (
+                <KeyRound className="h-3.5 w-3.5 mr-1" />
+              )}
+              비밀번호 초기화
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>비밀번호를 초기화할까요?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {account.name}(@{account.username})의 비밀번호가 <strong>1111</strong>로 초기화됩니다.
+                해당 사용자는 다음 로그인부터 새 비밀번호로 접속해야 합니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>취소</AlertDialogCancel>
+              <AlertDialogAction onClick={resetPw}>초기화</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </TableCell>
     </TableRow>
   );
 }
@@ -316,6 +354,7 @@ function AccountsSection() {
                 <TableHead>예산 한도</TableHead>
                 <TableHead>누적 사용</TableHead>
                 <TableHead>잔여</TableHead>
+                <TableHead className="text-right">작업</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

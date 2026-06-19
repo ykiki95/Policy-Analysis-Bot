@@ -6,12 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface User {
-  id: number;
-  username: string;
+export interface UpdateProfileInput {
+  /** @minLength 1 */
   name: string;
-  birthDate?: string | null;
   avatar?: string | null;
-  role: string;
-  createdAt: string;
 }

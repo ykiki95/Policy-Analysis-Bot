@@ -15,7 +15,7 @@ import {
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { jsonReady } from "../lib/serialize";
 import { tenantId } from "../lib/tenant";
-import { requireAdmin } from "../lib/auth";
+import { requireAdmin, hashPassword } from "../lib/auth";
 import { getSpend, DISPLAY_MULTIPLIER } from "../lib/budget";
 import { generateAgents } from "../lib/agentGenerator";
 import {
@@ -52,6 +52,7 @@ import {
   UpdateAccountBudgetParams,
   UpdateAccountBudgetBody,
   UpdateAccountBudgetResponse,
+  ResetAccountPasswordParams,
 } from "@workspace/api-zod";
 import {
   SUPPORTED_ELECTIONS,
@@ -131,6 +132,7 @@ router.put("/admin/accounts/:id/budget", requireAdmin, async (req, res): Promise
         id: updated.id,
         username: updated.username,
         name: updated.name,
+        avatar: updated.avatar,
         role: updated.role,
         createdAt: updated.createdAt,
         budgetLimitUsd: updated.budgetLimitUsd * DISPLAY_MULTIPLIER,
@@ -140,6 +142,31 @@ router.put("/admin/accounts/:id/budget", requireAdmin, async (req, res): Promise
     ),
   );
 });
+
+// 회원 비밀번호 초기화 — "1111" 로 재설정. admin 전용.
+router.post(
+  "/admin/accounts/:id/reset-password",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = ResetAccountPasswordParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "잘못된 요청입니다." });
+      return;
+    }
+    const passwordHash = await hashPassword("1111");
+    const [updated] = await db
+      .update(usersTable)
+      .set({ passwordHash })
+      .where(eq(usersTable.id, params.data.id))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "계정을 찾을 수 없습니다." });
+      return;
+    }
+    req.log.info({ targetUserId: updated.id }, "Admin reset account password");
+    res.json({ ok: true });
+  },
+);
 
 router.get(
   "/admin/demographic-margins",

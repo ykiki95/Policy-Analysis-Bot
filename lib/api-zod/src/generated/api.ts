@@ -41,6 +41,7 @@ export const LoginResponse = zod.object({
   "username": zod.string(),
   "name": zod.string(),
   "birthDate": zod.string().nullish(),
+  "avatar": zod.string().nullish(),
   "role": zod.string(),
   "createdAt": zod.string()
 })
@@ -54,8 +55,49 @@ export const GetMeResponse = zod.object({
   "username": zod.string(),
   "name": zod.string(),
   "birthDate": zod.string().nullish(),
+  "avatar": zod.string().nullish(),
   "role": zod.string(),
   "createdAt": zod.string()
+})
+
+
+/**
+ * @summary 내 프로필(이름·아바타) 수정
+ */
+
+
+
+export const UpdateProfileBody = zod.object({
+  "name": zod.string().min(1),
+  "avatar": zod.string().nullish()
+})
+
+export const UpdateProfileResponse = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "name": zod.string(),
+  "birthDate": zod.string().nullish(),
+  "avatar": zod.string().nullish(),
+  "role": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary 내 비밀번호 변경
+ */
+
+export const changePasswordBodyNewPasswordMin = 4;
+
+
+
+export const ChangePasswordBody = zod.object({
+  "currentPassword": zod.string().min(1),
+  "newPassword": zod.string().min(changePasswordBodyNewPasswordMin)
+})
+
+export const ChangePasswordResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 
@@ -769,6 +811,7 @@ export const ListAdminAccountsResponseItem = zod.object({
   "id": zod.number(),
   "username": zod.string(),
   "name": zod.string(),
+  "avatar": zod.string().nullish(),
   "role": zod.string(),
   "createdAt": zod.string(),
   "budgetLimitUsd": zod.number(),
@@ -797,12 +840,25 @@ export const UpdateAccountBudgetResponse = zod.object({
   "id": zod.number(),
   "username": zod.string(),
   "name": zod.string(),
+  "avatar": zod.string().nullish(),
   "role": zod.string(),
   "createdAt": zod.string(),
   "budgetLimitUsd": zod.number(),
   "spentUsd": zod.number(),
   "remainingUsd": zod.number()
 }).describe('예산 금액은 화면 표시 금액(실비 ×10)이다.')
+
+
+/**
+ * @summary 회원 비밀번호 초기화(관리자 전용, "1111")
+ */
+export const ResetAccountPasswordParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ResetAccountPasswordResponse = zod.object({
+  "ok": zod.boolean()
+})
 
 
 /**
