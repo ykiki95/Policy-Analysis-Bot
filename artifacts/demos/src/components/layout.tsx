@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { Users, Activity, BarChart3, Database, Box, Beaker, Menu, Settings, LogOut, Wallet, ChevronDown, Check } from "lucide-react";
+import { Users, Activity, BarChart3, Database, Box, Beaker, Menu, X, Settings, LogOut, Wallet, ChevronDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -129,6 +130,7 @@ function AccountMenu() {
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { isAdmin } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const navItems = [
     { href: "/", label: "대시보드", icon: Activity },
@@ -148,11 +150,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <h1 className="font-bold text-lg tracking-tight text-foreground">DEMOS</h1>
             <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Synthetic Electorate</p>
           </div>
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Menu className="h-5 w-5" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            aria-label="메뉴 열기"
+            aria-expanded={mobileOpen}
+            onClick={() => setMobileOpen((o) => !o)}
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto hidden md:block">
+        <nav className={`flex-1 p-4 space-y-1 overflow-y-auto md:block ${mobileOpen ? "block" : "hidden"}`}>
           {navItems.map((item) => {
             const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
             const Icon = item.icon;
@@ -160,6 +169,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setMobileOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-primary text-primary-foreground"
