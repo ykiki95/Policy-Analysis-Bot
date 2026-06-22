@@ -62,10 +62,16 @@ interface Options {
   withSecrets: boolean;
   dryRun: boolean;
   noPush: boolean;
+  pushOnly: boolean;
 }
 
 function parseArgs(argv: string[]): Options {
-  const opts: Options = { withSecrets: false, dryRun: false, noPush: false };
+  const opts: Options = {
+    withSecrets: false,
+    dryRun: false,
+    noPush: false,
+    pushOnly: false,
+  };
   for (const arg of argv) {
     switch (arg) {
       case "--":
@@ -79,6 +85,11 @@ function parseArgs(argv: string[]): Options {
         break;
       case "--no-push":
         opts.noPush = true;
+        break;
+      case "--push-only":
+        // 덤프/스냅샷/커밋을 건너뛰고 현재 HEAD 만 푸시.
+        // (체크포인트가 백업 파일을 이미 커밋한 메인 환경용 — git add/commit 가 막힌 경우)
+        opts.pushOnly = true;
         break;
       case "--help":
       case "-h":
@@ -95,11 +106,12 @@ function parseArgs(argv: string[]): Options {
 function printHelpAndExit(code = 0): never {
   console.log(
     [
-      "사용법: backup:db [--with-secrets] [--dry-run] [--no-push]",
+      "사용법: backup:db [--with-secrets] [--dry-run] [--no-push] [--push-only]",
       "",
       "  --with-secrets   민감정보(password_hash, session 데이터)를 마스킹하지 않고 포함",
       "  --dry-run        덤프 파일만 생성. git add/commit/push 건너뜀",
       "  --no-push        커밋까지만. 푸시 건너뜀",
+      "  --push-only      덤프/스냅샷/커밋 없이 현재 HEAD 만 푸시 (백업 파일이 이미 커밋된 환경용)",
     ].join("\n"),
   );
   process.exit(code);
@@ -377,6 +389,18 @@ function pushWithToken(remote: string, branch: string, token: string): void {
 
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
+
+  // --push-only: 덤프/스냅샷/커밋을 모두 건너뛰고 현재 HEAD 만 푸시한다.
+  // 메인 환경에서는 git add/commit 가 차단되지만 백업 파일은 체크포인트가
+  // 이미 커밋해두므로, 남은 일은 HEAD 푸시뿐이다.
+  if (opts.pushOnly) {
+    const remote = process.env.BACKUP_REMOTE || "github";
+    const branch = process.env.BACKUP_BRANCH || currentBranch();
+    console.log(`[push-only] 현재 HEAD 를 ${remote} ${branch} 로 푸시합니다.`);
+    const token = await fetchGithubToken();
+    pushWithToken(remote, branch, token);
+    return;
+  }
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
