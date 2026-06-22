@@ -80,7 +80,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet, KeyRound, Radio, RefreshCw, ClipboardList, Box, Building2 } from "lucide-react";
+import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet, KeyRound, Radio, RefreshCw, Box, Building2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const CALIBRATION_METHODS = [
@@ -176,6 +176,44 @@ function parseUpload(text: string, fileName: string): { format: string; columns:
   return { format: "CSV", columns, rows };
 }
 
+// 클라이언트 측 페이지네이션 헬퍼. 데이터가 전량 로드되므로 슬라이스만 한다.
+function usePaged<T>(items: T[], pageSize = 10) {
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+  const current = Math.min(page, pageCount);
+  const pageItems = items.slice((current - 1) * pageSize, current * pageSize);
+  return { page: current, setPage, pageCount, pageItems };
+}
+
+function TablePager({
+  page,
+  pageCount,
+  onChange,
+}: {
+  page: number;
+  pageCount: number;
+  onChange: (p: number) => void;
+}) {
+  if (pageCount <= 1) return null;
+  return (
+    <div className="flex items-center justify-end gap-2 mt-4">
+      <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onChange(page - 1)}>
+        <ChevronLeft className="h-4 w-4 mr-1" />이전
+      </Button>
+      <span className="text-sm text-muted-foreground tabular-nums px-1">
+        {page} / {pageCount}
+      </span>
+      <Button variant="outline" size="sm" disabled={page >= pageCount} onClick={() => onChange(page + 1)}>
+        다음<ChevronRight className="h-4 w-4 ml-1" />
+      </Button>
+    </div>
+  );
+}
+
+// 다이얼로그 본문에서 쓰는 자동 연동(data.go.kr) 입력 컨트롤. Card 래퍼 없이 컨트롤만 렌더한다.
 function ElectionImportSection({
   sources,
   isPending,
@@ -189,55 +227,47 @@ function ElectionImportSection({
   const effective = selected || sources[0]?.sgId || "";
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Vote className="h-5 w-5 text-primary" />
-          실제 선거 데이터 연동 (data.go.kr)
-        </CardTitle>
-        <CardDescription>
-          중앙선거관리위원회 공공데이터(투·개표 정보 API)에서 실제 시·도별 보수 후보 득표율을
-          불러와 선거 검증의 기준값(ground truth)을 채웁니다. 불러온 선거가 기존 기준 데이터를
-          교체하며, 선거 검증 화면에 즉시 반영됩니다.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-          <div className="space-y-1.5 flex-1">
-            <Label className="text-xs">선거 선택</Label>
-            <Select value={effective} onValueChange={setSelected}>
-              <SelectTrigger>
-                <SelectValue placeholder="선거를 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                {sources.map((s) => (
-                  <SelectItem key={s.sgId} value={s.sgId}>
-                    {s.name} ({s.electionDate})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            onClick={() => effective && onImport(effective)}
-            disabled={!effective || isPending}
-            className="sm:w-auto"
-          >
-            {isPending ? (
-              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 mr-1.5" />
-            )}
-            실제 결과 불러오기
-          </Button>
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        중앙선거관리위원회 공공데이터(투·개표 정보 API)에서 실제 시·도별 보수 후보 득표율을
+        불러와 선거 검증의 기준값(ground truth)을 채웁니다. 불러온 선거가 기존 기준 데이터를
+        교체하며, 선거 검증 화면에 즉시 반영됩니다.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+        <div className="space-y-1.5 flex-1">
+          <Label className="text-xs">선거 선택</Label>
+          <Select value={effective} onValueChange={setSelected}>
+            <SelectTrigger>
+              <SelectValue placeholder="선거를 선택하세요" />
+            </SelectTrigger>
+            <SelectContent>
+              {sources.map((s) => (
+                <SelectItem key={s.sgId} value={s.sgId}>
+                  {s.name} ({s.electionDate})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          출처: 중앙선거관리위원회 · 공공데이터포털(data.go.kr). 대통령선거·지방선거(광역단체장)는
-          보수 후보, 국회의원선거는 비례대표 보수 정당 기준입니다(국민의힘·국민의미래·미래한국당 등
-          선거별 상이). 시·도별 득표율 = 보수 진영 득표수 ÷ 유효투표수.
-        </p>
-      </CardContent>
-    </Card>
+        <Button
+          onClick={() => effective && onImport(effective)}
+          disabled={!effective || isPending}
+          className="sm:w-auto"
+        >
+          {isPending ? (
+            <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4 mr-1.5" />
+          )}
+          실제 결과 불러오기
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        출처: 중앙선거관리위원회 · 공공데이터포털(data.go.kr). 대통령선거·지방선거(광역단체장)는
+        보수 후보, 국회의원선거는 비례대표 보수 정당 기준입니다(국민의힘·국민의미래·미래한국당 등
+        선거별 상이). 시·도별 득표율 = 보수 진영 득표수 ÷ 유효투표수.
+      </p>
+    </div>
   );
 }
 
@@ -245,7 +275,7 @@ type ManualRowState = { actualValue: string; actualWinner: "conservative" | "pro
 
 // 관리자가 API가 없는 선거·여론조사도 시·도별 보수 득표율을 직접 입력해 백테스트로 등록한다.
 // 값을 입력한 시·도만 제출하며, winner는 득표율 50% 기준으로 기본 자동 설정 후 편집 가능하다.
-function ManualElectionSection({ regions }: { regions: Region[] }) {
+function ManualElectionSection({ regions, onDone }: { regions: Region[]; onDone?: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const createManual = useCreateManualElection();
@@ -318,6 +348,7 @@ function ManualElectionSection({ regions }: { regions: Region[] }) {
       setName("");
       setElectionDate("");
       setRowState({});
+      onDone?.();
     } catch {
       toast({
         title: "등록 실패",
@@ -328,19 +359,13 @@ function ManualElectionSection({ regions }: { regions: Region[] }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5 text-primary" />
-          수동 백테스트 입력
-        </CardTitle>
-        <CardDescription>
-          공공데이터 API가 없는 선거·여론조사도 시·도별 보수 후보 득표율(%)을 직접 입력해 검증
-          기준값(ground truth)으로 등록합니다. 값을 입력한 시·도만 저장되며, 같은 선거일을 다시
-          등록하면 기존 데이터를 교체합니다.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
+    <div className="space-y-5">
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        공공데이터 API가 없는 선거·여론조사도 시·도별 보수 후보 득표율(%)을 직접 입력해 검증
+        기준값(ground truth)으로 등록합니다. 값을 입력한 시·도만 저장되며, 같은 선거일을 다시
+        등록하면 기존 데이터를 교체합니다.
+      </p>
+      <div className="space-y-5">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
             <Label className="text-xs">선거/조사명</Label>
@@ -421,17 +446,18 @@ function ManualElectionSection({ regions }: { regions: Region[] }) {
             백테스트 등록
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
-// 자동·수동으로 등록된 선거 백테스트 목록을 보여주고, 선거일 기준으로 삭제할 수 있다.
-function RegisteredBacktestsSection() {
+// 자동·수동으로 등록된 선거 백테스트 목록(시·도별 기준값). 정치 통합 내역의 "선거 시·도별" 탭에서 쓴다.
+function RegisteredBacktestsTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: backtests, isLoading } = useListElectionBacktests();
   const deleteBacktest = useDeleteElectionBacktest();
+  const { page, setPage, pageCount, pageItems } = usePaged(backtests ?? [], 10);
 
   async function handleDelete(item: ElectionBacktestSummary) {
     try {
@@ -447,25 +473,16 @@ function RegisteredBacktestsSection() {
     }
   }
 
+  if (isLoading) {
+    return <Skeleton className="h-24 w-full" />;
+  }
+  if (!backtests || backtests.length === 0) {
+    return <p className="text-sm text-muted-foreground py-6 text-center">등록된 선거 백테스트가 없습니다.</p>;
+  }
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ClipboardList className="h-5 w-5 text-primary" />
-          등록된 백테스트
-        </CardTitle>
-        <CardDescription>
-          자동 연동·수동 입력으로 등록된 선거 검증 기준값 목록입니다. 삭제하면 해당 선거의 모든
-          시·도 기준값이 제거되고 선거 검증 화면에서 사라집니다.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-24 w-full" />
-        ) : !backtests || backtests.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">등록된 백테스트가 없습니다.</p>
-        ) : (
-          <Table>
+    <>
+      <div className="border rounded-md overflow-x-auto">
+        <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>선거/조사명</TableHead>
@@ -477,7 +494,7 @@ function RegisteredBacktestsSection() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {backtests.map((item) => (
+              {pageItems.map((item) => (
                 <TableRow key={item.electionDate}>
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell className="tabular-nums">{item.electionDate}</TableCell>
@@ -513,9 +530,9 @@ function RegisteredBacktestsSection() {
               ))}
             </TableBody>
           </Table>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+      <TablePager page={page} pageCount={pageCount} onChange={setPage} />
+    </>
   );
 }
 
@@ -979,42 +996,40 @@ export default function Admin() {
                   <TabsTrigger value="government"><Building2 className="h-4 w-4 mr-1.5" />정부(정책)</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="politics" className="mt-6 space-y-6">
-                  <CalibrationEventsSection {...eventsProps} domain="Dynamo" />
-                  {isAdmin && (
-                    <>
-                      <ElectionImportSection
-                        sources={electionSources ?? []}
-                        isPending={importElection.isPending}
-                        onImport={async (sgId) => {
-                          try {
-                            const result = await importElection.mutateAsync({ data: { sgId } });
-                            await queryClient.invalidateQueries();
-                            toast({
-                              title: "실제 선거 데이터 연동 완료",
-                              description: `${result.electionName} · ${result.metric} · ${result.imported}개 시·도 (출처: ${result.source})`,
-                            });
-                          } catch {
-                            toast({
-                              title: "연동 실패",
-                              description: "공공데이터포털 응답을 확인해 주세요. 활용신청 승인 상태가 필요할 수 있습니다.",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                      />
-                      <ManualElectionSection regions={regions ?? []} />
-                      <RegisteredBacktestsSection />
-                    </>
-                  )}
+                <TabsContent value="politics" className="mt-6">
+                  <PoliticsBacktestPanel
+                    eventsProps={eventsProps}
+                    isAdmin={isAdmin}
+                    electionSources={electionSources ?? []}
+                    importIsPending={importElection.isPending}
+                    regions={regions ?? []}
+                    onImport={async (sgId) => {
+                      try {
+                        const result = await importElection.mutateAsync({ data: { sgId } });
+                        await queryClient.invalidateQueries();
+                        toast({
+                          title: "실제 선거 데이터 연동 완료",
+                          description: `${result.electionName} · ${result.metric} · ${result.imported}개 시·도 (출처: ${result.source})`,
+                        });
+                        return true;
+                      } catch {
+                        toast({
+                          title: "연동 실패",
+                          description: "공공데이터포털 응답을 확인해 주세요. 활용신청 승인 상태가 필요할 수 있습니다.",
+                          variant: "destructive",
+                        });
+                        return false;
+                      }
+                    }}
+                  />
                 </TabsContent>
 
                 <TabsContent value="business" className="mt-6">
-                  <CalibrationEventsSection {...eventsProps} domain="Lumen" />
+                  <ProductBacktestPanel domain="Lumen" label="비즈니스(Lumen)" eventsProps={eventsProps} />
                 </TabsContent>
 
                 <TabsContent value="government" className="mt-6">
-                  <CalibrationEventsSection {...eventsProps} domain="Seraph" />
+                  <ProductBacktestPanel domain="Seraph" label="정부(Seraph)" eventsProps={eventsProps} />
                 </TabsContent>
               </Tabs>
             );
@@ -1707,23 +1722,26 @@ function CalibrationSection({
   );
 }
 
-function CalibrationEventsSection({
-  events,
-  isLoading,
-  isCreating,
-  onCreate,
-  onDelete,
-  domain,
-}: {
+type CalibrationEventsProps = {
   events: Calibration[];
   isLoading: boolean;
   isCreating: boolean;
   onCreate: (input: CalibrationInput) => Promise<boolean>;
   onDelete: (id: number) => Promise<void>;
+};
+
+// 단일 지표 백테스트 입력 폼. 다이얼로그 본문에서 쓴다. domain이 있으면 제품 선택을 잠근다.
+function CalibrationEventForm({
+  domain,
+  isCreating,
+  onCreate,
+  onSuccess,
+}: {
   domain?: CalibrationInputProduct;
+  isCreating: boolean;
+  onCreate: (input: CalibrationInput) => Promise<boolean>;
+  onSuccess?: () => void;
 }) {
-  // domain이 지정되면 해당 제품 라인 백테스트만 다루고 제품 선택을 잠근다(하위 탭별 분리).
-  const visibleEvents = domain ? events.filter((e) => e.product === domain) : events;
   const [title, setTitle] = useState("");
   const [product, setProduct] = useState<CalibrationInputProduct>(domain ?? CALIBRATION_PRODUCT_OPTIONS[0].value);
   const [eventType, setEventType] = useState(EVENT_TYPE_OPTIONS[0]);
@@ -1756,141 +1774,285 @@ function CalibrationEventsSection({
       setMetric("");
       setActualValue("");
       setRawPrediction("");
+      onSuccess?.();
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>백테스트 추가</CardTitle>
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        결과가 알려진 과거 이벤트의 실제값과 모델의 원시 예측을 입력하면, 현재 보정 설정(축소 계수)에 따라
+        보정 예측과 오차가 자동 계산되어 백테스트 내역에 추가됩니다.
+      </p>
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>이벤트 제목</Label>
+          <Input placeholder="예: 2024 서울시장 보궐선거" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        {!domain && (
+          <div className="space-y-2">
+            <Label>제품 라인</Label>
+            <Select value={product} onValueChange={(v) => setProduct(v as CalibrationInputProduct)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {CALIBRATION_PRODUCT_OPTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <div className="space-y-2">
+          <Label>이벤트 유형</Label>
+          <Select value={eventType} onValueChange={setEventType}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {EVENT_TYPE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>기준일</Label>
+          <Input placeholder="예: 2024-04-10" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>지표</Label>
+          <Input placeholder="예: 후보 A 득표율" value={metric} onChange={(e) => setMetric(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>실제값 (%)</Label>
+          <Input type="number" min={0} max={100} placeholder="예: 52.3" value={actualValue} onChange={(e) => setActualValue(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>원시 예측 (%)</Label>
+          <Input type="number" min={0} max={100} placeholder="예: 48.5" value={rawPrediction} onChange={(e) => setRawPrediction(e.target.value)} />
+        </div>
+      </div>
+      <Button onClick={handleSubmit} disabled={!valid || isCreating}>
+        {isCreating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+        백테스트 추가
+      </Button>
+    </div>
+  );
+}
+
+// 단일 지표 백테스트 내역 표 + 페이지네이션. 카드/헤더 없이 본문만 렌더한다.
+function CalibrationEventsTable({
+  events,
+  isLoading,
+  onDelete,
+}: {
+  events: Calibration[];
+  isLoading: boolean;
+  onDelete: (id: number) => Promise<void>;
+}) {
+  const { page, setPage, pageCount, pageItems } = usePaged(events, 10);
+
+  if (isLoading) {
+    return <div className="space-y-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>;
+  }
+  if (events.length === 0) {
+    return <p className="text-sm text-muted-foreground py-4 text-center">등록된 백테스트 데이터가 없습니다.</p>;
+  }
+  return (
+    <>
+      <div className="border rounded-md overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>이벤트</TableHead>
+              <TableHead>제품</TableHead>
+              <TableHead>유형</TableHead>
+              <TableHead>기준일</TableHead>
+              <TableHead className="text-right">실제값</TableHead>
+              <TableHead className="text-right">원시 예측</TableHead>
+              <TableHead className="text-right">보정 예측</TableHead>
+              <TableHead className="text-right">원시 오차</TableHead>
+              <TableHead className="text-right">보정 오차</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pageItems.map((ev) => (
+              <TableRow key={ev.id}>
+                <TableCell className="font-medium">
+                  {ev.title}
+                  <div className="text-xs text-muted-foreground">{ev.metric}</div>
+                </TableCell>
+                <TableCell><Badge variant="outline">{sectorLabel(ev.product)}</Badge></TableCell>
+                <TableCell><Badge variant="secondary">{ev.eventType}</Badge></TableCell>
+                <TableCell className="whitespace-nowrap">{ev.targetDate}</TableCell>
+                <TableCell className="text-right tabular-nums">{ev.actualValue}%</TableCell>
+                <TableCell className="text-right tabular-nums">{ev.rawPrediction}%</TableCell>
+                <TableCell className="text-right tabular-nums text-primary font-medium">{ev.calibratedPrediction}%</TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">{ev.rawError}%</TableCell>
+                <TableCell className="text-right tabular-nums text-primary">{ev.calibratedError}%</TableCell>
+                <TableCell>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>이 백테스트를 삭제하시겠습니까?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          "{ev.title}" 항목이 백테스트 내역에서 제거됩니다. 이 작업은 되돌릴 수 없습니다.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>취소</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onDelete(ev.id)} className="bg-destructive text-destructive-foreground">삭제</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <TablePager page={page} pageCount={pageCount} onChange={setPage} />
+    </>
+  );
+}
+
+// 비즈니스(Lumen)·정부(Seraph) 탭: 상단 내역 + "백테스트 추가" 다이얼로그.
+function ProductBacktestPanel({
+  domain,
+  label,
+  eventsProps,
+}: {
+  domain: CalibrationInputProduct;
+  label: string;
+  eventsProps: CalibrationEventsProps;
+}) {
+  const [open, setOpen] = useState(false);
+  const visible = eventsProps.events.filter((e) => e.product === domain);
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+        <div className="space-y-1.5">
+          <CardTitle>
+            백테스트 내역 <span className="text-sm font-normal text-muted-foreground">({visible.length}개)</span>
+          </CardTitle>
           <CardDescription>
-            결과가 알려진 과거 이벤트의 실제값과 모델의 원시 예측을 입력하면, 현재 보정 설정(축소 계수)에 따라
-            보정 예측과 오차가 자동 계산되어 백테스트 내역에 추가됩니다.
+            {label} 제품 라인의 과거 이벤트 검증 내역입니다. 오래된 항목은 삭제하고 최신 이벤트를 추가하세요.
           </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>이벤트 제목</Label>
-              <Input placeholder="예: 2024 서울시장 보궐선거" value={title} onChange={(e) => setTitle(e.target.value)} />
-            </div>
-            {!domain && (
+        </div>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button className="shrink-0"><Plus className="h-4 w-4 mr-1.5" />백테스트 추가</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>백테스트 추가</DialogTitle>
+              <DialogDescription>{label} 제품 라인의 과거 이벤트를 등록합니다.</DialogDescription>
+            </DialogHeader>
+            <CalibrationEventForm
+              domain={domain}
+              isCreating={eventsProps.isCreating}
+              onCreate={eventsProps.onCreate}
+              onSuccess={() => setOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      <CardContent>
+        <CalibrationEventsTable events={visible} isLoading={eventsProps.isLoading} onDelete={eventsProps.onDelete} />
+      </CardContent>
+    </Card>
+  );
+}
+
+// 정치(Dynamo) 탭: 통합 내역(단일 지표 / 선거 시·도별) + 추가 방식 선택 다이얼로그(자동연동·수동·단일).
+function PoliticsBacktestPanel({
+  eventsProps,
+  isAdmin,
+  electionSources,
+  importIsPending,
+  onImport,
+  regions,
+}: {
+  eventsProps: CalibrationEventsProps;
+  isAdmin: boolean;
+  electionSources: ElectionSource[];
+  importIsPending: boolean;
+  onImport: (sgId: string) => Promise<boolean>;
+  regions: Region[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [addType, setAddType] = useState<"auto" | "manual" | "single">("auto");
+  const visible = eventsProps.events.filter((e) => e.product === "Dynamo");
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+        <div className="space-y-1.5">
+          <CardTitle>백테스트 내역</CardTitle>
+          <CardDescription>
+            정치(선거) 제품 라인의 검증 내역입니다. 직접 입력한 단일 지표 백테스트와 선거 시·도별 기준값을 함께 관리합니다.
+          </CardDescription>
+        </div>
+        {isAdmin && (
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="shrink-0"><Plus className="h-4 w-4 mr-1.5" />백테스트 추가</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>백테스트 추가</DialogTitle>
+                <DialogDescription>추가 방식을 선택해 정치(선거) 백테스트를 등록합니다.</DialogDescription>
+              </DialogHeader>
               <div className="space-y-2">
-                <Label>제품 라인</Label>
-                <Select value={product} onValueChange={(v) => setProduct(v as CalibrationInputProduct)}>
+                <Label>추가 방식</Label>
+                <Select value={addType} onValueChange={(v) => setAddType(v as "auto" | "manual" | "single")}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {CALIBRATION_PRODUCT_OPTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                    <SelectItem value="auto">자동 연동 (data.go.kr 실제 선거)</SelectItem>
+                    <SelectItem value="manual">수동 선거 입력 (시·도별)</SelectItem>
+                    <SelectItem value="single">단일 지표 입력</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            )}
-            <div className="space-y-2">
-              <Label>이벤트 유형</Label>
-              <Select value={eventType} onValueChange={setEventType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {EVENT_TYPE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>기준일</Label>
-              <Input placeholder="예: 2024-04-10" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>지표</Label>
-              <Input placeholder="예: 후보 A 득표율" value={metric} onChange={(e) => setMetric(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>실제값 (%)</Label>
-              <Input type="number" min={0} max={100} placeholder="예: 52.3" value={actualValue} onChange={(e) => setActualValue(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>원시 예측 (%)</Label>
-              <Input type="number" min={0} max={100} placeholder="예: 48.5" value={rawPrediction} onChange={(e) => setRawPrediction(e.target.value)} />
-            </div>
-          </div>
-          <Button onClick={handleSubmit} disabled={!valid || isCreating}>
-            {isCreating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-            백테스트 추가
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>백테스트 내역 <span className="text-sm font-normal text-muted-foreground">({visibleEvents.length}개)</span></CardTitle>
-          <CardDescription>오래된 이벤트는 삭제하고 최신 이벤트를 추가하는 방식으로 관리합니다.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
-          ) : visibleEvents.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">등록된 백테스트 데이터가 없습니다.</p>
-          ) : (
-            <div className="border rounded-md overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>이벤트</TableHead>
-                    <TableHead>제품</TableHead>
-                    <TableHead>유형</TableHead>
-                    <TableHead>기준일</TableHead>
-                    <TableHead className="text-right">실제값</TableHead>
-                    <TableHead className="text-right">원시 예측</TableHead>
-                    <TableHead className="text-right">보정 예측</TableHead>
-                    <TableHead className="text-right">원시 오차</TableHead>
-                    <TableHead className="text-right">보정 오차</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visibleEvents.map((ev) => (
-                    <TableRow key={ev.id}>
-                      <TableCell className="font-medium">
-                        {ev.title}
-                        <div className="text-xs text-muted-foreground">{ev.metric}</div>
-                      </TableCell>
-                      <TableCell><Badge variant="outline">{sectorLabel(ev.product)}</Badge></TableCell>
-                      <TableCell><Badge variant="secondary">{ev.eventType}</Badge></TableCell>
-                      <TableCell className="whitespace-nowrap">{ev.targetDate}</TableCell>
-                      <TableCell className="text-right tabular-nums">{ev.actualValue}%</TableCell>
-                      <TableCell className="text-right tabular-nums">{ev.rawPrediction}%</TableCell>
-                      <TableCell className="text-right tabular-nums text-primary font-medium">{ev.calibratedPrediction}%</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{ev.rawError}%</TableCell>
-                      <TableCell className="text-right tabular-nums text-primary">{ev.calibratedError}%</TableCell>
-                      <TableCell>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>이 백테스트를 삭제하시겠습니까?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                "{ev.title}" 항목이 백테스트 내역에서 제거됩니다. 이 작업은 되돌릴 수 없습니다.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>취소</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => onDelete(ev.id)} className="bg-destructive text-destructive-foreground">삭제</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+              <div className="pt-2 border-t">
+                {addType === "auto" && (
+                  <ElectionImportSection
+                    sources={electionSources}
+                    isPending={importIsPending}
+                    onImport={async (sgId) => {
+                      const ok = await onImport(sgId);
+                      if (ok) setOpen(false);
+                    }}
+                  />
+                )}
+                {addType === "manual" && <ManualElectionSection regions={regions} onDone={() => setOpen(false)} />}
+                {addType === "single" && (
+                  <CalibrationEventForm
+                    domain="Dynamo"
+                    isCreating={eventsProps.isCreating}
+                    onCreate={eventsProps.onCreate}
+                    onSuccess={() => setOpen(false)}
+                  />
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="single">
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="single">단일 지표 ({visible.length})</TabsTrigger>
+            <TabsTrigger value="election"><Vote className="h-4 w-4 mr-1.5" />선거 시·도별</TabsTrigger>
+          </TabsList>
+          <TabsContent value="single" className="mt-4">
+            <CalibrationEventsTable events={visible} isLoading={eventsProps.isLoading} onDelete={eventsProps.onDelete} />
+          </TabsContent>
+          <TabsContent value="election" className="mt-4">
+            <RegisteredBacktestsTable />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }
 
