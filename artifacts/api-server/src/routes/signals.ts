@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { jsonReady } from "../lib/serialize";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
 import { db, signalBatchesTable, signalSettingsTable } from "@workspace/db";
 import type { SignalSettings } from "@workspace/db";
 import { tenantId } from "../lib/tenant";
@@ -125,10 +125,11 @@ router.put(
 );
 
 // ── 목록/단건(공용) ───────────────────────────────────────────────────────
-router.get("/signals", async (_req, res): Promise<void> => {
+router.get("/signals", async (req, res): Promise<void> => {
   const rows = await db
     .select()
     .from(signalBatchesTable)
+    .where(eq(signalBatchesTable.userId, tenantId(req)))
     .orderBy(desc(signalBatchesTable.collectedAt));
   res.json(ListSignalsResponse.parse(jsonReady(rows)));
 });
@@ -142,7 +143,12 @@ router.get("/signals/:id", async (req, res): Promise<void> => {
   const [batch] = await db
     .select()
     .from(signalBatchesTable)
-    .where(eq(signalBatchesTable.id, params.data.id));
+    .where(
+      and(
+        eq(signalBatchesTable.id, params.data.id),
+        eq(signalBatchesTable.userId, tenantId(req)),
+      ),
+    );
   if (!batch) {
     res.status(404).json({ error: "Signal batch not found" });
     return;
@@ -272,7 +278,7 @@ router.post(
   async (req, res): Promise<void> => {
     const uid = tenantId(req);
     const settings = await getGlobalSettings();
-    await db.delete(signalBatchesTable);
+    await db.delete(signalBatchesTable).where(eq(signalBatchesTable.userId, uid));
 
     const now = Date.now();
     const dayMs = 24 * 60 * 60 * 1000;
@@ -334,7 +340,12 @@ router.patch(
     const [batch] = await db
       .select()
       .from(signalBatchesTable)
-      .where(eq(signalBatchesTable.id, params.data.id));
+      .where(
+        and(
+          eq(signalBatchesTable.id, params.data.id),
+          eq(signalBatchesTable.userId, tenantId(req)),
+        ),
+      );
     if (!batch) {
       res.status(404).json({ error: "Signal batch not found" });
       return;
@@ -398,7 +409,12 @@ router.delete(
     }
     const deleted = await db
       .delete(signalBatchesTable)
-      .where(eq(signalBatchesTable.id, params.data.id))
+      .where(
+        and(
+          eq(signalBatchesTable.id, params.data.id),
+          eq(signalBatchesTable.userId, tenantId(req)),
+        ),
+      )
       .returning();
     if (deleted.length === 0) {
       res.status(404).json({ error: "Signal batch not found" });

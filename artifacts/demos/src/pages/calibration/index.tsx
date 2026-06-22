@@ -528,9 +528,9 @@ function EventBacktestView({
         </Alert>
         <Card>
           <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            등록된 {domainLabel} 검증 이벤트가 없습니다.<br />
+            등록된 {domainLabel} 백테스트 데이터가 없습니다.<br />
             <span className="mt-1 inline-block">
-              관리자 → 검증 이벤트에서 제품 라인을 <strong>{domainLabel}</strong>으로 선택해 과거 이벤트를 추가하면 백테스트가 생성됩니다.
+              관리자 → 검증 이벤트에서 제품 라인을 <strong>{domainLabel}</strong>으로 선택해 과거 실측 결과를 추가하면 백테스트가 생성됩니다.
             </span>
           </CardContent>
         </Card>
@@ -600,7 +600,7 @@ function EventBacktestView({
 
       <Card>
         <CardHeader>
-          <CardTitle>검증 이벤트 상세</CardTitle>
+          <CardTitle>백테스트 상세</CardTitle>
           <CardDescription>최신순</CardDescription>
         </CardHeader>
         <CardContent>
