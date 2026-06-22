@@ -13,6 +13,30 @@ import { batchProcess } from "@workspace/integrations-openai-ai-server/batch";
 import { logger } from "./logger";
 import { costFromUsage, estimateCost, RUN_CONCURRENCY } from "./pricing";
 import { buildPrompt, isCommercialSim, isPolicySim } from "./prompts";
+import { GLOBAL_LEARNING_USER_ID } from "./tenant";
+
+/**
+ * 시뮬레이션 표본 추출(역할 기반 공유 모델).
+ * 합성 학습 인구는 전역(userId=0) 공유 풀이며, 각 시뮬레이션은 그 풀에서
+ * `n`(=simulations.totalAgents = 사용자가 고른 표본 크기)만큼만 결정론적으로
+ * 부분 추출해 평가한다. md5(agentId:simId) 정렬로 자치구·연령 셀 순차 생성 편향을
+ * 흩뜨려 표본 대표성을 확보하고, 같은 (simId, n) 이면 항상 같은 표본을 돌려줘
+ * resume/tick 경로가 동일 집합을 본다.
+ */
+async function selectSampledAgents(
+  simulationId: number,
+  n: number,
+): Promise<Agent[]> {
+  if (n <= 0) return [];
+  return db
+    .select()
+    .from(agentsTable)
+    .where(eq(agentsTable.userId, GLOBAL_LEARNING_USER_ID))
+    .orderBy(
+      sql`md5(${agentsTable.id}::text || ':' || ${simulationId}::text)`,
+    )
+    .limit(n);
+}
 
 type AgentVerdict = {
   stance: "support" | "oppose" | "neutral";
@@ -280,10 +304,8 @@ export async function runSimulation(
       return;
     }
 
-    const agents = await db
-      .select()
-      .from(agentsTable)
-      .where(eq(agentsTable.userId, sim.userId));
+    // 전역 인구 풀에서 이 시뮬레이션의 표본(totalAgents)만 결정론적으로 추출.
+    const agents = await selectSampledAgents(simulationId, sim.totalAgents);
 
     // 신규 실행은 이전 결과를 초기화한다. resume 은 보존한다.
     if (!resume) {
@@ -509,10 +531,8 @@ export async function processSimulationBatch(
       return;
     }
 
-    const agents = await db
-      .select()
-      .from(agentsTable)
-      .where(eq(agentsTable.userId, sim.userId));
+    // 전역 인구 풀에서 이 시뮬레이션의 표본(totalAgents)만 결정론적으로 추출.
+    const agents = await selectSampledAgents(simulationId, sim.totalAgents);
 
     const existing = await db
       .select({ agentId: simulationResponsesTable.agentId })

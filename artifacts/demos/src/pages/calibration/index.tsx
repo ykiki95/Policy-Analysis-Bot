@@ -21,6 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/use-auth";
 
 const PRODUCT_META: { key: string; product: string; label: string; track: string }[] = [
   { key: "Dynamo", product: "Dynamo", label: "정치", track: "정치성향 기준선" },
@@ -96,6 +97,7 @@ function AccuracyTrendLearning() {
  */
 function CalibrationLoopHub({ calibrations }: { calibrations: Calibration[] }) {
   const { data: settings } = useGetCalibrationSettings();
+  const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const update = useUpdateCalibrationSettings({
     mutation: {
@@ -179,12 +181,16 @@ function CalibrationLoopHub({ calibrations }: { calibrations: Calibration[] }) {
               <Label htmlFor="apply-to-pop" className="text-sm">
                 {applyToPopulation ? "켜짐" : "꺼짐"}
               </Label>
-              <Switch
-                id="apply-to-pop"
-                checked={applyToPopulation}
-                onCheckedChange={handleToggle}
-                disabled={!settings || update.isPending}
-              />
+              {isAdmin ? (
+                <Switch
+                  id="apply-to-pop"
+                  checked={applyToPopulation}
+                  onCheckedChange={handleToggle}
+                  disabled={!settings || update.isPending}
+                />
+              ) : (
+                <Badge variant="secondary" className="shrink-0">관리자 전용</Badge>
+              )}
             </div>
           </div>
         </CardHeader>

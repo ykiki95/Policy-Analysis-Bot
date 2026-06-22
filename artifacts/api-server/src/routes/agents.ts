@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, type SQL } from "drizzle-orm";
 import { db, agentsTable } from "@workspace/db";
 import { jsonReady } from "../lib/serialize";
-import { tenantId } from "../lib/tenant";
+import { GLOBAL_LEARNING_USER_ID } from "../lib/tenant";
 import {
   ListAgentsResponse,
   ListAgentsQueryParams,
@@ -27,7 +27,9 @@ router.get("/agents", async (req, res): Promise<void> => {
   }
   const { district, gender, ageBracket, limit } = query.data;
 
-  const conditions: SQL[] = [eq(agentsTable.userId, tenantId(req))];
+  const conditions: SQL[] = [
+    eq(agentsTable.userId, GLOBAL_LEARNING_USER_ID),
+  ];
   if (district) conditions.push(eq(agentsTable.district, district));
   if (gender) conditions.push(eq(agentsTable.gender, gender));
   if (ageBracket) conditions.push(eq(agentsTable.ageBracket, ageBracket));
@@ -46,7 +48,7 @@ router.get("/agents/summary", async (req, res): Promise<void> => {
   const rows = await db
     .select()
     .from(agentsTable)
-    .where(eq(agentsTable.userId, tenantId(req)));
+    .where(eq(agentsTable.userId, GLOBAL_LEARNING_USER_ID));
   const total = rows.length;
 
   const breakdown = (keyFn: (a: (typeof rows)[number]) => string) => {
@@ -105,7 +107,7 @@ router.get("/agents/:id", async (req, res): Promise<void> => {
     .where(
       and(
         eq(agentsTable.id, params.data.id),
-        eq(agentsTable.userId, tenantId(req)),
+        eq(agentsTable.userId, GLOBAL_LEARNING_USER_ID),
       ),
     );
   if (!agent) {

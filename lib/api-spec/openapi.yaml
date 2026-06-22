@@ -1888,6 +1888,10 @@ components:
         product: { type: string }
         policyText: { type: string, minLength: 1 }
         model: { type: string }
+        sampleSize:
+          type: integer
+          minimum: 1
+          description: 전역 인구 풀에서 추출할 표본 크기. 미지정 시 전역 인구 전체.
 
     EstimateInput:
       type: object

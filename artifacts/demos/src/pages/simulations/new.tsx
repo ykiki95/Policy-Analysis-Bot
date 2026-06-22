@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useEstimateSimulation, useCreateSimulation, useRunSimulation, getListSimulationsQueryKey, getGetDashboardSummaryQueryKey, getGetBudgetQueryKey } from "@workspace/api-client-react";
+import { useEstimateSimulation, useCreateSimulation, useRunSimulation, useGetAgentSummary, getListSimulationsQueryKey, getGetDashboardSummaryQueryKey, getGetBudgetQueryKey } from "@workspace/api-client-react";
 import { runErrorMessage } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -21,6 +21,10 @@ const formSchema = z.object({
   title: z.string().min(2, { message: "제목은 2자 이상이어야 합니다." }),
   product: z.string().min(1, { message: "제품 라인을 선택해주세요." }),
   model: z.string().min(1),
+  sampleSize: z.coerce
+    .number({ message: "표본 크기를 입력해주세요." })
+    .int()
+    .min(1, { message: "표본 크기는 1명 이상이어야 합니다." }),
   policyText: z.string().min(10, { message: "내용은 최소 10자 이상 입력해주세요." }),
 });
 
@@ -48,6 +52,7 @@ export default function NewSimulation() {
       title: "",
       product: "Seraph",
       model: "gpt-5-mini",
+      sampleSize: 500,
       policyText: "",
     },
   });
@@ -55,16 +60,34 @@ export default function NewSimulation() {
   const estimateMut = useEstimateSimulation();
   const createMut = useCreateSimulation();
   const runMut = useRunSimulation();
+  // 전역 공유 인구 풀 크기 — 표본 크기 상한.
+  const { data: agentSummary } = useGetAgentSummary();
+  const populationSize = agentSummary?.total ?? 0;
 
   const watchModel = form.watch("model");
   const watchProduct = form.watch("product");
+  const watchSampleSize = form.watch("sampleSize");
   const derivedAudience = audienceForProduct(watchProduct);
 
+  // 인구 풀이 로드되면 표본 기본값을 가용 인구로 맞춘다(상한 초과 시 클램프).
+  const didInitSample = useRef(false);
   useEffect(() => {
-    // Automatically estimate when model changes
+    if (populationSize <= 0) return;
+    if (!didInitSample.current) {
+      form.setValue("sampleSize", populationSize, { shouldValidate: true });
+      didInitSample.current = true;
+    } else if (watchSampleSize > populationSize) {
+      form.setValue("sampleSize", populationSize, { shouldValidate: true });
+    }
+  }, [populationSize]);
+
+  useEffect(() => {
+    // 모델·표본 크기가 바뀌면 비용을 재산출한다.
+    const n = Number(watchSampleSize);
+    if (!Number.isFinite(n) || n < 1) return;
     setEstimateLoading(true);
     estimateMut.mutate(
-      { data: { model: watchModel } },
+      { data: { model: watchModel, totalAgents: Math.round(n) } },
       {
         onSuccess: (data) => {
           setEstimatedCost({
@@ -78,7 +101,7 @@ export default function NewSimulation() {
         onError: () => setEstimateLoading(false)
       }
     );
-  }, [watchModel]);
+  }, [watchModel, watchSampleSize]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     setRunError(null);
@@ -183,6 +206,28 @@ export default function NewSimulation() {
                         </Select>
                         <FormDescription>
                           추론 복잡도와 예산에 따라 모델을 선택하세요.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="sampleSize"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>표본 크기</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={populationSize || undefined}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          공유 학습 인구{populationSize > 0 && <> {populationSize.toLocaleString()}명</>} 중 추출해 실험할 에이전트 수입니다. 표본이 클수록 정밀하지만 비용·시간이 늘어납니다.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

@@ -737,9 +737,9 @@ export default function Admin() {
         <TabsContent value="population" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>합성 인구 규모</CardTitle>
+              <CardTitle>공유 학습 인구 규모</CardTitle>
               <CardDescription>
-                에이전트 수를 조정하면 공공 통계 분포에 따라 인구가 결정적으로 재생성됩니다. 기존 시뮬레이션 결과는 보존됩니다.
+                모든 계정이 공유하는 합성 학습 인구입니다. 에이전트 수를 조정하면 공공 통계 분포에 따라 인구가 결정적으로 재생성됩니다. 각 시뮬레이션은 이 인구에서 표본 크기만큼 추출해 실행하며, 기존 시뮬레이션 결과는 보존됩니다.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

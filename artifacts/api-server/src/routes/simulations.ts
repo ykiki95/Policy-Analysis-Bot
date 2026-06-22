@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { jsonReady } from "../lib/serialize";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import {
   db,
   agentsTable,
@@ -28,7 +28,12 @@ import {
 } from "@workspace/api-zod";
 import { estimateCost, DEFAULT_MODEL, isSupportedModel } from "../lib/pricing";
 import { processSimulationBatch } from "../lib/simulationEngine";
-import { tenantId, isAdmin } from "../lib/tenant";
+import {
+  tenantId,
+  isAdmin,
+  GLOBAL_LEARNING_USER_ID,
+  learningReadIds,
+} from "../lib/tenant";
 import { assertWithinBudgetTx, BudgetExceededError } from "../lib/budget";
 import { runLimiter } from "../lib/rateLimit";
 import { POLICY_AXIS_KEYS, POLICY_AXIS_LABELS } from "../lib/policyWeighting";
@@ -76,8 +81,10 @@ router.post("/simulations/estimate", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  // 표본 크기(totalAgents)가 없으면 전역 인구 전체를 기본값으로 한다.
   const totalAgents =
-    parsed.data.totalAgents ?? (await countAgents(tenantId(req)));
+    parsed.data.totalAgents ??
+    (await countAgents(GLOBAL_LEARNING_USER_ID));
   if (!Number.isFinite(totalAgents) || totalAgents < 1) {
     res.status(400).json({ error: "totalAgents must be a positive integer" });
     return;
@@ -96,7 +103,15 @@ router.post("/simulations", async (req, res): Promise<void> => {
     parsed.data.model && isSupportedModel(parsed.data.model)
       ? parsed.data.model
       : DEFAULT_MODEL;
-  const totalAgents = await countAgents(tenantId(req));
+  // 시뮬레이션은 계정별이지만 인구는 전역 공유 풀에서 표본 추출한다. 사용자가
+  // 고른 표본 크기(sampleSize)를 가용 전역 인구 [1..pop] 로 클램프해 totalAgents 로
+  // 저장한다. 미지정 시 전역 인구 전체를 사용한다.
+  const populationSize = await countAgents(GLOBAL_LEARNING_USER_ID);
+  const requested = parsed.data.sampleSize ?? populationSize;
+  const totalAgents = Math.max(
+    1,
+    Math.min(requested, Math.max(1, populationSize)),
+  );
   const estimate = estimateCost(model, totalAgents);
 
   const [sim] = await db
@@ -256,14 +271,14 @@ router.get("/simulations/:id", async (req, res): Promise<void> => {
         .where(
           and(
             eq(calibrationsTable.product, sim.product),
-            eq(calibrationsTable.userId, uid),
+            inArray(calibrationsTable.userId, learningReadIds(req)),
           ),
         )
         .orderBy(desc(calibrationsTable.targetDate)),
       db
         .select()
         .from(calibrationSettingsTable)
-        .where(eq(calibrationSettingsTable.userId, uid))
+        .where(eq(calibrationSettingsTable.userId, GLOBAL_LEARNING_USER_ID))
         .limit(1),
     ]);
     const model = buildOutputCalibrationModel(
@@ -340,9 +355,13 @@ router.post("/simulations/:id/run", runLimiter, async (req, res): Promise<void> 
     return;
   }
 
-  // 실행 시점 기준으로 추정 비용을 재계산한다(생성 후 인구 규모가 바뀌었을 수
-  // 있으므로 저장된 costEstimateUsd 를 그대로 신뢰하지 않는다).
-  const freshAgents = await countAgents(uid);
+  // 실행 시점 기준으로 추정 비용을 재계산한다. 표본 크기(sim.totalAgents)는
+  // 고정이되, 생성 후 전역 인구가 줄었을 수 있으므로 가용 인구로 클램프한다.
+  const populationSize = await countAgents(GLOBAL_LEARNING_USER_ID);
+  const freshAgents = Math.max(
+    1,
+    Math.min(sim.totalAgents, Math.max(1, populationSize)),
+  );
   const freshEstimate = estimateCost(sim.model, freshAgents).estimatedCostUsd;
 
   // 예산 검사 + 큐 적재를 하나의 트랜잭션으로 묶는다. 사용자 행을 FOR UPDATE 로
@@ -543,7 +562,7 @@ router.post("/simulations/:id/actual", async (req, res): Promise<void> => {
 
 // 라이프사이클 3단계(관리자): 시뮬레이션의 예측 vs 실제를 검증 이벤트(calibration)로
 // 전환해 보정 루프에 환류한다. /admin 미들웨어 밖이라 isAdmin 을 직접 검사한다.
-// 검증 이벤트는 시뮬레이션 소유자 스코프로 생성되어 해당 사용자의 보정 화면에 나타난다.
+// 관리자 큐레이션이므로 검증 이벤트는 전역 학습(0)으로 생성되어 전 계정 보정에 환류한다.
 router.post("/simulations/:id/learn", async (req, res): Promise<void> => {
   if (!isAdmin(req)) {
     res.status(403).json({ error: "관리자만 학습을 적용할 수 있습니다." });
@@ -577,7 +596,7 @@ router.post("/simulations/:id/learn", async (req, res): Promise<void> => {
   const [settings] = await db
     .select()
     .from(calibrationSettingsTable)
-    .where(eq(calibrationSettingsTable.userId, sim.userId))
+    .where(eq(calibrationSettingsTable.userId, GLOBAL_LEARNING_USER_ID))
     .limit(1);
   const shrinkage = settings?.shrinkageFactor ?? 0.4;
   const method = settings?.method ?? "post_stratify_shrink";
@@ -598,7 +617,7 @@ router.post("/simulations/:id/learn", async (req, res): Promise<void> => {
   const [created] = await db
     .insert(calibrationsTable)
     .values({
-      userId: sim.userId,
+      userId: GLOBAL_LEARNING_USER_ID,
       title: `시뮬레이션 학습 — ${sim.title}`,
       product: sim.product,
       eventType: "시뮬레이션",

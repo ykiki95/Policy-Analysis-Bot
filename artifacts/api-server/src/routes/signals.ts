@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
 import { jsonReady } from "../lib/serialize";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { db, signalBatchesTable, signalSettingsTable } from "@workspace/db";
 import type { SignalSettings } from "@workspace/db";
-import { tenantId } from "../lib/tenant";
+import { GLOBAL_LEARNING_USER_ID, learningReadIds } from "../lib/tenant";
 import { requireAdmin } from "../lib/auth";
 import {
   ListSignalsResponse,
@@ -126,10 +126,11 @@ router.put(
 
 // ── 목록/단건(공용) ───────────────────────────────────────────────────────
 router.get("/signals", async (req, res): Promise<void> => {
+  // 전역(관리자 큐레이션) 신호 + 본인 개인 신호를 함께 보여준다.
   const rows = await db
     .select()
     .from(signalBatchesTable)
-    .where(eq(signalBatchesTable.userId, tenantId(req)))
+    .where(inArray(signalBatchesTable.userId, learningReadIds(req)))
     .orderBy(desc(signalBatchesTable.collectedAt));
   res.json(ListSignalsResponse.parse(jsonReady(rows)));
 });
@@ -146,7 +147,7 @@ router.get("/signals/:id", async (req, res): Promise<void> => {
     .where(
       and(
         eq(signalBatchesTable.id, params.data.id),
-        eq(signalBatchesTable.userId, tenantId(req)),
+        inArray(signalBatchesTable.userId, learningReadIds(req)),
       ),
     );
   if (!batch) {
@@ -182,7 +183,7 @@ router.post(
     const [created] = await db
       .insert(signalBatchesTable)
       .values({
-        userId: tenantId(req),
+        userId: GLOBAL_LEARNING_USER_ID,
         source: d.source,
         title:
           d.title && d.title.trim().length > 0 ? d.title.trim() : effect.title,
@@ -214,7 +215,7 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const uid = tenantId(req);
+    const uid = GLOBAL_LEARNING_USER_ID;
     const settings = await getGlobalSettings();
     const count = parsed.data.count ?? 1;
     const requestedSource = parsed.data.source as SignalSource | undefined;
@@ -276,7 +277,7 @@ router.post(
   "/admin/signals/reset",
   requireAdmin,
   async (req, res): Promise<void> => {
-    const uid = tenantId(req);
+    const uid = GLOBAL_LEARNING_USER_ID;
     const settings = await getGlobalSettings();
     await db.delete(signalBatchesTable).where(eq(signalBatchesTable.userId, uid));
 
@@ -343,7 +344,7 @@ router.patch(
       .where(
         and(
           eq(signalBatchesTable.id, params.data.id),
-          eq(signalBatchesTable.userId, tenantId(req)),
+          eq(signalBatchesTable.userId, GLOBAL_LEARNING_USER_ID),
         ),
       );
     if (!batch) {
@@ -412,7 +413,7 @@ router.delete(
       .where(
         and(
           eq(signalBatchesTable.id, params.data.id),
-          eq(signalBatchesTable.userId, tenantId(req)),
+          eq(signalBatchesTable.userId, GLOBAL_LEARNING_USER_ID),
         ),
       )
       .returning();

@@ -2,7 +2,8 @@ import { Router, type IRouter } from "express";
 import { jsonReady } from "../lib/serialize";
 import { eq, and } from "drizzle-orm";
 import { db, surveysTable } from "@workspace/db";
-import { tenantId } from "../lib/tenant";
+import { GLOBAL_LEARNING_USER_ID } from "../lib/tenant";
+import { requireAdmin } from "../lib/auth";
 import {
   ListSurveysResponse,
   GetSurveyParams,
@@ -16,16 +17,17 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/surveys", async (req, res): Promise<void> => {
+router.get("/surveys", async (_req, res): Promise<void> => {
+  // 설문은 합성 인구 학습 입력 — 전역(관리자 큐레이션) 공유. 모든 계정이 동일 열람.
   const rows = await db
     .select()
     .from(surveysTable)
-    .where(eq(surveysTable.userId, tenantId(req)))
+    .where(eq(surveysTable.userId, GLOBAL_LEARNING_USER_ID))
     .orderBy(surveysTable.id);
   res.json(ListSurveysResponse.parse(jsonReady(rows)));
 });
 
-router.post("/surveys", async (req, res): Promise<void> => {
+router.post("/surveys", requireAdmin, async (req, res): Promise<void> => {
   const parsed = CreateSurveyBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -35,7 +37,7 @@ router.post("/surveys", async (req, res): Promise<void> => {
   const [created] = await db
     .insert(surveysTable)
     .values({
-      userId: tenantId(req),
+      userId: GLOBAL_LEARNING_USER_ID,
       title: d.title,
       description: d.description ?? "",
       methodology: d.methodology ?? "직접 입력",
@@ -68,7 +70,7 @@ router.get("/surveys/:id", async (req, res): Promise<void> => {
     .where(
       and(
         eq(surveysTable.id, params.data.id),
-        eq(surveysTable.userId, tenantId(req)),
+        eq(surveysTable.userId, GLOBAL_LEARNING_USER_ID),
       ),
     );
   if (!survey) {
@@ -78,7 +80,7 @@ router.get("/surveys/:id", async (req, res): Promise<void> => {
   res.json(GetSurveyResponse.parse(jsonReady(survey)));
 });
 
-router.delete("/surveys/:id", async (req, res): Promise<void> => {
+router.delete("/surveys/:id", requireAdmin, async (req, res): Promise<void> => {
   const params = DeleteSurveyParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -89,7 +91,7 @@ router.delete("/surveys/:id", async (req, res): Promise<void> => {
     .where(
       and(
         eq(surveysTable.id, params.data.id),
-        eq(surveysTable.userId, tenantId(req)),
+        eq(surveysTable.userId, GLOBAL_LEARNING_USER_ID),
       ),
     )
     .returning();
@@ -100,32 +102,36 @@ router.delete("/surveys/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
-router.patch("/surveys/:id/applied", async (req, res): Promise<void> => {
-  const params = SetSurveyAppliedParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  const body = SetSurveyAppliedBody.safeParse(req.body);
-  if (!body.success) {
-    res.status(400).json({ error: body.error.message });
-    return;
-  }
-  const [updated] = await db
-    .update(surveysTable)
-    .set({ appliedToPopulation: body.data.appliedToPopulation })
-    .where(
-      and(
-        eq(surveysTable.id, params.data.id),
-        eq(surveysTable.userId, tenantId(req)),
-      ),
-    )
-    .returning();
-  if (!updated) {
-    res.status(404).json({ error: "Survey not found" });
-    return;
-  }
-  res.json(SetSurveyAppliedResponse.parse(jsonReady(updated)));
-});
+router.patch(
+  "/surveys/:id/applied",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = SetSurveyAppliedParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const body = SetSurveyAppliedBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: body.error.message });
+      return;
+    }
+    const [updated] = await db
+      .update(surveysTable)
+      .set({ appliedToPopulation: body.data.appliedToPopulation })
+      .where(
+        and(
+          eq(surveysTable.id, params.data.id),
+          eq(surveysTable.userId, GLOBAL_LEARNING_USER_ID),
+        ),
+      )
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "Survey not found" });
+      return;
+    }
+    res.json(SetSurveyAppliedResponse.parse(jsonReady(updated)));
+  },
+);
 
 export default router;

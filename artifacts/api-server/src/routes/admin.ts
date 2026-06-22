@@ -15,7 +15,7 @@ import {
 } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { jsonReady } from "../lib/serialize";
-import { tenantId } from "../lib/tenant";
+import { GLOBAL_LEARNING_USER_ID } from "../lib/tenant";
 import { requireAdmin, hashPassword } from "../lib/auth";
 import { getSpend } from "../lib/budget";
 import { generateAgents } from "../lib/agentGenerator";
@@ -186,6 +186,7 @@ router.get(
 
 router.post(
   "/admin/population/regenerate",
+  requireAdmin,
   async (req, res): Promise<void> => {
     const parsed = RegeneratePopulationBody.safeParse(req.body);
     if (!parsed.success) {
@@ -193,7 +194,9 @@ router.post(
       return;
     }
     const { count, seed, regionScope } = parsed.data;
-    const uid = tenantId(req);
+    // 합성 학습 인구는 전 계정 공유. 관리자가 ?accountId 로 무엇을 보고 있든
+    // 인구는 항상 전역(0) 소유로 교체한다.
+    const uid = GLOBAL_LEARNING_USER_ID;
     const { inputs, scopeName } = await buildGenerationInputs(
       count,
       seed ?? undefined,
@@ -223,12 +226,12 @@ router.get("/admin/survey-uploads", async (req, res): Promise<void> => {
   const rows = await db
     .select()
     .from(surveyUploadsTable)
-    .where(eq(surveyUploadsTable.userId, tenantId(req)))
+    .where(eq(surveyUploadsTable.userId, GLOBAL_LEARNING_USER_ID))
     .orderBy(surveyUploadsTable.id);
   res.json(ListSurveyUploadsResponse.parse(jsonReady(rows)));
 });
 
-router.post("/admin/survey-uploads", async (req, res): Promise<void> => {
+router.post("/admin/survey-uploads", requireAdmin, async (req, res): Promise<void> => {
   const parsed = CreateSurveyUploadBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -239,7 +242,7 @@ router.post("/admin/survey-uploads", async (req, res): Promise<void> => {
   const [created] = await db
     .insert(surveyUploadsTable)
     .values({
-      userId: tenantId(req),
+      userId: GLOBAL_LEARNING_USER_ID,
       fileName,
       description: description ?? "",
       format,
@@ -256,7 +259,7 @@ router.post("/admin/survey-uploads", async (req, res): Promise<void> => {
 });
 
 router.get("/admin/calibration-settings", async (req, res): Promise<void> => {
-  const uid = tenantId(req);
+  const uid = GLOBAL_LEARNING_USER_ID;
   let [row] = await db
     .select()
     .from(calibrationSettingsTable)
@@ -271,14 +274,14 @@ router.get("/admin/calibration-settings", async (req, res): Promise<void> => {
   res.json(GetCalibrationSettingsResponse.parse(jsonReady(row)));
 });
 
-router.put("/admin/calibration-settings", async (req, res): Promise<void> => {
+router.put("/admin/calibration-settings", requireAdmin, async (req, res): Promise<void> => {
   const parsed = UpdateCalibrationSettingsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
   const data = parsed.data;
-  const uid = tenantId(req);
+  const uid = GLOBAL_LEARNING_USER_ID;
   const [existing] = await db
     .select()
     .from(calibrationSettingsTable)
@@ -314,7 +317,7 @@ router.put("/admin/calibration-settings", async (req, res): Promise<void> => {
   res.json(UpdateCalibrationSettingsResponse.parse(jsonReady(saved)));
 });
 
-router.post("/admin/calibrations", async (req, res): Promise<void> => {
+router.post("/admin/calibrations", requireAdmin, async (req, res): Promise<void> => {
   const parsed = CreateCalibrationBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -325,7 +328,8 @@ router.post("/admin/calibrations", async (req, res): Promise<void> => {
 
   // Derive calibrated values from the current calibration settings so an
   // uploaded event reflects the active validation loop (illustrative).
-  const uid = tenantId(req);
+  // 관리자가 등록하는 정확도검증은 전역 학습(0) — 전 계정 인구 보정에 반영.
+  const uid = GLOBAL_LEARNING_USER_ID;
   const [settings] = await db
     .select()
     .from(calibrationSettingsTable)
@@ -362,7 +366,7 @@ router.post("/admin/calibrations", async (req, res): Promise<void> => {
   res.status(201).json(ListCalibrationsResponseItem.parse(jsonReady(created)));
 });
 
-router.delete("/admin/calibrations/:id", async (req, res): Promise<void> => {
+router.delete("/admin/calibrations/:id", requireAdmin, async (req, res): Promise<void> => {
   const parsed = DeleteCalibrationParams.safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -373,7 +377,7 @@ router.delete("/admin/calibrations/:id", async (req, res): Promise<void> => {
     .where(
       and(
         eq(calibrationsTable.id, parsed.data.id),
-        eq(calibrationsTable.userId, tenantId(req)),
+        eq(calibrationsTable.userId, GLOBAL_LEARNING_USER_ID),
       ),
     )
     .returning();
@@ -485,7 +489,7 @@ router.get("/admin/survey-impact", async (req, res): Promise<void> => {
   const surveys = await db
     .select()
     .from(surveysTable)
-    .where(eq(surveysTable.userId, tenantId(req)));
+    .where(eq(surveysTable.userId, GLOBAL_LEARNING_USER_ID));
   const adjustments = computeSurveyAdjustments(surveys);
   const appliedSurveyCount = surveys.filter(
     (s) => s.appliedToPopulation,

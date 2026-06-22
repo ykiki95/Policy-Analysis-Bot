@@ -53,6 +53,26 @@ export function tenantId(req: Request): number {
   return req.tenantId;
 }
 
+/**
+ * 전역 "학습 자산" 소유자 sentinel userId.
+ * 합성 학습 인구(agents)와 인구를 형성·보정하는 입력(설문·정확도검증·신호·
+ * 보정설정)은 전 계정이 공유한다 — 관리자가 큐레이션하며 모든 계정의 합성인구
+ * 학습에 반영된다. 실제 사용자 id는 항상 1 이상이라 0은 안전한 sentinel.
+ */
+export const GLOBAL_LEARNING_USER_ID = 0;
+
+/**
+ * 역할 기반 공유 데이터(신호·정확도검증)를 읽을 때 쓰는 소유자 id 목록.
+ * 전역(관리자 큐레이션) + 본인(개인 입력)을 함께 본다. 인구 기준선(입력 레버)은
+ * 전역만 반영해야 하므로 이 헬퍼가 아니라 GLOBAL_LEARNING_USER_ID 를 직접 쓴다.
+ */
+export function learningReadIds(req: Request): number[] {
+  const me = tenantId(req);
+  return me === GLOBAL_LEARNING_USER_ID
+    ? [GLOBAL_LEARNING_USER_ID]
+    : [GLOBAL_LEARNING_USER_ID, me];
+}
+
 /** 현재 로그인 사용자가 admin 인지. */
 export function isAdmin(req: Request): boolean {
   return req.currentUser?.role === "admin";

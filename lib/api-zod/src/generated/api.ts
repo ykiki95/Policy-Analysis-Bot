@@ -642,12 +642,14 @@ export const ListSimulationsResponse = zod.array(ListSimulationsResponseItem)
 
 
 
+
 export const CreateSimulationBody = zod.object({
   "title": zod.string().min(1),
   "audience": zod.string(),
   "product": zod.string(),
   "policyText": zod.string().min(1),
-  "model": zod.string().optional()
+  "model": zod.string().optional(),
+  "sampleSize": zod.number().min(1).optional().describe('전역 인구 풀에서 추출할 표본 크기. 미지정 시 전역 인구 전체.')
 })
 
 

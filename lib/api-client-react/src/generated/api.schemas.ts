@@ -482,6 +482,11 @@ export interface SimulationInput {
   /** @minLength 1 */
   policyText: string;
   model?: string;
+  /**
+     * 전역 인구 풀에서 추출할 표본 크기. 미지정 시 전역 인구 전체.
+     * @minimum 1
+     */
+  sampleSize?: number;
 }
 
 export interface EstimateInput {
