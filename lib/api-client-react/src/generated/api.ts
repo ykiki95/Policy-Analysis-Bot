@@ -36,11 +36,13 @@ import type {
   Election,
   ElectionCalibrationResult,
   ElectionSource,
+  EnterActualInput,
   Error,
   EstimateInput,
   HealthStatus,
   ImportElectionInput,
   ImportElectionResult,
+  LearnSimulationResult,
   ListAgentsParams,
   LoginInput,
   OkResult,
@@ -2428,6 +2430,148 @@ export const useTickSimulation = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getTickSimulationMutationOptions(options));
+    }
+
+export const getEnterSimulationActualUrl = (id: number,) => {
+
+
+
+
+  return `/api/simulations/${id}/actual`
+}
+
+/**
+ * @summary Record the actual observed outcome for a completed simulation (computes prediction error)
+ */
+export const enterSimulationActual = async (id: number,
+    enterActualInput: EnterActualInput, options?: RequestInit): Promise<Simulation> => {
+
+  return customFetch<Simulation>(getEnterSimulationActualUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      enterActualInput,)
+  }
+);}
+
+
+
+
+export const getEnterSimulationActualMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enterSimulationActual>>, TError,{id: number;data: BodyType<EnterActualInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof enterSimulationActual>>, TError,{id: number;data: BodyType<EnterActualInput>}, TContext> => {
+
+const mutationKey = ['enterSimulationActual'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enterSimulationActual>>, {id: number;data: BodyType<EnterActualInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  enterSimulationActual(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnterSimulationActualMutationResult = NonNullable<Awaited<ReturnType<typeof enterSimulationActual>>>
+    export type EnterSimulationActualMutationBody = BodyType<EnterActualInput>
+    export type EnterSimulationActualMutationError = ErrorType<Error>
+
+    /**
+ * @summary Record the actual observed outcome for a completed simulation (computes prediction error)
+ */
+export const useEnterSimulationActual = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enterSimulationActual>>, TError,{id: number;data: BodyType<EnterActualInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof enterSimulationActual>>,
+        TError,
+        {id: number;data: BodyType<EnterActualInput>},
+        TContext
+      > => {
+      return useMutation(getEnterSimulationActualMutationOptions(options));
+    }
+
+export const getLearnFromSimulationUrl = (id: number,) => {
+
+
+
+
+  return `/api/simulations/${id}/learn`
+}
+
+/**
+ * @summary Admin — turn a simulation's prediction-vs-actual into a calibration event (records learnedAt)
+ */
+export const learnFromSimulation = async (id: number, options?: RequestInit): Promise<LearnSimulationResult> => {
+
+  return customFetch<LearnSimulationResult>(getLearnFromSimulationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getLearnFromSimulationMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof learnFromSimulation>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof learnFromSimulation>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['learnFromSimulation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof learnFromSimulation>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  learnFromSimulation(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LearnFromSimulationMutationResult = NonNullable<Awaited<ReturnType<typeof learnFromSimulation>>>
+
+    export type LearnFromSimulationMutationError = ErrorType<Error>
+
+    /**
+ * @summary Admin — turn a simulation's prediction-vs-actual into a calibration event (records learnedAt)
+ */
+export const useLearnFromSimulation = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof learnFromSimulation>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof learnFromSimulation>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getLearnFromSimulationMutationOptions(options));
     }
 
 export const getListSimulationResponsesUrl = (id: number,) => {

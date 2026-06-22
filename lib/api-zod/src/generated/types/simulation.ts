@@ -29,6 +29,20 @@ export interface Simulation {
   neutralPct?: number | null;
   /** @nullable */
   summary?: string | null;
+  /** @nullable */
+  predictionLockedAt?: string | null;
+  /** @nullable */
+  predictionValue?: number | null;
+  /** @nullable */
+  actualValue?: number | null;
+  /** @nullable */
+  actualMetric?: string | null;
+  /** @nullable */
+  actualEnteredAt?: string | null;
+  /** @nullable */
+  predictionError?: number | null;
+  /** @nullable */
+  learnedAt?: string | null;
   createdAt: string;
   /** @nullable */
   completedAt?: string | null;

@@ -143,20 +143,44 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { isAdmin } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const navItems = [
-    { href: "/", label: "대시보드", icon: Activity },
-    { href: "/population", label: "합성 인구", icon: Users },
-    { href: "/simulations", label: "시뮬레이션", icon: Beaker },
-    { href: "/signals", label: "신호 인제스트", icon: Radio },
-    { href: "/surveys", label: "설문조사 기준", icon: Database },
-    { href: "/calibration", label: "보정 및 검증", icon: BarChart3 },
-    { href: "/products", label: "제품 라인업", icon: Box },
-    { href: "/admin", label: isAdmin ? "관리자" : "설정", icon: Settings },
+  const navSections: {
+    label: string | null;
+    items: { href: string; label: string; icon: typeof Activity }[];
+  }[] = [
+    {
+      label: null,
+      items: [{ href: "/", label: "대시보드", icon: Activity }],
+    },
+    {
+      label: "합성 인구",
+      items: [
+        { href: "/population", label: "인구 탐색", icon: Users },
+        { href: "/surveys", label: "설문 기준", icon: Database },
+      ],
+    },
+    {
+      label: "예측 엔진",
+      items: [
+        { href: "/simulations", label: "시뮬레이션", icon: Beaker },
+        { href: "/signals", label: "실시간 신호", icon: Radio },
+      ],
+    },
+    {
+      label: "검증 & 학습",
+      items: [{ href: "/calibration", label: "정확도 검증", icon: BarChart3 }],
+    },
+    {
+      label: "플랫폼",
+      items: [
+        { href: "/products", label: "제품 라인업", icon: Box },
+        { href: "/admin", label: isAdmin ? "관리자" : "설정", icon: Settings },
+      ],
+    },
   ];
 
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
-      <aside className="w-full md:w-64 border-r border-border bg-card flex flex-col shrink-0">
+      <aside className="w-full md:w-64 border-r border-border bg-card flex flex-col shrink-0 no-print">
         <div className="p-6 border-b border-border flex items-center justify-between md:block">
           <div>
             <h1 className="font-bold text-lg tracking-tight text-foreground">AI Analytics Platform</h1>
@@ -173,30 +197,41 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
-        <nav className={`flex-1 p-4 space-y-1 overflow-y-auto md:block ${mobileOpen ? "block" : "hidden"}`}>
-          {navItems.map((item) => {
-            const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className={`flex-1 p-4 space-y-4 overflow-y-auto md:block ${mobileOpen ? "block" : "hidden"}`}>
+          {navSections.map((section, idx) => (
+            <div key={section.label ?? `section-${idx}`} className="space-y-1">
+              {section.label && (
+                <p className="px-3 pt-1 pb-1 text-[0.7rem] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  {section.label}
+                </p>
+              )}
+              {section.items.map((item) => {
+                const isActive =
+                  location === item.href ||
+                  (item.href !== "/" && location.startsWith(item.href));
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
       </aside>
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 border-b border-border flex items-center justify-end gap-3 px-4 md:px-8 shrink-0">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden app-print-root">
+        <header className="h-16 border-b border-border flex items-center justify-end gap-3 px-4 md:px-8 shrink-0 no-print">
           <BudgetBadge />
           {isAdmin && <AccountSwitcher />}
           <AccountMenu />

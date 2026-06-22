@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ElectionCalibrationResultSkippedItem } from './electionCalibrationResultSkippedItem';
 import type { ElectionCalibrationRow } from './electionCalibrationRow';
 
 export interface ElectionCalibrationResult {
@@ -13,4 +14,6 @@ export interface ElectionCalibrationResult {
   avgRawError: number;
   avgCalibratedError: number;
   rows: ElectionCalibrationRow[];
+  /** 합성 인구에 해당 지역 에이전트가 없어 백테스트에서 제외된 시·도 목록. */
+  skipped?: ElectionCalibrationResultSkippedItem[];
 }

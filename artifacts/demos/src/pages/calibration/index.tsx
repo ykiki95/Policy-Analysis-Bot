@@ -10,7 +10,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
-import { Info, FlaskConical, FlaskRound, Microscope, RefreshCw, Sparkles } from "lucide-react";
+import { Info, FlaskConical, FlaskRound, Microscope, RefreshCw, Sparkles, Printer } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -452,48 +453,73 @@ export default function Calibration() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">보정 및 검증</h1>
-        <p className="text-muted-foreground mt-1">제품 라인별로 모델 예측을 실측 결과와 비교·보정합니다</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">정확도 검증</h1>
+          <p className="text-muted-foreground mt-1">
+            모델 예측을 실측 결과와 비교(백테스트)하고, 그 편향을 합성 인구에 학습시킵니다
+          </p>
+        </div>
+        <Button variant="outline" size="sm" className="no-print shrink-0" onClick={() => window.print()}>
+          <Printer className="h-4 w-4 mr-2" /> 보고서 인쇄 / PDF
+        </Button>
       </div>
 
-      <CalibrationLoopHub calibrations={calibrations} />
+      {/* 인쇄 전용 보고서 헤더 (화면에서는 숨김) */}
+      <div className="print-only print-block border-b pb-4">
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">DEMOS · 보정 및 검증 보고서</p>
+        <h1 className="text-2xl font-bold mt-1">정확도 검증 리포트</h1>
+        <p className="text-xs text-muted-foreground mt-1">발행일 {new Date().toLocaleString("ko-KR")}</p>
+      </div>
 
-      <Tabs defaultValue="dynamo">
-        <TabsList className="grid w-full grid-cols-3 max-w-xl">
-          <TabsTrigger value="dynamo">정치</TabsTrigger>
-          <TabsTrigger value="lumen">비즈니스</TabsTrigger>
-          <TabsTrigger value="seraph">정부</TabsTrigger>
+      <Tabs defaultValue="backtest">
+        <TabsList className="grid w-full grid-cols-2 max-w-lg no-print">
+          <TabsTrigger value="backtest">정확도 검증 백테스트</TabsTrigger>
+          <TabsTrigger value="learning">합성 인구 학습</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="dynamo" className="mt-6 space-y-8">
-          <ElectionCalibrationView />
-          {dynamoEvents.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold">추가 검증 이벤트 (수동)</h2>
+        <TabsContent value="backtest" className="mt-6 space-y-8">
+          <Tabs defaultValue="dynamo">
+            <TabsList className="grid w-full grid-cols-3 max-w-xl no-print">
+              <TabsTrigger value="dynamo">정치</TabsTrigger>
+              <TabsTrigger value="lumen">비즈니스</TabsTrigger>
+              <TabsTrigger value="seraph">정부</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="dynamo" className="mt-6 space-y-8">
+              <ElectionCalibrationView />
+              {dynamoEvents.length > 0 && (
+                <div className="space-y-4">
+                  <h2 className="text-lg font-semibold">추가 검증 이벤트 (수동)</h2>
+                  <EventBacktestView
+                    events={dynamoEvents}
+                    domainLabel="정치"
+                    groundTruthHint="과거 선거·여론조사의 실제 결과"
+                  />
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="lumen" className="mt-6">
               <EventBacktestView
-                events={dynamoEvents}
-                domainLabel="정치"
-                groundTruthHint="과거 선거·여론조사의 실제 결과"
+                events={lumenEvents}
+                domainLabel="비즈니스"
+                groundTruthHint="과거 제품 출시·캠페인의 실제 판매·전환·반응 지표"
               />
-            </div>
-          )}
+            </TabsContent>
+
+            <TabsContent value="seraph" className="mt-6">
+              <EventBacktestView
+                events={seraphEvents}
+                domainLabel="정부"
+                groundTruthHint="과거 정책의 실제 수용률·찬성률 등 행정 지표"
+              />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
-        <TabsContent value="lumen" className="mt-6">
-          <EventBacktestView
-            events={lumenEvents}
-            domainLabel="비즈니스"
-            groundTruthHint="과거 제품 출시·캠페인의 실제 판매·전환·반응 지표"
-          />
-        </TabsContent>
-
-        <TabsContent value="seraph" className="mt-6">
-          <EventBacktestView
-            events={seraphEvents}
-            domainLabel="정부"
-            groundTruthHint="과거 정책의 실제 수용률·찬성률 등 행정 지표"
-          />
+        <TabsContent value="learning" className="mt-6">
+          <CalibrationLoopHub calibrations={calibrations} />
         </TabsContent>
       </Tabs>
     </div>

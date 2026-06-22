@@ -174,3 +174,52 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+/* 인쇄형 PDF 보고서: 화면에서는 숨고, 인쇄(브라우저 PDF 저장) 시에만 노출되는
+   전용 레이아웃을 제공한다. .print-only는 평소 숨김, 인쇄 시 표시. .no-print은
+   인쇄 시 숨김(사이드바·버튼 등 UI 크롬 제거). */
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+
+  /* 색상·배경을 인쇄에 그대로 반영(차트·배지 색 유지) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* 인쇄 시 앱 크롬(사이드바/헤더) 제거하고 본문을 전체 폭으로 */
+  .app-print-root {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  /* 보고서 카드가 페이지 경계에서 잘리지 않도록 */
+  .print-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

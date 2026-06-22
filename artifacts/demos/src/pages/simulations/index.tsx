@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Beaker, Clock, CheckCircle2, ListChecks, XCircle } from "lucide-react";
+import { Plus, Beaker, Clock, CheckCircle2, ListChecks, XCircle, Target, ClipboardCheck, GraduationCap } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function Simulations() {
@@ -27,6 +27,18 @@ export default function Simulations() {
       case "failed": return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1"/> 실패</Badge>;
       default: return <Badge variant="outline">대기 중</Badge>;
     }
+  };
+
+  // 완료된 시뮬레이션의 예측→실제→학습 라이프사이클 단계 배지.
+  const getStageBadge = (sim: { status: string; learnedAt?: string | null; actualValue?: number | null }) => {
+    if (sim.status !== "completed") return null;
+    if (sim.learnedAt != null) {
+      return <Badge variant="outline" className="text-primary border-primary/40"><GraduationCap className="w-3 h-3 mr-1"/> 학습 반영</Badge>;
+    }
+    if (sim.actualValue != null) {
+      return <Badge variant="outline" className="text-blue-600 border-blue-300"><ClipboardCheck className="w-3 h-3 mr-1"/> 실제 입력됨</Badge>;
+    }
+    return <Badge variant="outline" className="text-muted-foreground"><Target className="w-3 h-3 mr-1"/> 예측 잠금</Badge>;
   };
 
   return (
@@ -71,6 +83,7 @@ export default function Simulations() {
                       <Link href={`/simulations/${sim.id}`} className="hover:underline">
                         {sim.title}
                       </Link>
+                      <div className="mt-1">{getStageBadge(sim)}</div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col text-sm">

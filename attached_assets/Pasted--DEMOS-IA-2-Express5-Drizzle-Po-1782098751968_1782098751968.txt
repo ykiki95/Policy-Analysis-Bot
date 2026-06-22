@@ -1,0 +1,77 @@
+# 작업: DEMOS 플랫폼 IA 개편 + 시뮬레이션 예측→결과→학습 루프 (2단계)
+
+## 공통 전제 (반드시 준수)
+- 스택/규약 동일(Express5+Drizzle+Postgres, React+wouter+TanStack Query+recharts+shadcn). API는 openapi.yaml→`pnpm --filter @workspace/api-spec run codegen`. Drizzle Date→jsonReady(). 관리자 쓰기 requireAdmin. 카피 한국어.
+- 기능 후퇴 절대 금지: durable 시뮬레이션 실행(워커/lease/tick), 예산 가드, 선거 데이터 import(data.go.kr), 신호 인제스트+관리자 설정, 보정 4라벨/2레버(출력·입력 보정), 멀티테넌시, 기존 모든 페이지 동작을 유지. 이동·재구성은 하되 삭제하지 말 것.
+- 부문은 비즈니스/정부/정치 3개. 화면 표시는 공유 helper(Lumen→비즈니스/Seraph→정부/Dynamo→정치)만 사용(제품 코드명 노출 금지). 합성인구 페르소나는 3부문 공통.
+- simulationEngine/agentGenerator 핵심 로직 수정 금지(아래 학습 훅은 기존 calibration/Lever1 plumbing 재사용).
+
+────────────────────────────────────────
+## PHASE 1 — IA 개편 · 대시보드 루프 서사 · 검증/정확도 분리
+
+### 1) 사이드바 재구성 (layout.tsx) — 섹션 그룹 + 순서 + 리네이밍
+섹션 헤더(소제목)와 함께 다음 순서로:
+- [현황] 대시보드 (/)
+- [합성 인구] 합성 인구 (/population)
+- [예측 루프] 시뮬레이션 (/simulations)
+- [학습 입력] 신호 인제스트 (/signals), 기준 데이터 (/surveys)   ← "설문조사 기준"→"기준 데이터"
+- [검증·정확도] 검증·정확도 (/calibration)                       ← "보정 및 검증"→"검증·정확도"
+- [안내·설정] 부문 안내 (/products), 관리자/설정 (/admin)         ← "제품 라인업"→"부문 안내"
+라우트 경로는 그대로 두고 label/순서/섹션 헤더만 변경(링크 깨짐 방지).
+
+### 2) 대시보드 — 루프 서사 전면화
+- 상단에 루프 다이어그램(SVG 또는 div+화살표): "현실 인구 → 합성 인구 → 예측(시뮬레이션) → 현실 결과 → 학습 → 더 정확한 합성 인구" 순환. 각 노드 클릭 시 해당 메뉴로 이동.
+- KPI 카드: 합성인구 마지막 학습 반영 시각 / 누적 검증 이벤트 수 / 평균 예측 정확도(원시 오차, 학습 전 기준) / 활성 시뮬레이션 수.
+- "정확도 추이" 라인차트: 검증 이벤트를 기준일 순으로 정렬해 원시 오차(%p)의 시계열(점점 낮아지는 곡선이면 루프 효과 시각화). 기존 데이터로 계산.
+
+### 3) /calibration 을 2개 상위 탭으로 재구성 (페이지 내 Tabs, 새 라우트 X)
+- 탭A "정확도 검증(백테스트)" — 히어로:
+  - 선거 백테스트를 최상단으로. 큰 평균 원시 오차(%p) 숫자 + 시·도별 예측 vs 실제 막대.
+  - **현재 서울만 표시되는 버그 수정**: elections 의 모든 시·도가 렌더되도록 region 코드/이름 매칭을 점검(누락 지역은 이유 로깅). 17개 시·도 MAE가 나오게.
+  - 정확도 추이선(검증 이벤트 시계열 원시 오차).
+  - 안내 문구: "여기 숫자는 학습 전(out-of-sample) 원시 오차입니다." 보정 오차는 참고용으로만 작게.
+- 탭B "합성인구 학습(검증 이벤트)" — 부문(비즈니스/정부/정치) 서브탭:
+  - 기존 검증 이벤트 등록·목록·이벤트별 오차, 보정 설정(4라벨/축소계수/입력보정 토글)을 모두 이쪽으로 이동(삭제 금지).
+  - 문구: "부문별 실측 결과를 등록하면 다음 인구 재생성부터 합성인구 기준선에 반영됩니다."
+
+### Phase 1 완료 기준
+- 사이드바가 섹션 그룹으로 재정렬되고 라벨이 바뀌며 링크가 모두 동작.
+- 대시보드에 루프 다이어그램·정확도 추이가 보인다.
+- /calibration 이 [정확도 검증]/[합성인구 학습] 2탭이고 선거 백테스트가 17개 시·도로 보인다.
+- `pnpm run typecheck` 통과, 기존 기능 무손실.
+
+────────────────────────────────────────
+## PHASE 2 — 시뮬레이션 예측→결과→학습 라이프사이클 + PDF 보고서
+
+### 4) simulations 스키마 확장 (lib/db/src/schema/simulations.ts)
+추가 컬럼(기존 유지):
+- predictionLockedAt (timestamptz, nullable)  // 예측 완료(잠금) 시각
+- actualValue (doublePrecision, nullable) / actualMetric (text, nullable) / actualEnteredAt (timestamptz, nullable)
+- predictionValue (doublePrecision, nullable)  // 비교 기준이 된 예측 지표(보통 supportPct)
+- predictionError (doublePrecision, nullable)  // abs(prediction - actual), 결과 입력 시 계산
+- learnedAt (timestamptz, nullable)            // 학습 반영(다음 재생성부터) 처리 시각
+`pnpm --filter @workspace/db run push`.
+라이프사이클 단계는 이 타임스탬프로 파생: 예측완료(predictionLockedAt) → 결과대기 → 결과입력됨(actualEnteredAt) → 학습반영(learnedAt).
+
+### 5) API (openapi.yaml + codegen)
+- 시뮬레이션 완료 시 predictionLockedAt·predictionValue(=supportPct) 자동 기록.
+- POST /simulations/:id/actual — body: actualValue, actualMetric. 본인/admin. actualEnteredAt 기록, predictionError=abs(predictionValue-actualValue) 계산. [실제]
+- POST /simulations/:id/learn (requireAdmin) — 이 시뮬의 (부문, predictionValue, actualValue)로 검증 이벤트(calibration row)를 생성하고 learnedAt 기록. 실제 기준선 이동은 기존 입력 보정(Lever1)이 "다음 인구 재생성"에서 적용 — 이번 시뮬 결과는 변경하지 않는다(시간 분리). [실제, 기존 plumbing 재사용]
+
+### 6) 시뮬레이션 상세에 3단계 스테퍼 (pages/simulations/detail.tsx)
+상단에 가로 Stepper(shadcn 스타일): ① 예측 실행 → ② 결과 입력 → ③ 학습 반영. 현재 단계 강조.
+- ① 예측 실행: 완료 시 예측값 잠금 표시 + 버튼 "예측 보고서 (PDF)".
+- ② 결과 입력: 입력 폼(실제값/지표) → 저장 시 "예측 대비 결과 보고서 (PDF)" 활성. 예측 vs 실제 오차(%p)를 카드로 표시.
+- ③ 학습 반영: (admin) 버튼 "학습 반영" → /learn 호출 → "완료" 배지 + 안내 "다음 인구 재생성부터 합성인구에 반영됩니다. 이 예측의 정확도는 학습 전 값으로 고정됩니다."
+- 목록(/simulations)에도 각 행에 현재 단계 배지 추가.
+
+### 7) PDF 보고서 (브라우저 인쇄 방식)
+- 인쇄 전용 보고서 뷰 2종: 예측 보고서(제목·부문·정책문·예측 지지/반대/중립·지역·연령 분포·생성일·"예측 잠금"), 결과 보고서(예측값 vs 실제값·오차·부문·기준일).
+- 구현: 보고서 컴포넌트 + 버튼 클릭 시 window.print(). @media print CSS로 사이드바/헤더/버튼 숨기고 A4 레이아웃. 별도 PDF 라이브러리 도입 금지.
+- 상단에 "AI Analytics Platform — Synthetic Electorate" 헤더와 생성 일시 포함.
+
+### Phase 2 완료 기준
+- 시뮬레이션 상세에 3단계 스테퍼가 보이고 단계 전환이 동작.
+- 결과 입력 시 오차가 계산·표시되고, 학습 반영 시 검증 이벤트가 생성되며 다음 인구 재생성에 반영(이번 시뮬 수치는 불변).
+- 예측/결과 보고서를 브라우저 인쇄로 PDF 저장 가능.
+- `pnpm run typecheck` 통과, 기존 기능 무손실.

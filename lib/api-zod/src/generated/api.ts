@@ -622,6 +622,13 @@ export const ListSimulationsResponseItem = zod.object({
   "opposePct": zod.number().nullish(),
   "neutralPct": zod.number().nullish(),
   "summary": zod.string().nullish(),
+  "predictionLockedAt": zod.string().nullish(),
+  "predictionValue": zod.number().nullish(),
+  "actualValue": zod.number().nullish(),
+  "actualMetric": zod.string().nullish(),
+  "actualEnteredAt": zod.string().nullish(),
+  "predictionError": zod.number().nullish(),
+  "learnedAt": zod.string().nullish(),
   "createdAt": zod.string(),
   "completedAt": zod.string().nullish()
 })
@@ -689,6 +696,13 @@ export const GetSimulationResponse = zod.object({
   "opposePct": zod.number().nullish(),
   "neutralPct": zod.number().nullish(),
   "summary": zod.string().nullish(),
+  "predictionLockedAt": zod.string().nullish(),
+  "predictionValue": zod.number().nullish(),
+  "actualValue": zod.number().nullish(),
+  "actualMetric": zod.string().nullish(),
+  "actualEnteredAt": zod.string().nullish(),
+  "predictionError": zod.number().nullish(),
+  "learnedAt": zod.string().nullish(),
   "createdAt": zod.string(),
   "completedAt": zod.string().nullish()
 }),
@@ -799,6 +813,13 @@ export const StopSimulationResponse = zod.object({
   "opposePct": zod.number().nullish(),
   "neutralPct": zod.number().nullish(),
   "summary": zod.string().nullish(),
+  "predictionLockedAt": zod.string().nullish(),
+  "predictionValue": zod.number().nullish(),
+  "actualValue": zod.number().nullish(),
+  "actualMetric": zod.string().nullish(),
+  "actualEnteredAt": zod.string().nullish(),
+  "predictionError": zod.number().nullish(),
+  "learnedAt": zod.string().nullish(),
   "createdAt": zod.string(),
   "completedAt": zod.string().nullish()
 })
@@ -828,8 +849,95 @@ export const TickSimulationResponse = zod.object({
   "opposePct": zod.number().nullish(),
   "neutralPct": zod.number().nullish(),
   "summary": zod.string().nullish(),
+  "predictionLockedAt": zod.string().nullish(),
+  "predictionValue": zod.number().nullish(),
+  "actualValue": zod.number().nullish(),
+  "actualMetric": zod.string().nullish(),
+  "actualEnteredAt": zod.string().nullish(),
+  "predictionError": zod.number().nullish(),
+  "learnedAt": zod.string().nullish(),
   "createdAt": zod.string(),
   "completedAt": zod.string().nullish()
+})
+
+
+/**
+ * @summary Record the actual observed outcome for a completed simulation (computes prediction error)
+ */
+export const EnterSimulationActualParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const EnterSimulationActualBody = zod.object({
+  "actualValue": zod.number().describe('실제 관측치(예측과 동일 지표, %).'),
+  "actualMetric": zod.string().optional().describe('실제값의 출처·지표 설명(선택).')
+})
+
+export const EnterSimulationActualResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "audience": zod.string(),
+  "product": zod.string(),
+  "policyText": zod.string(),
+  "model": zod.string(),
+  "status": zod.string(),
+  "progress": zod.number(),
+  "totalAgents": zod.number(),
+  "costEstimateUsd": zod.number(),
+  "costActualUsd": zod.number().nullish(),
+  "overallSupport": zod.number().nullish(),
+  "supportPct": zod.number().nullish(),
+  "opposePct": zod.number().nullish(),
+  "neutralPct": zod.number().nullish(),
+  "summary": zod.string().nullish(),
+  "predictionLockedAt": zod.string().nullish(),
+  "predictionValue": zod.number().nullish(),
+  "actualValue": zod.number().nullish(),
+  "actualMetric": zod.string().nullish(),
+  "actualEnteredAt": zod.string().nullish(),
+  "predictionError": zod.number().nullish(),
+  "learnedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullish()
+})
+
+
+/**
+ * @summary Admin — turn a simulation's prediction-vs-actual into a calibration event (records learnedAt)
+ */
+export const LearnFromSimulationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const LearnFromSimulationResponse = zod.object({
+  "simulation": zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "audience": zod.string(),
+  "product": zod.string(),
+  "policyText": zod.string(),
+  "model": zod.string(),
+  "status": zod.string(),
+  "progress": zod.number(),
+  "totalAgents": zod.number(),
+  "costEstimateUsd": zod.number(),
+  "costActualUsd": zod.number().nullish(),
+  "overallSupport": zod.number().nullish(),
+  "supportPct": zod.number().nullish(),
+  "opposePct": zod.number().nullish(),
+  "neutralPct": zod.number().nullish(),
+  "summary": zod.string().nullish(),
+  "predictionLockedAt": zod.string().nullish(),
+  "predictionValue": zod.number().nullish(),
+  "actualValue": zod.number().nullish(),
+  "actualMetric": zod.string().nullish(),
+  "actualEnteredAt": zod.string().nullish(),
+  "predictionError": zod.number().nullish(),
+  "learnedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullish()
+}),
+  "calibrationId": zod.number().nullish().describe('생성된 검증 이벤트 ID(학습이 적용된 경우).')
 })
 
 
@@ -897,7 +1005,12 @@ export const GetElectionCalibrationResponse = zod.object({
   "calibratedPrediction": zod.number(),
   "rawError": zod.number(),
   "calibratedError": zod.number()
-}))
+})),
+  "skipped": zod.array(zod.object({
+  "regionCode": zod.string(),
+  "regionName": zod.string(),
+  "reason": zod.string()
+})).optional().describe('합성 인구에 해당 지역 에이전트가 없어 백테스트에서 제외된 시·도 목록.')
 })
 
 
@@ -986,6 +1099,13 @@ export const GetDashboardSummaryResponse = zod.object({
   "opposePct": zod.number().nullish(),
   "neutralPct": zod.number().nullish(),
   "summary": zod.string().nullish(),
+  "predictionLockedAt": zod.string().nullish(),
+  "predictionValue": zod.number().nullish(),
+  "actualValue": zod.number().nullish(),
+  "actualMetric": zod.string().nullish(),
+  "actualEnteredAt": zod.string().nullish(),
+  "predictionError": zod.number().nullish(),
+  "learnedAt": zod.string().nullish(),
   "createdAt": zod.string(),
   "completedAt": zod.string().nullish()
 }))

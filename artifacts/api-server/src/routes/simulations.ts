@@ -19,12 +19,16 @@ import {
   GetSimulationResponse,
   DeleteSimulationParams,
   RunSimulationParams,
+  EnterSimulationActualParams,
+  EnterSimulationActualBody,
+  LearnFromSimulationParams,
+  LearnFromSimulationResponse,
   ListSimulationResponsesParams,
   ListSimulationResponsesResponse,
 } from "@workspace/api-zod";
 import { estimateCost, DEFAULT_MODEL, isSupportedModel } from "../lib/pricing";
 import { processSimulationBatch } from "../lib/simulationEngine";
-import { tenantId } from "../lib/tenant";
+import { tenantId, isAdmin } from "../lib/tenant";
 import { assertWithinBudgetTx, BudgetExceededError, DISPLAY_MULTIPLIER } from "../lib/budget";
 import { runLimiter } from "../lib/rateLimit";
 import { POLICY_AXIS_KEYS, POLICY_AXIS_LABELS } from "../lib/policyWeighting";
@@ -483,6 +487,144 @@ router.post("/simulations/:id/tick", async (req, res): Promise<void> => {
     .from(simulationsTable)
     .where(eq(simulationsTable.id, params.data.id));
   res.json(ListSimulationsResponseItem.parse(jsonReady(sim)));
+});
+
+// 라이프사이클 2단계: 완료된 시뮬레이션에 실제 관측치(actualValue)를 입력한다.
+// 예측값(predictionValue, 완료 시 잠금된 찬성률)과 비교해 predictionError 를 계산·저장한다.
+// 본인 소유 시뮬레이션만, 완료 상태에서만 허용.
+router.post("/simulations/:id/actual", async (req, res): Promise<void> => {
+  const params = EnterSimulationActualParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = EnterSimulationActualBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const uid = tenantId(req);
+  const [sim] = await db
+    .select()
+    .from(simulationsTable)
+    .where(
+      and(
+        eq(simulationsTable.id, params.data.id),
+        eq(simulationsTable.userId, uid),
+      ),
+    );
+  if (!sim) {
+    res.status(404).json({ error: "Simulation not found" });
+    return;
+  }
+  if (sim.status !== "completed" || sim.predictionValue == null) {
+    res
+      .status(400)
+      .json({ error: "완료된 시뮬레이션에만 실제값을 입력할 수 있습니다." });
+    return;
+  }
+
+  const actualValue = Math.round(body.data.actualValue * 10) / 10;
+  const predictionError =
+    Math.round(Math.abs(sim.predictionValue - actualValue) * 10) / 10;
+
+  const [updated] = await db
+    .update(simulationsTable)
+    .set({
+      actualValue,
+      actualMetric: body.data.actualMetric ?? null,
+      actualEnteredAt: new Date(),
+      predictionError,
+    })
+    .where(eq(simulationsTable.id, params.data.id))
+    .returning();
+
+  res.json(ListSimulationsResponseItem.parse(jsonReady(updated)));
+});
+
+// 라이프사이클 3단계(관리자): 시뮬레이션의 예측 vs 실제를 검증 이벤트(calibration)로
+// 전환해 보정 루프에 환류한다. /admin 미들웨어 밖이라 isAdmin 을 직접 검사한다.
+// 검증 이벤트는 시뮬레이션 소유자 스코프로 생성되어 해당 사용자의 보정 화면에 나타난다.
+router.post("/simulations/:id/learn", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) {
+    res.status(403).json({ error: "관리자만 학습을 적용할 수 있습니다." });
+    return;
+  }
+  const params = LearnFromSimulationParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [sim] = await db
+    .select()
+    .from(simulationsTable)
+    .where(eq(simulationsTable.id, params.data.id));
+  if (!sim) {
+    res.status(404).json({ error: "Simulation not found" });
+    return;
+  }
+  if (
+    sim.status !== "completed" ||
+    sim.predictionValue == null ||
+    sim.actualValue == null
+  ) {
+    res
+      .status(400)
+      .json({ error: "예측·실제값이 모두 있어야 학습할 수 있습니다." });
+    return;
+  }
+
+  // 보정 예측은 현재 보정 설정(축소 계수)을 사용해 검증 이벤트 생성과 동일 규약으로 계산한다.
+  const [settings] = await db
+    .select()
+    .from(calibrationSettingsTable)
+    .where(eq(calibrationSettingsTable.userId, sim.userId))
+    .limit(1);
+  const shrinkage = settings?.shrinkageFactor ?? 0.4;
+  const method = settings?.method ?? "post_stratify_shrink";
+
+  const rawPrediction = sim.predictionValue;
+  const actualValue = sim.actualValue;
+  const calibratedPrediction = Number(
+    (rawPrediction + shrinkage * (actualValue - rawPrediction)).toFixed(1),
+  );
+  const rawError = Number(Math.abs(rawPrediction - actualValue).toFixed(1));
+  const calibratedError = Number(
+    Math.abs(calibratedPrediction - actualValue).toFixed(1),
+  );
+  const targetDate = (sim.actualEnteredAt ?? new Date())
+    .toISOString()
+    .slice(0, 10);
+
+  const [created] = await db
+    .insert(calibrationsTable)
+    .values({
+      userId: sim.userId,
+      title: `시뮬레이션 학습 — ${sim.title}`,
+      product: sim.product,
+      eventType: "시뮬레이션",
+      targetDate,
+      metric: sim.actualMetric ?? "찬성률",
+      actualValue,
+      rawPrediction,
+      calibratedPrediction,
+      rawError,
+      calibratedError,
+      method,
+    })
+    .returning();
+
+  const [updated] = await db
+    .update(simulationsTable)
+    .set({ learnedAt: new Date() })
+    .where(eq(simulationsTable.id, params.data.id))
+    .returning();
+
+  res.json(
+    LearnFromSimulationResponse.parse(
+      jsonReady({ simulation: updated, calibrationId: created.id }),
+    ),
+  );
 });
 
 router.get("/simulations/:id/responses", async (req, res): Promise<void> => {

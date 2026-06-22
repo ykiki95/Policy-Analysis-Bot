@@ -727,6 +727,78 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /simulations/{id}/actual:
+    post:
+      operationId: enterSimulationActual
+      tags: [simulations]
+      summary: Record the actual observed outcome for a completed simulation (computes prediction error)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnterActualInput"
+      responses:
+        "200":
+          description: Updated simulation with actual + prediction error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Simulation"
+        "400":
+          description: Invalid input or simulation not yet completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /simulations/{id}/learn:
+    post:
+      operationId: learnFromSimulation
+      tags: [simulations]
+      summary: Admin — turn a simulation's prediction-vs-actual into a calibration event (records learnedAt)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Learning applied; calibration event created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearnSimulationResult"
+        "400":
+          description: Actual value not entered yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /simulations/{id}/responses:
     get:
       operationId: listSimulationResponses
@@ -1724,8 +1796,32 @@ components:
         opposePct: { type: ["number", "null"] }
         neutralPct: { type: ["number", "null"] }
         summary: { type: ["string", "null"] }
+        predictionLockedAt: { type: ["string", "null"] }
+        predictionValue: { type: ["number", "null"] }
+        actualValue: { type: ["number", "null"] }
+        actualMetric: { type: ["string", "null"] }
+        actualEnteredAt: { type: ["string", "null"] }
+        predictionError: { type: ["number", "null"] }
+        learnedAt: { type: ["string", "null"] }
         createdAt: { type: string }
         completedAt: { type: ["string", "null"] }
+
+    EnterActualInput:
+      type: object
+      required: [actualValue]
+      properties:
+        actualValue: { type: number, description: "실제 관측치(예측과 동일 지표, %)." }
+        actualMetric: { type: string, description: "실제값의 출처·지표 설명(선택)." }
+
+    LearnSimulationResult:
+      type: object
+      required: [simulation]
+      properties:
+        simulation:
+          $ref: "#/components/schemas/Simulation"
+        calibrationId:
+          type: ["integer", "null"]
+          description: 생성된 검증 이벤트 ID(학습이 적용된 경우).
 
     SimulationInput:
       type: object
@@ -2126,6 +2222,16 @@ components:
         rows:
           type: array
           items: { $ref: "#/components/schemas/ElectionCalibrationRow" }
+        skipped:
+          type: array
+          description: 합성 인구에 해당 지역 에이전트가 없어 백테스트에서 제외된 시·도 목록.
+          items:
+            type: object
+            required: [regionCode, regionName, reason]
+            properties:
+              regionCode: { type: string }
+              regionName: { type: string }
+              reason: { type: string }
 
     SurveyUploadColumn:
       type: object

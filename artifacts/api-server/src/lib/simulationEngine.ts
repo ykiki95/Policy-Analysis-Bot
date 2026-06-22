@@ -211,6 +211,10 @@ async function finalizeSimulation(
       costActualUsd: costActual,
       summary: buildSummary(sim, supportPct, opposePct, neutralPct, topDistrict),
       completedAt: new Date(),
+      // 예측 잠금(라이프사이클): 완료 시 핵심 예측 지표(찬성률)와 잠금 시각을 기록한다.
+      // 이미 잠겨 있으면(과거 완료분 재완료) 보존해 실제값 입력 후의 비교 기준을 흔들지 않는다.
+      predictionLockedAt: sim.predictionLockedAt ?? new Date(),
+      predictionValue: sim.predictionValue ?? supportPct,
       lockedBy: null,
       lockedAt: null,
       heartbeatAt: null,

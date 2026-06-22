@@ -7,6 +7,7 @@ import {
   calibrationSettingsTable,
   type Agent,
 } from "@workspace/db";
+import { logger } from "./logger";
 
 const LOGISTIC_SCALE = 35;
 
@@ -30,12 +31,25 @@ export type ElectionCalibrationRow = {
   calibratedError: number;
 };
 
+export type SkippedElectionRegion = {
+  regionCode: string;
+  regionName: string;
+  reason: string;
+};
+
 export type ElectionCalibrationResult = {
   method: string;
   shrinkageFactor: number;
   avgRawError: number;
   avgCalibratedError: number;
   rows: ElectionCalibrationRow[];
+  /**
+   * Election regions that could not be scored because the current synthetic
+   * population has no agents there (e.g. a region-scoped population). Surfaced
+   * so the UI can explain why fewer than 17 시·도 appear instead of silently
+   * dropping them.
+   */
+  skipped: SkippedElectionRegion[];
 };
 
 /**
@@ -78,13 +92,27 @@ export async function computeElectionCalibration(
   }
 
   const rows: ElectionCalibrationRow[] = [];
+  const skipped: SkippedElectionRegion[] = [];
   let rawSum = 0;
   let calSum = 0;
 
   for (const e of elections) {
     const regionName = regionNameByCode.get(e.regionCode) ?? e.regionCode;
     const acc = byRegion.get(regionName);
-    if (!acc || acc.den === 0) continue;
+    if (!acc || acc.den === 0) {
+      // 매칭 자체(이름 기반)는 정상이지만 현재 합성 인구에 이 지역 에이전트가
+      // 없으면 예측을 만들 수 없다(예: 특정 지역으로 스코프된 인구). 조용히
+      // 누락시키지 않고 사유를 수집·로깅해 UI가 "17개 중 N개만 표시" 이유를
+      // 설명할 수 있게 한다.
+      skipped.push({
+        regionCode: e.regionCode,
+        regionName,
+        reason: regionNameByCode.has(e.regionCode)
+          ? "현재 합성 인구에 해당 시·도 에이전트가 없습니다(인구 재생성 범위 확인)."
+          : "선거 지역코드에 대응하는 region 메타데이터가 없습니다.",
+      });
+      continue;
+    }
     const consShare = (acc.num / acc.den) * 100;
     const rawPrediction =
       e.leaning === "progressive" ? 100 - consShare : consShare;
@@ -114,6 +142,18 @@ export async function computeElectionCalibration(
     });
   }
 
+  if (skipped.length > 0) {
+    logger.warn(
+      {
+        userId,
+        skippedCount: skipped.length,
+        scoredCount: rows.length,
+        skipped,
+      },
+      "선거 백테스트: 일부 시·도가 합성 인구 부재로 예측에서 제외됨",
+    );
+  }
+
   const n = rows.length || 1;
   return {
     method,
@@ -121,6 +161,7 @@ export async function computeElectionCalibration(
     avgRawError: round1(rawSum / n),
     avgCalibratedError: round1(calSum / n),
     rows,
+    skipped,
   };
 }
 

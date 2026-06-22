@@ -440,9 +440,39 @@ export interface Simulation {
   neutralPct?: number | null;
   /** @nullable */
   summary?: string | null;
+  /** @nullable */
+  predictionLockedAt?: string | null;
+  /** @nullable */
+  predictionValue?: number | null;
+  /** @nullable */
+  actualValue?: number | null;
+  /** @nullable */
+  actualMetric?: string | null;
+  /** @nullable */
+  actualEnteredAt?: string | null;
+  /** @nullable */
+  predictionError?: number | null;
+  /** @nullable */
+  learnedAt?: string | null;
   createdAt: string;
   /** @nullable */
   completedAt?: string | null;
+}
+
+export interface EnterActualInput {
+  /** 실제 관측치(예측과 동일 지표, %). */
+  actualValue: number;
+  /** 실제값의 출처·지표 설명(선택). */
+  actualMetric?: string;
+}
+
+export interface LearnSimulationResult {
+  simulation: Simulation;
+  /**
+     * 생성된 검증 이벤트 ID(학습이 적용된 경우).
+     * @nullable
+     */
+  calibrationId?: number | null;
 }
 
 export interface SimulationInput {
@@ -710,12 +740,20 @@ export interface ElectionCalibrationRow {
   calibratedError: number;
 }
 
+export type ElectionCalibrationResultSkippedItem = {
+  regionCode: string;
+  regionName: string;
+  reason: string;
+};
+
 export interface ElectionCalibrationResult {
   method: string;
   shrinkageFactor: number;
   avgRawError: number;
   avgCalibratedError: number;
   rows: ElectionCalibrationRow[];
+  /** 합성 인구에 해당 지역 에이전트가 없어 백테스트에서 제외된 시·도 목록. */
+  skipped?: ElectionCalibrationResultSkippedItem[];
 }
 
 export interface SurveyUploadColumn {
