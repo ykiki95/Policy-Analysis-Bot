@@ -31,7 +31,8 @@ export type ElectionSource = {
 
 /**
  * 연동 지원 선거. 대통령선거만 지원한다 — 보수 진영을 "국민의힘 후보" 단일 규칙으로
- * 매핑할 수 있는 제21대만 포함(데모는 제21대 대선으로 통일).
+ * 매핑할 수 있는 제20대(윤석열)·제21대(김문수)를 포함한다. 두 선거 모두 보수=국민의힘.
+ * 최신 선거가 먼저 오도록 정렬(화면 기본 선택).
  */
 export const SUPPORTED_ELECTIONS: ElectionSource[] = [
   {
@@ -39,6 +40,12 @@ export const SUPPORTED_ELECTIONS: ElectionSource[] = [
     name: "제21대 대통령선거",
     electionType: "대통령선거",
     electionDate: "2025-06-03",
+  },
+  {
+    sgId: "20220309",
+    name: "제20대 대통령선거",
+    electionType: "대통령선거",
+    electionDate: "2022-03-09",
   },
 ];
 

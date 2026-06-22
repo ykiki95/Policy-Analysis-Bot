@@ -7,6 +7,7 @@ import {
   type Calibration,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
@@ -32,7 +33,9 @@ const PRODUCT_META: { key: string; product: string; label: string; track: string
  * (useAccuracyTrend)을 공유한다.
  */
 function AccuracyTrendLearning() {
-  const { points, eventCount, avgRawError, isLoading } = useAccuracyTrend();
+  const { points, eventCount, avgRawError, isLoading } = useAccuracyTrend({
+    includeElections: true,
+  });
 
   if (isLoading) {
     return <Skeleton className="h-80 w-full" />;
@@ -220,6 +223,7 @@ function CalibrationLoopHub({ calibrations }: { calibrations: Calibration[] }) {
 
 function ElectionCalibrationView() {
   const { data, isLoading } = useGetElectionCalibration();
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   if (isLoading || !data) {
     return (
@@ -234,7 +238,8 @@ function ElectionCalibrationView() {
     );
   }
 
-  if (data.rows.length === 0) {
+  const elections = data.elections ?? [];
+  if (elections.length === 0) {
     return (
       <Alert>
         <Info className="h-4 w-4" />
@@ -246,7 +251,10 @@ function ElectionCalibrationView() {
     );
   }
 
-  const chartData = data.rows
+  const selected =
+    elections.find((e) => e.electionDate === selectedDate) ?? elections[0];
+
+  const chartData = selected.rows
     .filter((r) => r.leaning === "conservative")
     .map((r) => ({
       name: r.regionName.replace(/(특별자치도|특별자치시|특별시|광역시|도)$/u, ""),
@@ -261,11 +269,61 @@ function ElectionCalibrationView() {
         <AlertTitle>실제 선거 결과 기반 검증 (자동)</AlertTitle>
         <AlertDescription>
           합성 인구의 투표 성향(투표 의향 가중 로지스틱)으로 시·도별 득표율을 예측한 뒤,
-          실제 <strong>{data.rows[0]?.electionName ?? "과거 선거"}</strong> 결과와 비교합니다.
+          실제 <strong>{selected.electionName}</strong> 결과와 비교합니다.
           공개된 개표 결과가 정답이므로 별도 입력 없이 현재 합성 인구로 매번 다시 계산됩니다.
           사후 층화·축소(shrinkage {data.shrinkageFactor})로 원시 예측을 보정합니다.
         </AlertDescription>
       </Alert>
+
+      {elections.length > 1 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">선거별 평균 오차 비교</CardTitle>
+            <CardDescription>여러 과거 대선을 같은 합성 인구로 백테스트한 결과를 나란히 비교합니다.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {elections.map((e) => (
+                <button
+                  key={e.electionDate}
+                  type="button"
+                  onClick={() => setSelectedDate(e.electionDate)}
+                  className={`rounded-lg border p-4 text-left transition-colors ${
+                    e.electionDate === selected.electionDate
+                      ? "border-primary bg-primary/5"
+                      : "hover:bg-muted/40"
+                  }`}
+                >
+                  <div className="text-sm font-semibold">{e.electionName}</div>
+                  <div className="text-xs text-muted-foreground">{e.electionDate}</div>
+                  <div className="mt-2 flex items-baseline gap-3">
+                    <div>
+                      <div className="text-2xl font-bold text-muted-foreground">{e.avgRawError.toFixed(2)}<span className="text-sm font-medium">%p</span></div>
+                      <div className="text-[11px] text-muted-foreground">평균 원시 오차</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-primary">{e.avgCalibratedError.toFixed(2)}<span className="text-sm font-medium">%p</span></div>
+                      <div className="text-[11px] text-muted-foreground">평균 보정 오차</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs value={selected.electionDate} onValueChange={setSelectedDate}>
+        {elections.length > 1 && (
+          <TabsList className="no-print">
+            {elections.map((e) => (
+              <TabsTrigger key={e.electionDate} value={e.electionDate}>
+                {e.electionName}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        )}
+      </Tabs>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
@@ -274,12 +332,12 @@ function ElectionCalibrationView() {
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">평균 원시 오차</CardTitle></CardHeader>
-          <CardContent><div className="text-3xl font-bold text-muted-foreground">{data.avgRawError.toFixed(2)}%p</div></CardContent>
+          <CardContent><div className="text-3xl font-bold text-muted-foreground">{selected.avgRawError.toFixed(2)}%p</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">평균 보정 오차</CardTitle></CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">{data.avgCalibratedError.toFixed(2)}%p</div>
+            <div className="text-3xl font-bold text-primary">{selected.avgCalibratedError.toFixed(2)}%p</div>
             <p className="text-xs text-muted-foreground mt-1">사후 층화 보정 후</p>
           </CardContent>
         </Card>
@@ -288,7 +346,7 @@ function ElectionCalibrationView() {
       <Card>
         <CardHeader>
           <CardTitle>시·도별 예측 오차 (보수 후보 득표율)</CardTitle>
-          <CardDescription>원시 예측과 보정 예측의 오차(%p) 비교</CardDescription>
+          <CardDescription>{selected.electionName} · 원시 예측과 보정 예측의 오차(%p) 비교</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[360px] w-full">
@@ -311,7 +369,7 @@ function ElectionCalibrationView() {
         <CardHeader>
           <CardTitle>예측 vs 실제 상세</CardTitle>
           <CardDescription>
-            {data.rows[0]?.electionName} · {data.rows[0]?.electionDate} · 값은 보수 후보(김문수) 득표율이며, 배지는 해당 시·도 실제 1위 진영입니다.
+            {selected.electionName} · {selected.electionDate} · 값은 {selected.rows[0]?.metric ?? "보수 후보 득표율"}이며, 배지는 해당 시·도 실제 1위 진영입니다.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -329,7 +387,7 @@ function ElectionCalibrationView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.rows.map((r) => (
+                {selected.rows.map((r) => (
                   <TableRow key={`${r.electionId}-${r.regionCode}-${r.leaning}`}>
                     <TableCell className="font-medium">{r.regionName}</TableCell>
                     <TableCell>

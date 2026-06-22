@@ -528,11 +528,13 @@ router.post("/admin/elections/import", requireAdmin, async (req, res): Promise<v
       actualWinner: s.actualWinner,
     }));
 
-    // 선거 검증 화면은 단일 선거(rows[0])를 기준으로 표시하므로, 새 선거를 불러올 때
-    // 기존 elections를 전부 교체(refresh)한다.
+    // 선거 검증 화면은 이제 여러 선거를 선택해 비교하므로, 다른 선거 ground-truth를
+    // 건드리지 않도록 같은 선거(electionDate)의 기존 행만 교체한다. 완전성 검증(17개
+    // 시·도)은 fetchPresidentialConservativeShares에서 이미 끝났다.
     await db.transaction(async (tx) => {
-      await tx.delete(electionsTable);
-      await tx.execute(sql`ALTER SEQUENCE elections_id_seq RESTART WITH 1`);
+      await tx
+        .delete(electionsTable)
+        .where(eq(electionsTable.electionDate, source.electionDate));
       await tx.insert(electionsTable).values(rows);
     });
 

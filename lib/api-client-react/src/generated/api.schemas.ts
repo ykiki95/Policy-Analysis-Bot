@@ -743,20 +743,28 @@ export interface ElectionCalibrationRow {
   calibratedError: number;
 }
 
-export type ElectionCalibrationResultSkippedItem = {
+export type ElectionCalibrationGroupSkippedItem = {
   regionCode: string;
   regionName: string;
   reason: string;
 };
 
-export interface ElectionCalibrationResult {
-  method: string;
-  shrinkageFactor: number;
+export interface ElectionCalibrationGroup {
+  electionId: number;
+  electionName: string;
+  electionDate: string;
   avgRawError: number;
   avgCalibratedError: number;
   rows: ElectionCalibrationRow[];
   /** 합성 인구에 해당 지역 에이전트가 없어 백테스트에서 제외된 시·도 목록. */
-  skipped?: ElectionCalibrationResultSkippedItem[];
+  skipped?: ElectionCalibrationGroupSkippedItem[];
+}
+
+export interface ElectionCalibrationResult {
+  method: string;
+  shrinkageFactor: number;
+  /** 선거별 백테스트 묶음. 최신 선거가 먼저 오도록 정렬. */
+  elections: ElectionCalibrationGroup[];
 }
 
 export interface SurveyUploadColumn {

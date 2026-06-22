@@ -990,6 +990,10 @@ export const ListCalibrationsResponse = zod.array(ListCalibrationsResponseItem)
 export const GetElectionCalibrationResponse = zod.object({
   "method": zod.string(),
   "shrinkageFactor": zod.number(),
+  "elections": zod.array(zod.object({
+  "electionId": zod.number(),
+  "electionName": zod.string(),
+  "electionDate": zod.string(),
   "avgRawError": zod.number(),
   "avgCalibratedError": zod.number(),
   "rows": zod.array(zod.object({
@@ -1012,6 +1016,7 @@ export const GetElectionCalibrationResponse = zod.object({
   "regionName": zod.string(),
   "reason": zod.string()
 })).optional().describe('합성 인구에 해당 지역 에이전트가 없어 백테스트에서 제외된 시·도 목록.')
+})).describe('선거별 백테스트 묶음. 최신 선거가 먼저 오도록 정렬.')
 })
 
 

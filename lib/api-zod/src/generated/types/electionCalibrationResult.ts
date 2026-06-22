@@ -5,15 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { ElectionCalibrationResultSkippedItem } from './electionCalibrationResultSkippedItem';
-import type { ElectionCalibrationRow } from './electionCalibrationRow';
+import type { ElectionCalibrationGroup } from './electionCalibrationGroup';
 
 export interface ElectionCalibrationResult {
   method: string;
   shrinkageFactor: number;
-  avgRawError: number;
-  avgCalibratedError: number;
-  rows: ElectionCalibrationRow[];
-  /** 합성 인구에 해당 지역 에이전트가 없어 백테스트에서 제외된 시·도 목록. */
-  skipped?: ElectionCalibrationResultSkippedItem[];
+  /** 선거별 백테스트 묶음. 최신 선거가 먼저 오도록 정렬. */
+  elections: ElectionCalibrationGroup[];
 }

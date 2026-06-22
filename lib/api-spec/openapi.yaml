@@ -2208,17 +2208,19 @@ components:
         rawError: { type: number }
         calibratedError: { type: number }
 
-    ElectionCalibrationResult:
+    ElectionCalibrationGroup:
       type: object
       required:
-        - method
-        - shrinkageFactor
+        - electionId
+        - electionName
+        - electionDate
         - avgRawError
         - avgCalibratedError
         - rows
       properties:
-        method: { type: string }
-        shrinkageFactor: { type: number }
+        electionId: { type: integer }
+        electionName: { type: string }
+        electionDate: { type: string }
         avgRawError: { type: number }
         avgCalibratedError: { type: number }
         rows:
@@ -2234,6 +2236,20 @@ components:
               regionCode: { type: string }
               regionName: { type: string }
               reason: { type: string }
+
+    ElectionCalibrationResult:
+      type: object
+      required:
+        - method
+        - shrinkageFactor
+        - elections
+      properties:
+        method: { type: string }
+        shrinkageFactor: { type: number }
+        elections:
+          type: array
+          description: 선거별 백테스트 묶음. 최신 선거가 먼저 오도록 정렬.
+          items: { $ref: "#/components/schemas/ElectionCalibrationGroup" }
 
     SurveyUploadColumn:
       type: object
