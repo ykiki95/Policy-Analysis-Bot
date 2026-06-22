@@ -51,7 +51,11 @@ function AccountSwitcher() {
   // 본인 계정은 "내 계정" 옵션으로 이미 표현되므로 목록에서 제외(중복 방지).
   const otherAccounts = accounts.filter((a) => a.id !== user?.id);
   const current = accounts.find((a) => a.id === selectedAccountId);
-  const label = current ? `${current.name} (@${current.username})` : "내 계정";
+  const label = current
+    ? `${current.name} (@${current.username})`
+    : user
+      ? `내 계정 (@${user.username})`
+      : "내 계정";
 
   return (
     <DropdownMenu>
@@ -70,7 +74,9 @@ function AccountSwitcher() {
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => selectAccount(null)}>
           {selectedAccountId == null && <Check className="h-4 w-4 mr-2" />}
-          <span className={selectedAccountId == null ? "font-medium" : "ml-6"}>내 계정</span>
+          <span className={selectedAccountId == null ? "font-medium" : "ml-6"}>
+            내 계정{user && <span className="text-muted-foreground"> @{user.username}</span>}
+          </span>
         </DropdownMenuItem>
         {otherAccounts.map((a) => (
           <DropdownMenuItem key={a.id} onClick={() => selectAccount(a.id)}>

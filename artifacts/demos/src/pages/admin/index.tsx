@@ -724,7 +724,7 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="population">
-        <TabsList className={`grid w-full grid-cols-2 ${isAdmin ? "md:grid-cols-7" : "md:grid-cols-5"}`}>
+        <TabsList className={`grid w-full h-auto gap-1 grid-cols-2 sm:grid-cols-3 ${isAdmin ? "lg:grid-cols-7" : "lg:grid-cols-5"}`}>
           <TabsTrigger value="population"><Users className="h-4 w-4 mr-1.5" />인구 구성</TabsTrigger>
           <TabsTrigger value="sources"><Database className="h-4 w-4 mr-1.5" />데이터 출처</TabsTrigger>
           <TabsTrigger value="surveys"><Upload className="h-4 w-4 mr-1.5" />설문 업로드</TabsTrigger>
