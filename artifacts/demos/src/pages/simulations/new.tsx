@@ -13,7 +13,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Calculator, PlayCircle, AlertCircle } from "lucide-react";
+import { Loader2, Calculator, PlayCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatCost } from "@/lib/cost";
 
@@ -130,6 +130,15 @@ export default function NewSimulation() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2 mb-2 text-muted-foreground"
+          onClick={() => setLocation("/simulations")}
+        >
+          <ArrowLeft className="h-4 w-4 mr-1.5" />
+          시뮬레이션 목록으로
+        </Button>
         <h1 className="text-3xl font-bold tracking-tight">새 시뮬레이션</h1>
         <p className="text-muted-foreground mt-1">전국 합성 인구를 대상으로 실험을 설계하고 실행합니다.</p>
       </div>
