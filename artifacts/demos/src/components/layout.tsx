@@ -45,8 +45,11 @@ function BudgetBadge() {
 function AccountSwitcher() {
   const { data: accounts } = useListAdminAccounts();
   const { selectedAccountId, selectAccount } = useAccountSwitcher();
+  const { user } = useAuth();
   if (!accounts) return null;
 
+  // 본인 계정은 "내 계정" 옵션으로 이미 표현되므로 목록에서 제외(중복 방지).
+  const otherAccounts = accounts.filter((a) => a.id !== user?.id);
   const current = accounts.find((a) => a.id === selectedAccountId);
   const label = current ? `${current.name} (@${current.username})` : "내 계정";
 
@@ -69,7 +72,7 @@ function AccountSwitcher() {
           {selectedAccountId == null && <Check className="h-4 w-4 mr-2" />}
           <span className={selectedAccountId == null ? "font-medium" : "ml-6"}>내 계정</span>
         </DropdownMenuItem>
-        {accounts.map((a) => (
+        {otherAccounts.map((a) => (
           <DropdownMenuItem key={a.id} onClick={() => selectAccount(a.id)}>
             {selectedAccountId === a.id && <Check className="h-4 w-4 mr-2" />}
             <span className={selectedAccountId === a.id ? "font-medium" : "ml-6"}>
