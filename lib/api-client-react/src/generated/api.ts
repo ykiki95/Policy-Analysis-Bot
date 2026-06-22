@@ -69,8 +69,7 @@ import type {
   SurveyUploadInput,
   UpdateAccountBudgetInput,
   UpdateProfileInput,
-  User,
-  UserSignalSettingsInput
+  User
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -94,7 +93,7 @@ export const getListSignalsUrl = () => {
 }
 
 /**
- * @summary List signal ingest batches for the current tenant (collectedAt desc)
+ * @summary List all signal ingest batches (global, collectedAt desc)
  */
 export const listSignals = async ( options?: RequestInit): Promise<SignalBatch[]> => {
 
@@ -141,7 +140,7 @@ export type ListSignalsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List signal ingest batches for the current tenant (collectedAt desc)
+ * @summary List all signal ingest batches (global, collectedAt desc)
  */
 
 export function useListSignals<TData = Awaited<ReturnType<typeof listSignals>>, TError = ErrorType<unknown>>(
@@ -319,7 +318,7 @@ export const getGetSignalSettingsUrl = () => {
 }
 
 /**
- * @summary Get signal ingest settings for the current tenant (defaults if none)
+ * @summary Get the global signal ingest settings (shared by all users)
  */
 export const getSignalSettings = async ( options?: RequestInit): Promise<SignalSettings> => {
 
@@ -366,7 +365,7 @@ export type GetSignalSettingsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get signal ingest settings for the current tenant (defaults if none)
+ * @summary Get the global signal ingest settings (shared by all users)
  */
 
 export function useGetSignalSettings<TData = Awaited<ReturnType<typeof getSignalSettings>>, TError = ErrorType<unknown>>(
@@ -386,77 +385,6 @@ export function useGetSignalSettings<TData = Awaited<ReturnType<typeof getSignal
 
 
 
-
-export const getUpdateUserSignalSettingsUrl = () => {
-
-
-
-
-  return `/api/signals/settings`
-}
-
-/**
- * @summary Update the current tenant's own signal preferences (non-admin)
- */
-export const updateUserSignalSettings = async (userSignalSettingsInput: UserSignalSettingsInput, options?: RequestInit): Promise<SignalSettings> => {
-
-  return customFetch<SignalSettings>(getUpdateUserSignalSettingsUrl(),
-  {
-    ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      userSignalSettingsInput,)
-  }
-);}
-
-
-
-
-export const getUpdateUserSignalSettingsMutationOptions = <TError = ErrorType<Error>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserSignalSettings>>, TError,{data: BodyType<UserSignalSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateUserSignalSettings>>, TError,{data: BodyType<UserSignalSettingsInput>}, TContext> => {
-
-const mutationKey = ['updateUserSignalSettings'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateUserSignalSettings>>, {data: BodyType<UserSignalSettingsInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  updateUserSignalSettings(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UpdateUserSignalSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateUserSignalSettings>>>
-    export type UpdateUserSignalSettingsMutationBody = BodyType<UserSignalSettingsInput>
-    export type UpdateUserSignalSettingsMutationError = ErrorType<Error>
-
-    /**
- * @summary Update the current tenant's own signal preferences (non-admin)
- */
-export const useUpdateUserSignalSettings = <TError = ErrorType<Error>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserSignalSettings>>, TError,{data: BodyType<UserSignalSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof updateUserSignalSettings>>,
-        TError,
-        {data: BodyType<UserSignalSettingsInput>},
-        TContext
-      > => {
-      return useMutation(getUpdateUserSignalSettingsMutationOptions(options));
-    }
 
 export const getUpdateSignalSettingsUrl = () => {
 
@@ -609,7 +537,7 @@ export const getResetSignalsUrl = () => {
 }
 
 /**
- * @summary Delete all tenant batches and reseed sample batches (admin)
+ * @summary Delete all signal batches and reseed sample batches (admin)
  */
 export const resetSignals = async ( options?: RequestInit): Promise<SignalBatch[]> => {
 
@@ -657,7 +585,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ResetSignalsMutationError = ErrorType<unknown>
 
     /**
- * @summary Delete all tenant batches and reseed sample batches (admin)
+ * @summary Delete all signal batches and reseed sample batches (admin)
  */
 export const useResetSignals = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetSignals>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { jsonReady } from "../lib/serialize";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 import { db, signalBatchesTable, signalSettingsTable } from "@workspace/db";
 import type { SignalSettings } from "@workspace/db";
 import { tenantId } from "../lib/tenant";
@@ -13,8 +13,6 @@ import {
   GetSignalSettingsResponse,
   UpdateSignalSettingsBody,
   UpdateSignalSettingsResponse,
-  UpdateUserSignalSettingsBody,
-  UpdateUserSignalSettingsResponse,
   UpdateSignalParams,
   UpdateSignalBody,
   UpdateSignalResponse,
@@ -23,6 +21,8 @@ import {
 } from "@workspace/api-zod";
 import {
   mockSignalEffect,
+  AUTO_SCENARIOS,
+  RESET_SCENARIOS,
   type SignalSource,
   type SignalProduct,
 } from "../lib/signalMock";
@@ -46,17 +46,20 @@ function enabledForSource(s: SignalSettings, source: string): boolean {
   return s.sourceSnsEnabled;
 }
 
-/** 테넌트 설정 행을 조회하거나 없으면 기본행을 만들어 반환. */
-async function getOrCreateSettings(uid: number): Promise<SignalSettings> {
+/**
+ * 전역 신호 설정 행(공용). 단일 행만 의미를 가지며 가장 낮은 id 의 행을 사용한다.
+ * 없으면 기본행을 만들어 반환한다. 모든 사용자가 같은 설정을 본다(관리자만 변경).
+ */
+async function getGlobalSettings(): Promise<SignalSettings> {
   let [row] = await db
     .select()
     .from(signalSettingsTable)
-    .where(eq(signalSettingsTable.userId, uid))
+    .orderBy(asc(signalSettingsTable.id))
     .limit(1);
   if (!row) {
     [row] = await db
       .insert(signalSettingsTable)
-      .values({ userId: uid })
+      .values({ userId: 0 })
       .returning();
   }
   return row;
@@ -78,29 +81,12 @@ function renormSentiment(
   return { pos: rp, neu: ru, neg: rg };
 }
 
-// ── 설정 ────────────────────────────────────────────────────────────────
+// ── 설정(전역) ────────────────────────────────────────────────────────────
 // 주의: 이 라우트는 /signals/:id 보다 먼저 등록되어야 한다("settings" 가 :id 로
 // 매칭되지 않도록).
-router.get("/signals/settings", async (req, res): Promise<void> => {
-  const row = await getOrCreateSettings(tenantId(req));
+router.get("/signals/settings", async (_req, res): Promise<void> => {
+  const row = await getGlobalSettings();
   res.json(GetSignalSettingsResponse.parse(jsonReady(row)));
-});
-
-// 사용자 본인 설정: 신호 반영 여부만 변경 가능(수집 구성은 관리자 전용).
-router.put("/signals/settings", async (req, res): Promise<void> => {
-  const parsed = UpdateUserSignalSettingsBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const uid = tenantId(req);
-  const existing = await getOrCreateSettings(uid);
-  const [saved] = await db
-    .update(signalSettingsTable)
-    .set({ applyToPrediction: parsed.data.applyToPrediction, updatedAt: new Date() })
-    .where(eq(signalSettingsTable.id, existing.id))
-    .returning();
-  res.json(UpdateUserSignalSettingsResponse.parse(jsonReady(saved)));
 });
 
 router.put(
@@ -113,52 +99,36 @@ router.put(
       return;
     }
     const d = parsed.data;
-    const uid = tenantId(req);
-    const [existing] = await db
-      .select()
-      .from(signalSettingsTable)
-      .where(eq(signalSettingsTable.userId, uid))
-      .limit(1);
+    const existing = await getGlobalSettings();
 
-    const values = {
-      sourceNewsEnabled: d.sourceNewsEnabled,
-      sourceTrendEnabled: d.sourceTrendEnabled,
-      sourceSnsEnabled: d.sourceSnsEnabled,
-      sourceNewsWeight: clamp(d.sourceNewsWeight, 0, 2),
-      sourceTrendWeight: clamp(d.sourceTrendWeight, 0, 2),
-      sourceSnsWeight: clamp(d.sourceSnsWeight, 0, 2),
-      applyToPrediction: d.applyToPrediction,
-      scheduleEnabled: d.scheduleEnabled,
-      scheduleInterval: d.scheduleInterval,
-      filterBotRemoval: d.filterBotRemoval,
-      filterDedup: d.filterDedup,
-      filterMinItems: Math.max(0, Math.round(d.filterMinItems)),
-      updatedAt: new Date(),
-    };
-
-    let saved;
-    if (existing) {
-      [saved] = await db
-        .update(signalSettingsTable)
-        .set(values)
-        .where(eq(signalSettingsTable.id, existing.id))
-        .returning();
-    } else {
-      [saved] = await db
-        .insert(signalSettingsTable)
-        .values({ ...values, userId: uid })
-        .returning();
-    }
+    const [saved] = await db
+      .update(signalSettingsTable)
+      .set({
+        sourceNewsEnabled: d.sourceNewsEnabled,
+        sourceTrendEnabled: d.sourceTrendEnabled,
+        sourceSnsEnabled: d.sourceSnsEnabled,
+        sourceNewsWeight: clamp(d.sourceNewsWeight, 0, 2),
+        sourceTrendWeight: clamp(d.sourceTrendWeight, 0, 2),
+        sourceSnsWeight: clamp(d.sourceSnsWeight, 0, 2),
+        applyToPrediction: d.applyToPrediction,
+        scheduleEnabled: d.scheduleEnabled,
+        scheduleInterval: d.scheduleInterval,
+        filterBotRemoval: d.filterBotRemoval,
+        filterDedup: d.filterDedup,
+        filterMinItems: Math.max(0, Math.round(d.filterMinItems)),
+        updatedAt: new Date(),
+      })
+      .where(eq(signalSettingsTable.id, existing.id))
+      .returning();
     res.json(UpdateSignalSettingsResponse.parse(jsonReady(saved)));
   },
 );
 
-// ── 목록/단건 ─────────────────────────────────────────────────────────────
-router.get("/signals", async (req, res): Promise<void> => {
+// ── 목록/단건(공용) ───────────────────────────────────────────────────────
+router.get("/signals", async (_req, res): Promise<void> => {
   const rows = await db
     .select()
     .from(signalBatchesTable)
-    .where(eq(signalBatchesTable.userId, tenantId(req)))
     .orderBy(desc(signalBatchesTable.collectedAt));
   res.json(ListSignalsResponse.parse(jsonReady(rows)));
 });
@@ -172,12 +142,7 @@ router.get("/signals/:id", async (req, res): Promise<void> => {
   const [batch] = await db
     .select()
     .from(signalBatchesTable)
-    .where(
-      and(
-        eq(signalBatchesTable.id, params.data.id),
-        eq(signalBatchesTable.userId, tenantId(req)),
-      ),
-    );
+    .where(eq(signalBatchesTable.id, params.data.id));
   if (!batch) {
     res.status(404).json({ error: "Signal batch not found" });
     return;
@@ -197,7 +162,7 @@ router.post(
       return;
     }
     const d = parsed.data;
-    const settings = await getOrCreateSettings(tenantId(req));
+    const settings = await getGlobalSettings();
     if (!enabledForSource(settings, d.source)) {
       res.status(400).json({ error: `비활성화된 소스(${d.source})로는 신호를 수집할 수 없습니다.` });
       return;
@@ -233,19 +198,7 @@ router.post(
   },
 );
 
-// ── 관리자: 자동 수집(하드코딩 샘플 풀) ─────────────────────────────────────
-const AUTO_POOL: { source: SignalSource; product: SignalProduct; title: string }[] = [
-  { source: "뉴스", product: "Dynamo", title: "여야 지지율 격차 보도 확산" },
-  { source: "뉴스", product: "Lumen", title: "신제품 출시 주요 매체 일제 보도" },
-  { source: "뉴스", product: "Seraph", title: "복지 정책 개편안 언론 집중 조명" },
-  { source: "검색트렌드", product: "Dynamo", title: "후보 이름 검색량 주간 급상승" },
-  { source: "검색트렌드", product: "Lumen", title: "브랜드 연관 검색어 상위권 진입" },
-  { source: "검색트렌드", product: "Seraph", title: "정책 키워드 검색 관심도 확대" },
-  { source: "SNS·커뮤니티", product: "Dynamo", title: "커뮤니티 정치 여론 확산세 포착" },
-  { source: "SNS·커뮤니티", product: "Lumen", title: "SNS 제품 언급량 급증" },
-  { source: "SNS·커뮤니티", product: "Seraph", title: "온라인 정책 반응 양극화 심화" },
-];
-
+// ── 관리자: 자동 수집(한국 이슈 시나리오 풀) ───────────────────────────────
 router.post(
   "/admin/signals/auto",
   requireAdmin,
@@ -256,13 +209,13 @@ router.post(
       return;
     }
     const uid = tenantId(req);
-    const settings = await getOrCreateSettings(uid);
+    const settings = await getGlobalSettings();
     const count = parsed.data.count ?? 1;
     const requestedSource = parsed.data.source as SignalSource | undefined;
 
     // 활성 소스만 후보로. 특정 소스 요청 시 해당 소스로 한정.
-    let pool = AUTO_POOL.filter((p) => enabledForSource(settings, p.source));
-    if (requestedSource) pool = pool.filter((p) => p.source === requestedSource);
+    let pool = AUTO_SCENARIOS.filter((s) => enabledForSource(settings, s.source));
+    if (requestedSource) pool = pool.filter((s) => s.source === requestedSource);
     if (pool.length === 0) {
       res.status(400).json({
         error: "선택 가능한 활성 소스가 없습니다. 소스 설정을 확인해 주세요.",
@@ -278,8 +231,9 @@ router.post(
       const effect = mockSignalEffect(
         pick.source,
         pick.product,
-        pick.title,
+        null,
         weightForSource(settings, pick.source),
+        pick,
       );
       rows.push({
         userId: uid,
@@ -311,36 +265,25 @@ router.post(
   },
 );
 
-// ── 관리자: 시드 리셋 ──────────────────────────────────────────────────────
-const RESET_COMBOS: { source: SignalSource; product: SignalProduct }[] = [
-  { source: "뉴스", product: "Dynamo" },
-  { source: "검색트렌드", product: "Lumen" },
-  { source: "SNS·커뮤니티", product: "Seraph" },
-  { source: "뉴스", product: "Lumen" },
-  { source: "검색트렌드", product: "Dynamo" },
-  { source: "SNS·커뮤니티", product: "Dynamo" },
-  { source: "뉴스", product: "Seraph" },
-];
-
+// ── 관리자: 시드 리셋(전체 삭제 후 재시드) ─────────────────────────────────
 router.post(
   "/admin/signals/reset",
   requireAdmin,
   async (req, res): Promise<void> => {
     const uid = tenantId(req);
-    const settings = await getOrCreateSettings(uid);
-    await db
-      .delete(signalBatchesTable)
-      .where(eq(signalBatchesTable.userId, uid));
+    const settings = await getGlobalSettings();
+    await db.delete(signalBatchesTable);
 
     const now = Date.now();
     const dayMs = 24 * 60 * 60 * 1000;
-    const n = RESET_COMBOS.length;
-    const rows = RESET_COMBOS.map((c, i) => {
+    const n = RESET_SCENARIOS.length;
+    const rows = RESET_SCENARIOS.map((c, i) => {
       const effect = mockSignalEffect(
         c.source,
         c.product,
         null,
         weightForSource(settings, c.source),
+        c,
       );
       // 최근 ~18일에 걸쳐 시간순 분포(오래된 것 → 최신).
       const collectedAt = new Date(now - (n - 1 - i) * 2.6 * dayMs);
@@ -388,16 +331,10 @@ router.patch(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const uid = tenantId(req);
     const [batch] = await db
       .select()
       .from(signalBatchesTable)
-      .where(
-        and(
-          eq(signalBatchesTable.id, params.data.id),
-          eq(signalBatchesTable.userId, uid),
-        ),
-      );
+      .where(eq(signalBatchesTable.id, params.data.id));
     if (!batch) {
       res.status(404).json({ error: "Signal batch not found" });
       return;
@@ -459,15 +396,9 @@ router.delete(
       res.status(400).json({ error: params.error.message });
       return;
     }
-    const uid = tenantId(req);
     const deleted = await db
       .delete(signalBatchesTable)
-      .where(
-        and(
-          eq(signalBatchesTable.id, params.data.id),
-          eq(signalBatchesTable.userId, uid),
-        ),
-      )
+      .where(eq(signalBatchesTable.id, params.data.id))
       .returning();
     if (deleted.length === 0) {
       res.status(404).json({ error: "Signal batch not found" });

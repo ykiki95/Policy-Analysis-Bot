@@ -9,7 +9,7 @@ import * as zod from 'zod';
 
 
 /**
- * @summary List signal ingest batches for the current tenant (collectedAt desc)
+ * @summary List all signal ingest batches (global, collectedAt desc)
  */
 export const ListSignalsResponseItem = zod.object({
   "id": zod.number(),
@@ -72,35 +72,9 @@ export const CreateSignalBody = zod.object({
 
 
 /**
- * @summary Get signal ingest settings for the current tenant (defaults if none)
+ * @summary Get the global signal ingest settings (shared by all users)
  */
 export const GetSignalSettingsResponse = zod.object({
-  "id": zod.number(),
-  "userId": zod.number(),
-  "sourceNewsEnabled": zod.boolean(),
-  "sourceTrendEnabled": zod.boolean(),
-  "sourceSnsEnabled": zod.boolean(),
-  "sourceNewsWeight": zod.number(),
-  "sourceTrendWeight": zod.number(),
-  "sourceSnsWeight": zod.number(),
-  "applyToPrediction": zod.boolean(),
-  "scheduleEnabled": zod.boolean(),
-  "scheduleInterval": zod.string(),
-  "filterBotRemoval": zod.boolean(),
-  "filterDedup": zod.boolean(),
-  "filterMinItems": zod.number(),
-  "updatedAt": zod.string()
-})
-
-
-/**
- * @summary Update the current tenant's own signal preferences (non-admin)
- */
-export const UpdateUserSignalSettingsBody = zod.object({
-  "applyToPrediction": zod.boolean()
-})
-
-export const UpdateUserSignalSettingsResponse = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
   "sourceNewsEnabled": zod.boolean(),

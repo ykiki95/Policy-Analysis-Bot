@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { sectorLabel } from "@/lib/sector";
 import {
   useGetAgentSummary,
   useListDataSources,
@@ -100,11 +101,6 @@ const CALIBRATION_PRODUCT_OPTIONS: { value: CalibrationInputProduct; label: stri
   { value: "Lumen", label: "비즈니스" },
   { value: "Seraph", label: "정부" },
 ];
-
-/** 제품(내부 브랜드값) → 도메인 표시 라벨(비즈니스/정부/정치). */
-function productDomainLabel(product: string): string {
-  return product === "Lumen" ? "비즈니스" : product === "Seraph" ? "정부" : "정치";
-}
 
 const DEFAULT_CALIBRATION_SETTINGS = {
   method: "베이지안 축소 (Bayesian Shrinkage)",
@@ -1534,7 +1530,7 @@ function CalibrationEventsSection({
                         {ev.title}
                         <div className="text-xs text-muted-foreground">{ev.metric}</div>
                       </TableCell>
-                      <TableCell><Badge variant="outline">{productDomainLabel(ev.product)}</Badge></TableCell>
+                      <TableCell><Badge variant="outline">{sectorLabel(ev.product)}</Badge></TableCell>
                       <TableCell><Badge variant="secondary">{ev.eventType}</Badge></TableCell>
                       <TableCell className="whitespace-nowrap">{ev.targetDate}</TableCell>
                       <TableCell className="text-right tabular-nums">{ev.actualValue}%</TableCell>
@@ -1578,15 +1574,6 @@ function CalibrationEventsSection({
 const SIGNAL_SOURCES = ["뉴스", "검색트렌드", "SNS·커뮤니티"] as const;
 const SIGNAL_PRODUCTS = ["Lumen", "Seraph", "Dynamo"] as const;
 const SIGNAL_SCHEDULES = ["수동", "매시간", "매일"] as const;
-const SIGNAL_AUDIENCE: Record<string, string> = {
-  Lumen: "비즈니스",
-  Seraph: "정부",
-  Dynamo: "정치",
-};
-function signalAudienceLabel(product: string): string {
-  return SIGNAL_AUDIENCE[product] ?? product;
-}
-
 function sourceBadgeVariant(source: string): "default" | "secondary" | "outline" {
   if (source === "뉴스") return "default";
   if (source === "검색트렌드") return "secondary";
@@ -1810,7 +1797,7 @@ function SignalAddDialog() {
             <Label>연계 부문</Label>
             <Select value={product} onValueChange={setProduct}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{SIGNAL_PRODUCTS.map((p) => <SelectItem key={p} value={p}>{signalAudienceLabel(p)}</SelectItem>)}</SelectContent>
+              <SelectContent>{SIGNAL_PRODUCTS.map((p) => <SelectItem key={p} value={p}>{sectorLabel(p)}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
@@ -1901,7 +1888,7 @@ function SignalEditDialog({ batch }: { batch: SignalBatch }) {
               <Label>부문</Label>
               <Select value={product} onValueChange={setProduct}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{SIGNAL_PRODUCTS.map((p) => <SelectItem key={p} value={p}>{signalAudienceLabel(p)}</SelectItem>)}</SelectContent>
+                <SelectContent>{SIGNAL_PRODUCTS.map((p) => <SelectItem key={p} value={p}>{sectorLabel(p)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
@@ -2038,7 +2025,7 @@ function SignalIngestSection() {
                     <TableRow key={b.id}>
                       <TableCell className="font-medium max-w-[220px] truncate">{b.title}</TableCell>
                       <TableCell><Badge variant={sourceBadgeVariant(b.source)}>{b.source}</Badge></TableCell>
-                      <TableCell><Badge variant="outline">{signalAudienceLabel(b.linkedProduct)}</Badge></TableCell>
+                      <TableCell><Badge variant="outline">{sectorLabel(b.linkedProduct)}</Badge></TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         {new Date(b.collectedAt).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </TableCell>

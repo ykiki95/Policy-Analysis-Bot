@@ -1,0 +1,52 @@
+# 작업: 신호 인제스트 — 설정 전역화 + 부문 라벨 일관화 + 한국 이슈 샘플 풀 + 추이 차트 주석
+
+## 0) 전제
+- 기존 신호 인제스트 기능 확장. 스택/규약 동일(Express5+Drizzle+Postgres, React+wouter+TanStack Query+recharts+shadcn). API는 openapi.yaml 갱신 후 `pnpm --filter @workspace/api-spec run codegen`. Drizzle Date→jsonReady(). 관리자 쓰기는 requireAdmin. 카피 한국어. simulationEngine/agentGenerator/보정 4라벨 수정 금지.
+
+## 1) 설정·배치를 전역(공용) 데이터로 [실제]
+- signal_settings 는 사용자별이 아니라 단일 전역 행으로 둔다(예: 고정 id=1 또는 key 컬럼). GET /signals/settings 는 전역 설정을 반환, PUT /admin/signals/settings(requireAdmin)는 전역 행 upsert. tenantId 스코프 제거.
+- signal_batches 도 공용으로 전환: 조회(GET /signals, /signals/:id)는 userId 로 필터하지 않고 전체를 반환(regions/elections 처럼 공용). 생성/수정/삭제는 requireAdmin. 기존 userId 컬럼은 남겨두되 읽기 스코프에서 제외(또는 admin 계정 소유로 통일). 모든 사용자가 동일한 신호를 본다.
+
+## 2) 부문 라벨 일관화 [실제]
+- 공유 helper 를 한 곳에 만든다: artifacts/demos/src/lib/sector.ts → `export function sectorLabel(product: string): string { return product === "Lumen" ? "비즈니스" : product === "Seraph" ? "정부" : "정치"; }` (현 앱 표기 유지). admin/index.tsx·simulations/detail.tsx 등에 중복 정의된 동일 helper 를 이 공유본으로 교체.
+- signals 페이지(pages/signals/index.tsx)는 현재 linkedProduct 원값("Lumen"/"Seraph"/"Dynamo")을 그대로 노출한다. 이를 모두 sectorLabel() 로 교체(목록·상세·차트 범례·관리 화면 포함). 색상 맵(PRODUCT_COLOR)은 내부 키로 유지하되 화면 텍스트는 부문 라벨만 보인다.
+- 주: 라벨을 "정책"으로 바꾸려면 sector.ts 한 곳만 수정하면 전 화면에 반영되도록 한다.
+
+## 3) 자동 수집 샘플 풀 — 한국 이슈 시나리오로 교체 [하드코딩]
+signalMock.ts(또는 자동수집 라우트)의 샘플 풀을 아래 시나리오로 채운다. 실제 외부수집 아님. **실존 정당·후보·인물명 사용 금지**(이슈 중심 표현만). 각 항목: source / sector(product) / title / summary(1~2문장) / 감성성향 / 방향 / 강도(2~6%p). before/after 와 itemCount 는 기존 로직 + 소스 가중치로 산출.
+
+[비즈니스 / metric 구매의향(%)]
+- 뉴스: "주요 OTT 구독료 인상 발표" — 구독료 인상 소식이 매체에 집중 보도. 감성 부정 우세, 방향 하락.
+- 뉴스: "편의점 PB·가성비 상품 라인업 확대 보도" — 가성비 상품 출시 긍정 보도. 긍정 우세, 상승.
+- 검색트렌드: "'무지출 챌린지' 검색량 급증" — 절약 소비 키워드 급상승. 가격민감 강화, 하락.
+- SNS·커뮤니티: "배달앱 수수료 인상 불매 언급 확산" — 커뮤니티 반발 확산. 부정 우세, 하락.
+- SNS·커뮤니티: "신제품 언박싱 긍정 후기 확산" — 초기 반응 호의적. 긍정 우세, 상승.
+
+[정부 / metric 정책수용도(%)]
+- 뉴스: "전자정부·민원 서비스 개편 발표 보도" — 디지털 행정 개선 보도. 긍정, 상승.
+- 뉴스: "공공요금 인상 계획 보도" — 요금 인상 부담 부각. 부정, 하락.
+- 검색트렌드: "'재난지원금 신청' 검색 폭증" — 지원 정책 관심 급증. 긍정, 상승.
+- SNS·커뮤니티: "행정 서비스 접속 지연·오류 불만 확산" — 서비스 장애 불만. 부정, 하락.
+
+[정치 / metric 지지율(%)]
+- 뉴스: "청년 주거지원 확대안 집중 보도" — 주거 지원 정책 긍정 보도. 긍정, 상승.
+- 뉴스: "증세 필요성 논의 보도 확대" — 세 부담 우려 부각. 부정, 하락.
+- 검색트렌드: "지역 현안 정책 키워드 검색 급상승" — 현안 관심 확대. 중립~소폭 상승.
+- SNS·커뮤니티: "현안 관련 온라인 여론 양극화 심화" — 찬반 대립 격화. 혼조, 소폭 변동.
+
+자동 수집 실행 시 이 풀에서 (요청 source 우선) 결정론적/랜덤 선택해 실제 insert.
+
+## 4) 추이 차트에 신호 발생 주석 [실제]
+pages/signals/index.tsx 의 "신호 반영 지지율 추이" LineChart 에 신호 발생 지점을 표시한다.
+- 각 배치 지점에 recharts ReferenceDot 를 (x=collectedAt, y=valueAfter, 색=부문색)으로 찍는다.
+- 가독성: 모든 점에 라벨을 상시 노출하면 복잡하니, Δ 절대값 상위 2~3건에만 짧은 콜아웃 라벨(부문 + 제목 12자 이내 + Δ)을 ReferenceDot 의 Label 로 표시. 나머지는 점만.
+- 점에 hover 시 커스텀 Tooltip: 수집시각 · 부문(sectorLabel) · 제목 · 감성(긍/중/부) · before→after Δ.
+- 큰 변동(예: |Δ|≥4%p) 지점엔 옅은 세로 ReferenceLine 1~2개로 "신호 발생" 강조(선택).
+- 점/라벨 클릭 시 해당 배치 상세(DetailDialog) 오픈.
+
+## 완료 기준
+- 신호 설정이 전역 1행으로 저장되고 모든 사용자가 동일 신호를 본다(관리자만 변경).
+- signals 전 화면에서 제품 코드명("Lumen/Seraph/Dynamo")이 보이지 않고 부문 라벨만 보인다.
+- 자동 수집이 한국 이슈 시나리오 배치를 생성한다(실존 정당·인물명 없음).
+- 추이 차트에 신호 발생 점·콜아웃·hover 툴팁이 뜨고, 점 클릭 시 상세가 열린다.
+- `pnpm run typecheck` 통과, 기존 화면 영향 없음.

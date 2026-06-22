@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey, useTickSimulation, useRunSimulation, useStopSimulation, useGetBudget } from "@workspace/api-client-react";
 import { runErrorMessage } from "@/lib/utils";
+import { sectorLabel } from "@/lib/sector";
 import { useParams, Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -29,11 +30,6 @@ const ageStart = (key: string) => {
   return m ? parseInt(m[0], 10) : 999;
 };
 const RESPONSES_PAGE_SIZE = 20;
-
-/** 제품(내부 브랜드값) → 도메인 표시 라벨(비즈니스/정부/정치). */
-function productDomainLabel(product: string): string {
-  return product === "Lumen" ? "비즈니스" : product === "Seraph" ? "정부" : "정치";
-}
 
 /** 남은 초 → 사람이 읽기 좋은 한국어 표기. */
 function formatEta(totalSeconds: number): string {
@@ -430,7 +426,7 @@ export default function SimulationDetail() {
                     <Badge variant="secondary" className="ml-1">자동</Badge>
                   </div>
                   <CardDescription>
-                    {productDomainLabel(sim.product)} 도메인의 과거 검증 {simDetail.calibration.eventCount}건에서 학습한 평균 편향
+                    {sectorLabel(sim.product)} 도메인의 과거 검증 {simDetail.calibration.eventCount}건에서 학습한 평균 편향
                     {" "}{simDetail.calibration.meanBias > 0 ? "+" : ""}{simDetail.calibration.meanBias}%p를
                     축소 계수 {simDetail.calibration.shrinkage}로 적용해 원시 예측을 교정했습니다.
                   </CardDescription>
@@ -500,7 +496,7 @@ export default function SimulationDetail() {
                 <CardContent className="py-5 flex items-start gap-3 text-sm text-muted-foreground">
                   <Sparkles className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>
-                    출력 보정 미적용 — {productDomainLabel(sim.product)} 도메인의 검증 이벤트가{" "}
+                    출력 보정 미적용 — {sectorLabel(sim.product)} 도메인의 검증 이벤트가{" "}
                     {simDetail.calibration.eventCount}건뿐입니다. 보정 및 검증 화면에서 과거 실제 결과를 2건 이상 등록하면
                     원시 예측을 자동 교정한 <strong>보정 찬성률</strong>이 함께 표시됩니다.
                   </span>

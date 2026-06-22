@@ -31,7 +31,7 @@ paths:
     get:
       operationId: listSignals
       tags: [signals]
-      summary: List signal ingest batches for the current tenant (collectedAt desc)
+      summary: List all signal ingest batches (global, collectedAt desc)
       responses:
         "200":
           description: List of signal batches
@@ -92,7 +92,7 @@ paths:
     get:
       operationId: getSignalSettings
       tags: [signals]
-      summary: Get signal ingest settings for the current tenant (defaults if none)
+      summary: Get the global signal ingest settings (shared by all users)
       responses:
         "200":
           description: Signal settings
@@ -100,29 +100,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SignalSettings"
-    put:
-      operationId: updateUserSignalSettings
-      tags: [signals]
-      summary: Update the current tenant's own signal preferences (non-admin)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UserSignalSettingsInput"
-      responses:
-        "200":
-          description: Updated signal settings
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SignalSettings"
-        "400":
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
   /admin/signals/settings:
     put:
       operationId: updateSignalSettings
@@ -171,7 +148,7 @@ paths:
     post:
       operationId: resetSignals
       tags: [signals]
-      summary: Delete all tenant batches and reseed sample batches (admin)
+      summary: Delete all signal batches and reseed sample batches (admin)
       responses:
         "201":
           description: Reseeded signal batches
@@ -1569,13 +1546,6 @@ components:
         filterBotRemoval: { type: boolean }
         filterDedup: { type: boolean }
         filterMinItems: { type: integer, minimum: 0 }
-
-    UserSignalSettingsInput:
-      type: object
-      required:
-        - applyToPrediction
-      properties:
-        applyToPrediction: { type: boolean }
 
     SignalPatchInput:
       type: object

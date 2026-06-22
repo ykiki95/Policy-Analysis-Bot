@@ -4,14 +4,13 @@ import {
   useCreateSignal,
   useUpdateSignal,
   useGetSignalSettings,
-  useUpdateUserSignalSettings,
   useListSimulations,
   getListSignalsQueryKey,
-  getGetSignalSettingsQueryKey,
   type SignalBatch,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { sectorLabel } from "@/lib/sector";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +19,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import {
   Table,
@@ -66,14 +64,16 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   Legend,
+  ReferenceDot,
+  ReferenceLine,
   PieChart,
   Pie,
   Cell,
   BarChart,
   Bar,
+  Tooltip as RechartsTooltip,
 } from "recharts";
 
 const PRODUCTS = ["Lumen", "Seraph", "Dynamo"] as const;
@@ -86,16 +86,6 @@ const PRODUCT_COLOR: Record<Product, string> = {
   Seraph: "#0ea5e9",
   Dynamo: "#f59e0b",
 };
-
-const PRODUCT_AUDIENCE: Record<Product, string> = {
-  Lumen: "비즈니스",
-  Seraph: "정부",
-  Dynamo: "정치",
-};
-
-function audienceLabel(product: string): string {
-  return PRODUCT_AUDIENCE[product as Product] ?? product;
-}
 
 const SENTIMENT_COLOR = {
   pos: "#22c55e",
@@ -218,7 +208,7 @@ function NewBatchDialog() {
         <DialogHeader>
           <DialogTitle>새 신호 배치 수집</DialogTitle>
           <DialogDescription>
-            소스와 제품을 선택하면 신호 배치를 수집합니다.
+            소스와 부문을 선택하면 신호 배치를 수집합니다.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -238,15 +228,15 @@ function NewBatchDialog() {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>연결 제품</Label>
+            <Label>연결 부문</Label>
             <Select value={product} onValueChange={(v) => setProduct(v as Product)}>
               <SelectTrigger>
-                <SelectValue placeholder="제품 선택" />
+                <SelectValue placeholder="부문 선택" />
               </SelectTrigger>
               <SelectContent>
                 {PRODUCTS.map((p) => (
                   <SelectItem key={p} value={p}>
-                    {p}
+                    {sectorLabel(p)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -360,7 +350,7 @@ function DetailDialog({
           <div className="flex items-center gap-2">
             <SourceBadge source={current.source} />
             <Badge style={{ background: color }} className="text-white">
-              {audienceLabel(current.linkedProduct)}
+              {sectorLabel(current.linkedProduct)}
             </Badge>
           </div>
           <DialogTitle className="pt-1">{current.title}</DialogTitle>
@@ -482,42 +472,146 @@ function DetailDialog({
   );
 }
 
+/** 추이 차트의 한 신호 점. 차트 좌표(idx/value)와 hover·콜아웃에 쓸 메타를 함께 담는다. */
+type ChartPoint = {
+  id: number;
+  idx: number;
+  date: string;
+  product: Product;
+  color: string;
+  value: number;
+  before: number;
+  after: number;
+  delta: number;
+  deltaTxt: string;
+  metric: string;
+  source: string;
+  title: string;
+  sector: string;
+  pos: number;
+  neu: number;
+  neg: number;
+  collectedLabel: string;
+  batch: SignalBatch;
+};
+
+type ChartRow = {
+  idx: number;
+  date: string;
+  meta: ChartPoint;
+} & Partial<Record<Product, number>>;
+
+/** 추이 차트 hover 툴팁 — 수집시각·부문·제목·감성·지표 변화를 보여준다. */
+function ChartTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: ChartRow }>;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const m = payload[0]?.payload?.meta;
+  if (!m) return null;
+  return (
+    <div className="max-w-[17rem] space-y-1.5 rounded-lg border bg-background p-3 text-xs shadow-md">
+      <div className="flex items-center gap-1.5">
+        <span
+          className="inline-block h-2.5 w-2.5 rounded-full"
+          style={{ background: m.color }}
+        />
+        <span className="font-medium">{m.source}</span>
+        <span className="text-muted-foreground">·</span>
+        <span className="text-muted-foreground">{m.sector}</span>
+      </div>
+      <div className="text-sm font-semibold leading-snug">{m.title}</div>
+      <div className="text-muted-foreground">{m.collectedLabel}</div>
+      <div>
+        감성 · 긍정 {m.pos}% / 중립 {m.neu}% / 부정 {m.neg}%
+      </div>
+      <div className="font-medium">
+        {m.metric} {m.before}% → {m.after}%{" "}
+        <span className={m.delta >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+          ({m.deltaTxt})
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function Signals() {
   const { data: signals, isLoading } = useListSignals();
   const { data: settings } = useGetSignalSettings();
   const { isAdmin } = useAuth();
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const updateUserSettings = useUpdateUserSignalSettings();
   const [selected, setSelected] = useState<SignalBatch | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const applyToPrediction = settings?.applyToPrediction ?? true;
 
-  const handleToggleApply = async (next: boolean) => {
-    try {
-      await updateUserSettings.mutateAsync({ data: { applyToPrediction: next } });
-      await qc.invalidateQueries({ queryKey: getGetSignalSettingsQueryKey() });
-    } catch {
-      toast({
-        title: "설정 저장 실패",
-        description: "잠시 후 다시 시도해 주세요.",
-        variant: "destructive",
-      });
-    }
+  const openDetail = (b: SignalBatch) => {
+    setSelected(b);
+    setDetailOpen(true);
   };
 
-  const chartData = useMemo(() => {
+  const points = useMemo<ChartPoint[]>(() => {
     if (!signals) return [];
-    // collectedAt asc, 한 시점에 여러 제품이 있을 수 있어 제품별 키로 분리
     const sorted = [...signals].sort(
       (a, b) =>
         new Date(a.collectedAt).getTime() - new Date(b.collectedAt).getTime(),
     );
-    return sorted.map((s) => ({
-      date: fmtDate(s.collectedAt),
-      [s.linkedProduct]: applyToPrediction ? s.valueAfter : s.valueBefore,
-    }));
+    return sorted.map((s, idx) => {
+      const before = s.valueBefore;
+      const after = s.valueAfter;
+      const delta = Math.round((after - before) * 10) / 10;
+      const product = (PRODUCTS as readonly string[]).includes(s.linkedProduct)
+        ? (s.linkedProduct as Product)
+        : "Dynamo";
+      return {
+        id: s.id,
+        idx,
+        date: fmtDate(s.collectedAt),
+        product,
+        color: PRODUCT_COLOR[product],
+        value: applyToPrediction ? after : before,
+        before,
+        after,
+        delta,
+        deltaTxt: `${delta >= 0 ? "+" : ""}${delta}%p`,
+        metric: s.metric,
+        source: s.source,
+        title: s.title,
+        sector: sectorLabel(s.linkedProduct),
+        pos: s.sentimentPos,
+        neu: s.sentimentNeu,
+        neg: s.sentimentNeg,
+        collectedLabel: fmtDateTime(s.collectedAt),
+        batch: s,
+      };
+    });
   }, [signals, applyToPrediction]);
+
+  const chartData = useMemo<ChartRow[]>(
+    () =>
+      points.map((p) => ({
+        idx: p.idx,
+        date: p.date,
+        meta: p,
+        [p.product]: p.value,
+      })),
+    [points],
+  );
+
+  // |Δ| 상위 최대 3개 → 콜아웃 라벨. |Δ| ≥ 4 → 신호발생 기준선.
+  const calloutIds = useMemo(() => {
+    const ranked = [...points]
+      .filter((p) => Math.abs(p.delta) >= 2)
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+      .slice(0, 3);
+    return new Set(ranked.map((p) => p.id));
+  }, [points]);
+
+  const bigSwings = useMemo(
+    () => points.filter((p) => Math.abs(p.delta) >= 4),
+    [points],
+  );
 
   const kpi = useMemo(() => {
     if (!signals || signals.length === 0)
@@ -546,11 +640,6 @@ export default function Signals() {
       </div>
     );
   }
-
-  const openDetail = (b: SignalBatch) => {
-    setSelected(b);
-    setDetailOpen(true);
-  };
 
   return (
     <div className="space-y-6">
@@ -601,22 +690,14 @@ export default function Signals() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle className="flex items-center gap-2">
               <Radio className="h-5 w-5 text-muted-foreground" />
-              신호 반영 지지율 추이
+              신호 반영 지표 추이
               <Badge variant={applyToPrediction ? "default" : "secondary"} className="font-normal">
                 {applyToPrediction ? "신호 반영 후 기준" : "신호 반영 전 기준"}
               </Badge>
             </CardTitle>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="apply-signal" className="text-sm font-normal text-muted-foreground">
-                내 예측에 신호 반영
-              </Label>
-              <Switch
-                id="apply-signal"
-                checked={applyToPrediction}
-                disabled={updateUserSettings.isPending}
-                onCheckedChange={handleToggleApply}
-              />
-            </div>
+            <p className="text-xs text-muted-foreground">
+              점을 클릭하면 해당 신호 배치 상세가 열립니다.
+            </p>
           </div>
         </CardHeader>
         <CardContent>
@@ -625,25 +706,77 @@ export default function Signals() {
               표시할 신호 배치가 없습니다.
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: -8 }}>
+            <ResponsiveContainer width="100%" height={340}>
+              <LineChart data={chartData} margin={{ top: 24, right: 24, bottom: 0, left: -8 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" fontSize={12} />
+                <XAxis
+                  dataKey="idx"
+                  type="number"
+                  domain={[-0.5, Math.max(0, points.length - 0.5)]}
+                  ticks={points.map((p) => p.idx)}
+                  tickFormatter={(v: number) => points[v]?.date ?? ""}
+                  allowDecimals={false}
+                  fontSize={12}
+                />
                 <YAxis fontSize={12} unit="%" domain={["dataMin - 4", "dataMax + 4"]} />
-                <RechartsTooltip formatter={(v: number) => `${v}%`} />
+                <RechartsTooltip content={<ChartTooltip />} />
                 <Legend />
                 {PRODUCTS.map((p) => (
                   <Line
                     key={p}
                     type="monotone"
                     dataKey={p}
-                    name={PRODUCT_AUDIENCE[p]}
+                    name={sectorLabel(p)}
                     stroke={PRODUCT_COLOR[p]}
                     strokeWidth={2}
-                    dot={{ r: 3 }}
+                    dot={false}
                     connectNulls
                   />
                 ))}
+                {/* |Δ| ≥ 4 신호발생 기준선 */}
+                {bigSwings.map((p) => (
+                  <ReferenceLine
+                    key={`swing-${p.id}`}
+                    x={p.idx}
+                    stroke={p.color}
+                    strokeDasharray="4 4"
+                    strokeOpacity={0.35}
+                  />
+                ))}
+                {/* 점별 클릭 가능 신호점 + 상위 변동 콜아웃 */}
+                {points.map((p) => {
+                  const isCallout = calloutIds.has(p.id);
+                  return (
+                    <ReferenceDot
+                      key={`dot-${p.id}`}
+                      x={p.idx}
+                      y={p.value}
+                      r={isCallout ? 6 : 4}
+                      shape={(props: { cx?: number; cy?: number }) => (
+                        <circle
+                          cx={props.cx}
+                          cy={props.cy}
+                          r={isCallout ? 6 : 4}
+                          fill={p.color}
+                          stroke="#fff"
+                          strokeWidth={1.5}
+                          style={{ cursor: "pointer" }}
+                          onClick={() => openDetail(p.batch)}
+                        />
+                      )}
+                      label={
+                        isCallout
+                          ? {
+                              value: `${p.title.length > 14 ? `${p.title.slice(0, 14)}…` : p.title} ${p.deltaTxt}`,
+                              position: "top",
+                              fill: p.color,
+                              fontSize: 11,
+                            }
+                          : undefined
+                      }
+                    />
+                  );
+                })}
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -692,7 +825,7 @@ export default function Signals() {
                         style={{ background: PRODUCT_COLOR[b.linkedProduct as Product] }}
                         className="text-white"
                       >
-                        {audienceLabel(b.linkedProduct)}
+                        {sectorLabel(b.linkedProduct)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
