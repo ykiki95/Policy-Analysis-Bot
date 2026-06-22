@@ -2039,16 +2039,16 @@ function PoliticsBacktestPanel({
         )}
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="single">
+        <Tabs defaultValue="election">
           <TabsList className="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="single">단일 지표 ({visible.length})</TabsTrigger>
             <TabsTrigger value="election"><Vote className="h-4 w-4 mr-1.5" />선거 시·도별</TabsTrigger>
+            <TabsTrigger value="single">단일 지표 ({visible.length})</TabsTrigger>
           </TabsList>
-          <TabsContent value="single" className="mt-4">
-            <CalibrationEventsTable events={visible} isLoading={eventsProps.isLoading} onDelete={eventsProps.onDelete} />
-          </TabsContent>
           <TabsContent value="election" className="mt-4">
             <RegisteredBacktestsTable />
+          </TabsContent>
+          <TabsContent value="single" className="mt-4">
+            <CalibrationEventsTable events={visible} isLoading={eventsProps.isLoading} onDelete={eventsProps.onDelete} />
           </TabsContent>
         </Tabs>
       </CardContent>
