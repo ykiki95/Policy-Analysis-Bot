@@ -9,6 +9,69 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary List signal ingest batches for the current tenant (collectedAt desc)
+ */
+export const ListSignalsResponseItem = zod.object({
+  "id": zod.number(),
+  "source": zod.string(),
+  "title": zod.string(),
+  "collectedAt": zod.string(),
+  "itemCount": zod.number(),
+  "sentimentPos": zod.number(),
+  "sentimentNeu": zod.number(),
+  "sentimentNeg": zod.number(),
+  "summary": zod.string(),
+  "linkedProduct": zod.string(),
+  "linkedSimulationId": zod.number().nullable(),
+  "metric": zod.string(),
+  "valueBefore": zod.number(),
+  "valueAfter": zod.number(),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+export const ListSignalsResponse = zod.array(ListSignalsResponseItem)
+
+
+/**
+ * @summary Get a single signal batch
+ */
+export const GetSignalParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetSignalResponse = zod.object({
+  "id": zod.number(),
+  "source": zod.string(),
+  "title": zod.string(),
+  "collectedAt": zod.string(),
+  "itemCount": zod.number(),
+  "sentimentPos": zod.number(),
+  "sentimentNeu": zod.number(),
+  "sentimentNeg": zod.number(),
+  "summary": zod.string(),
+  "linkedProduct": zod.string(),
+  "linkedSimulationId": zod.number().nullable(),
+  "metric": zod.string(),
+  "valueBefore": zod.number(),
+  "valueAfter": zod.number(),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Create a signal batch (admin). Effect numbers are deterministic mock.
+ */
+export const CreateSignalBody = zod.object({
+  "source": zod.enum(['뉴스', '검색트렌드', 'SNS·커뮤니티']),
+  "title": zod.string().optional(),
+  "linkedProduct": zod.enum(['Lumen', 'Seraph', 'Dynamo']),
+  "linkedSimulationId": zod.number().nullish(),
+  "itemCount": zod.number().optional()
+})
+
+
+/**
  * @summary 회원가입 후 자동 로그인
  */
 

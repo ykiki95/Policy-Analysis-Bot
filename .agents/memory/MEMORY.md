@@ -11,3 +11,4 @@
 - [Admin vs user feature parity](admin-vs-user-feature-parity.md) — self-service tabs (인구~검증이벤트) identical for users & admins; only global/shared-data mutations (election ground-truth import) stay admin-only in 계정 관리.
 - [Orval enum+nullable drops null](orval-enum-nullable.md) — adding `enum` to a `nullable` OpenAPI string makes Orval generate `T | undefined` (no null), breaking "clear to null" flows; keep plain `type: string, nullable: true` if null must be sendable.
 - [Backup snapshot layout](backup-snapshots.md) — backup keeps a latest pointer (demos_full_dump.sql) PLUS date-stamped snapshots (snapshots/demos_YYYY-MM-DD.sql, one/day, same-day overwrites) with retention; stage with git add --all to capture pruned deletions.
+- [drizzle-kit push needs a TTY](drizzle-push-tty.md) — `run push` aborts in the agent shell (interactive create-vs-rename resolver, no --yes); create new tables via raw `CREATE TABLE IF NOT EXISTS` DDL through executeSql instead.

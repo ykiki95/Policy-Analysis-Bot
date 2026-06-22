@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { Users, Activity, BarChart3, Database, Box, Beaker, Menu, X, Settings, LogOut, Wallet, ChevronDown, Check, UserCog } from "lucide-react";
+import { Users, Activity, BarChart3, Database, Box, Beaker, Radio, Menu, X, Settings, LogOut, Wallet, ChevronDown, Check, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfileDialog } from "@/components/profile-dialog";
@@ -147,6 +147,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/", label: "대시보드", icon: Activity },
     { href: "/population", label: "합성 인구", icon: Users },
     { href: "/simulations", label: "시뮬레이션", icon: Beaker },
+    { href: "/signals", label: "신호 인제스트", icon: Radio },
     { href: "/surveys", label: "설문조사 기준", icon: Database },
     { href: "/calibration", label: "보정 및 검증", icon: BarChart3 },
     { href: "/products", label: "제품 라인업", icon: Box },

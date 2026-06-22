@@ -1,0 +1,72 @@
+# 작업: '신호 인제스트(실시간 신호 배치)' 화면 신설 — 투자자 데모용 경량 연동
+
+## 배경/성격
+- 이 앱(DEMOS, Synthetic Electorate Intelligence)은 투자자 피치용 데모다. 이 화면은 aaru식 "실시간 뉴스·검색트렌드·SNS 신호를 배치로 수집 → 합성 여론이 움직이는 것을 추적"하는 기능을 보여준다.
+- 구현 수준은 '경량 연동'이다: 배치 CRUD와 영속화는 실제로 하되, 신호의 효과(지지율 before/after Δ) 수치는 사전 시드/목업이다. 실제 스크래핑·외부 API 수집은 만들지 마라.
+- 화면 어디에나 잘 보이게 "데모 · 향후 구현" 배지를 노출한다(투자자 실사 시 예시 수치를 실측으로 오인하지 않도록).
+
+## 기존 스택/규약 (반드시 준수)
+- pnpm 모노레포. API: artifacts/api-server (Express5 + Drizzle + Postgres). 프런트: artifacts/demos (React + Vite + wouter + TanStack Query + recharts + shadcn/ui).
+- 라우트는 artifacts/demos/src/App.tsx 의 wouter <Route> 패턴을 따르고, 사이드바 항목은 artifacts/demos/src/components/layout.tsx 에 추가한다.
+- DB 스키마 소스: lib/db/src/schema/*.ts (drizzle). API 계약 소스: lib/api-spec/openapi.yaml → codegen 으로 @workspace/api-zod, @workspace/api-client-react 생성. 새 엔드포인트는 이 codegen 흐름을 따른다(직접 fetch 금지).
+- Drizzle Date → 응답 전 jsonReady()(lib/serialize.ts) 통과 후 .parse() (기존 라우트 동일).
+- 멀티테넌시: 사용자별 데이터는 userId FK + lib/tenant.ts 의 tenantId(req). 관리자 전용 쓰기는 /api/admin/* + requireAdmin 미들웨어.
+- 모든 UI 카피·응답은 한국어. shadcn/ui 컴포넌트와 기존 색/타이포를 재사용(새 디자인 토큰 만들지 말 것).
+
+## 1) 데이터 모델 — 새 테이블 signal_batches (lib/db/src/schema/signalBatches.ts)
+컬럼:
+- id (serial PK), userId (integer, FK)
+- source (text; '뉴스' | '검색트렌드' | 'SNS·커뮤니티')
+- title (text; 예: "청년 월세지원 관련 보도 급증")
+- collectedAt (timestamptz)
+- itemCount (integer; 수집 건수)
+- sentimentPos / sentimentNeu / sentimentNeg (integer; 합 100)
+- summary (text; 사전 작성된 LLM풍 요약 2~3문장)
+- linkedProduct (text; 'Lumen' | 'Seraph' | 'Dynamo')
+- linkedSimulationId (integer, nullable)
+- metric (text; 예: "지지율(%)")
+- valueBefore / valueAfter (doublePrecision)  // delta = after - before (계산값)
+- status (text; '수집중' | '완료'; 기본 '완료')
+schema/index.ts 에 export 추가. pnpm --filter @workspace/db run push 로 반영.
+
+## 2) 시드 데이터
+6~8개 예시 배치를 test 계정(userId=1) 소유로 시드한다. 3개 소스와 3개 제품(Lumen/Seraph/Dynamo)에 고루 분포. collectedAt 은 최근 2~3주에 걸쳐 시간순으로. 각 배치는 그럴듯한 한국어 title·summary·감성분포·valueBefore/After(작은 폭의 ±2~6%p 변화)를 갖는다. 시드 SQL 의 jsonb/배열·타임스탬프 바인딩은 기존 시드 규약을 따른다.
+
+## 3) API (openapi.yaml 갱신 후 codegen)
+- GET /signals — 인증 사용자 본인 스코프 배치 목록(collectedAt desc).
+- GET /signals/:id — 단건.
+- POST /admin/signals (requireAdmin) — 새 배치 생성. body: source, title, linkedProduct, linkedSimulationId?, itemCount?. 서버는 효과 수치(sentiment, valueBefore/After)를 결정론적 목업 함수 또는 시드 풀에서 채워 넣는다(실제 계산·외부호출 금지). 생성 시 status='수집중'으로 만들고, 약 1.5초 후(또는 즉시) '완료'로 두는 방식 중 프런트 연출과 맞춰 단순하게.
+주의: 이 배치는 실제 simulations 행의 수치를 변경하지 않는다. valueBefore/After 는 배치 자체가 보유한 예시값이며 시뮬레이션 엔진은 절대 건드리지 마라.
+
+## 4) 사이드바 + 라우트
+- layout.tsx 사이드바에 '신호 인제스트' 항목 추가(아이콘은 lucide-react 의 Radio 또는 Activity). 위치는 '시뮬레이션'과 '보정·검증' 사이.
+- App.tsx 에 <Route path="/signals" component={Signals} /> 추가. 페이지: artifacts/demos/src/pages/signals/index.tsx, 상세는 동일 페이지 내 패널 또는 /signals/:id.
+
+## 5) 화면 사양 (/signals)
+상단:
+- 페이지 타이틀 "실시간 신호 인제스트" + "데모 · 향후 구현" 배지(Badge, variant outline) + 한 줄 부제: "뉴스·검색트렌드·SNS를 배치로 수집해 합성 여론의 변화를 추적합니다."
+- KPI 카드 3개(대시보드 KPI 스타일 재사용): 누적 배치 수 / 마지막 수집 시각 / 누적 신호 건수.
+중단(핵심, 투자자 후크):
+- "신호 반영 지지율 추이" 라인차트(recharts LineChart): x=collectedAt, y=valueAfter, 제품별 색상. 배치가 쌓일수록 여론이 움직이는 시계열을 보여준다.
+- 우측/하단에 "새 배치 수집" 버튼(관리자에게만 노출; isAdmin 분기).
+하단:
+- 배치 목록(Table 또는 카드): source 배지 + title + collectedAt + itemCount + 감성 미니바 + before→after 칩(예: "지지 41.2% → 43.8% ▲2.6", 상승은 초록/하락은 빨강). 행 클릭 시 상세.
+상세(패널/페이지):
+- 요약 텍스트, 감성 분포(recharts 도넛 또는 가로 바), before/after 비교(recharts 그룹 바 또는 슬로프), "반영된 시뮬레이션" 링크(linkedSimulationId 있으면 /simulations/:id 로).
+
+## 6) '새 배치 수집' 인터랙션 (관리자)
+- 버튼 클릭 → shadcn Dialog/Sheet: source 선택, linkedProduct 선택, linkedSimulation 선택(옵션), title 입력(옵션).
+- 제출 → POST /admin/signals → 목록에 '수집중' 상태로 추가 → 짧은 로딩 후 '완료'로 전환되며 효과 수치(시드) 표시. TanStack Query invalidate 로 목록·KPI·차트 갱신.
+
+## 7) 하지 말 것
+- 실제 뉴스/SNS 스크래핑, 외부 수집 API, 크론/백그라운드 워커 구현 금지.
+- 보정 4가지 라벨(베이지안 축소/사후 층화 가중/레이킹/회귀 보정)·calibration 화면·simulationEngine·agentGenerator 수정 금지.
+- 새 색/폰트 토큰 추가 금지. 영문 카피 금지(전부 한국어).
+
+## 완료 기준
+- 사이드바에 '신호 인제스트'가 보이고 /signals 가 열린다.
+- 시드 배치가 목록·차트·KPI에 표시된다.
+- 관리자 계정에서 새 배치를 추가하면 목록/차트/KPI가 갱신되고 before/after Δ가 보인다.
+- 상세에서 감성 분포와 before/after 차트가 렌더된다.
+- "데모 · 향후 구현" 배지가 상단에 보인다.
+- pnpm run typecheck 통과. 기존 시뮬레이션/보정 화면 동작 변화 없음.

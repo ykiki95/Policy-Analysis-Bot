@@ -156,6 +156,51 @@ export interface AgentSummary {
   avgLeaning: number;
 }
 
+export interface SignalBatch {
+  id: number;
+  source: string;
+  title: string;
+  collectedAt: string;
+  itemCount: number;
+  sentimentPos: number;
+  sentimentNeu: number;
+  sentimentNeg: number;
+  summary: string;
+  linkedProduct: string;
+  linkedSimulationId: number | null;
+  metric: string;
+  valueBefore: number;
+  valueAfter: number;
+  status: string;
+  createdAt: string;
+}
+
+export type SignalInputSource = typeof SignalInputSource[keyof typeof SignalInputSource];
+
+
+export const SignalInputSource = {
+  뉴스: '뉴스',
+  검색트렌드: '검색트렌드',
+  'SNS·커뮤니티': 'SNS·커뮤니티',
+} as const;
+
+export type SignalInputLinkedProduct = typeof SignalInputLinkedProduct[keyof typeof SignalInputLinkedProduct];
+
+
+export const SignalInputLinkedProduct = {
+  Lumen: 'Lumen',
+  Seraph: 'Seraph',
+  Dynamo: 'Dynamo',
+} as const;
+
+export interface SignalInput {
+  source: SignalInputSource;
+  title?: string;
+  linkedProduct: SignalInputLinkedProduct;
+  linkedSimulationId?: number | null;
+  itemCount?: number;
+}
+
 export interface SurveyDriver {
   factor: string;
   issue: string;

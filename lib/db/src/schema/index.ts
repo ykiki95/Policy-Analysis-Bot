@@ -10,3 +10,4 @@ export * from "./regions";
 export * from "./demographicMargins";
 export * from "./elections";
 export * from "./users";
+export * from "./signalBatches";

@@ -48,6 +48,8 @@ import type {
   RegeneratePopulationInput,
   RegeneratePopulationResult,
   Region,
+  SignalBatch,
+  SignalInput,
   SignupInput,
   Simulation,
   SimulationDetail,
@@ -77,6 +79,231 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
+
+export const getListSignalsUrl = () => {
+
+
+
+
+  return `/api/signals`
+}
+
+/**
+ * @summary List signal ingest batches for the current tenant (collectedAt desc)
+ */
+export const listSignals = async ( options?: RequestInit): Promise<SignalBatch[]> => {
+
+  return customFetch<SignalBatch[]>(getListSignalsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSignalsQueryKey = () => {
+    return [
+    `/api/signals`
+    ] as const;
+    }
+
+
+export const getListSignalsQueryOptions = <TData = Awaited<ReturnType<typeof listSignals>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSignals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSignalsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSignals>>> = ({ signal }) => listSignals({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSignals>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSignalsQueryResult = NonNullable<Awaited<ReturnType<typeof listSignals>>>
+export type ListSignalsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List signal ingest batches for the current tenant (collectedAt desc)
+ */
+
+export function useListSignals<TData = Awaited<ReturnType<typeof listSignals>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSignals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSignalsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetSignalUrl = (id: number,) => {
+
+
+
+
+  return `/api/signals/${id}`
+}
+
+/**
+ * @summary Get a single signal batch
+ */
+export const getSignal = async (id: number, options?: RequestInit): Promise<SignalBatch> => {
+
+  return customFetch<SignalBatch>(getGetSignalUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSignalQueryKey = (id: number,) => {
+    return [
+    `/api/signals/${id}`
+    ] as const;
+    }
+
+
+export const getGetSignalQueryOptions = <TData = Awaited<ReturnType<typeof getSignal>>, TError = ErrorType<Error>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSignal>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSignalQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSignal>>> = ({ signal }) => getSignal(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSignal>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSignalQueryResult = NonNullable<Awaited<ReturnType<typeof getSignal>>>
+export type GetSignalQueryError = ErrorType<Error>
+
+
+/**
+ * @summary Get a single signal batch
+ */
+
+export function useGetSignal<TData = Awaited<ReturnType<typeof getSignal>>, TError = ErrorType<Error>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSignal>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSignalQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateSignalUrl = () => {
+
+
+
+
+  return `/api/admin/signals`
+}
+
+/**
+ * @summary Create a signal batch (admin). Effect numbers are deterministic mock.
+ */
+export const createSignal = async (signalInput: SignalInput, options?: RequestInit): Promise<SignalBatch> => {
+
+  return customFetch<SignalBatch>(getCreateSignalUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      signalInput,)
+  }
+);}
+
+
+
+
+export const getCreateSignalMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSignal>>, TError,{data: BodyType<SignalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSignal>>, TError,{data: BodyType<SignalInput>}, TContext> => {
+
+const mutationKey = ['createSignal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSignal>>, {data: BodyType<SignalInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSignal(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSignalMutationResult = NonNullable<Awaited<ReturnType<typeof createSignal>>>
+    export type CreateSignalMutationBody = BodyType<SignalInput>
+    export type CreateSignalMutationError = ErrorType<Error>
+
+    /**
+ * @summary Create a signal batch (admin). Effect numbers are deterministic mock.
+ */
+export const useCreateSignal = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSignal>>, TError,{data: BodyType<SignalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSignal>>,
+        TError,
+        {data: BodyType<SignalInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSignalMutationOptions(options));
+    }
 
 export const getSignupUrl = () => {
 
