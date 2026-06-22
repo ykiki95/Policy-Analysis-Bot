@@ -72,6 +72,141 @@ export const CreateSignalBody = zod.object({
 
 
 /**
+ * @summary Get signal ingest settings for the current tenant (defaults if none)
+ */
+export const GetSignalSettingsResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "sourceNewsEnabled": zod.boolean(),
+  "sourceTrendEnabled": zod.boolean(),
+  "sourceSnsEnabled": zod.boolean(),
+  "sourceNewsWeight": zod.number(),
+  "sourceTrendWeight": zod.number(),
+  "sourceSnsWeight": zod.number(),
+  "applyToPrediction": zod.boolean(),
+  "scheduleEnabled": zod.boolean(),
+  "scheduleInterval": zod.string(),
+  "filterBotRemoval": zod.boolean(),
+  "filterDedup": zod.boolean(),
+  "filterMinItems": zod.number(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Upsert signal ingest settings (admin)
+ */
+export const updateSignalSettingsBodySourceNewsWeightMin = 0;
+export const updateSignalSettingsBodySourceNewsWeightMax = 2;
+
+export const updateSignalSettingsBodySourceTrendWeightMin = 0;
+export const updateSignalSettingsBodySourceTrendWeightMax = 2;
+
+export const updateSignalSettingsBodySourceSnsWeightMin = 0;
+export const updateSignalSettingsBodySourceSnsWeightMax = 2;
+
+export const updateSignalSettingsBodyFilterMinItemsMin = 0;
+
+
+
+export const UpdateSignalSettingsBody = zod.object({
+  "sourceNewsEnabled": zod.boolean(),
+  "sourceTrendEnabled": zod.boolean(),
+  "sourceSnsEnabled": zod.boolean(),
+  "sourceNewsWeight": zod.number().min(updateSignalSettingsBodySourceNewsWeightMin).max(updateSignalSettingsBodySourceNewsWeightMax),
+  "sourceTrendWeight": zod.number().min(updateSignalSettingsBodySourceTrendWeightMin).max(updateSignalSettingsBodySourceTrendWeightMax),
+  "sourceSnsWeight": zod.number().min(updateSignalSettingsBodySourceSnsWeightMin).max(updateSignalSettingsBodySourceSnsWeightMax),
+  "applyToPrediction": zod.boolean(),
+  "scheduleEnabled": zod.boolean(),
+  "scheduleInterval": zod.enum(['수동', '매시간', '매일']),
+  "filterBotRemoval": zod.boolean(),
+  "filterDedup": zod.boolean(),
+  "filterMinItems": zod.number().min(updateSignalSettingsBodyFilterMinItemsMin)
+})
+
+export const UpdateSignalSettingsResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "sourceNewsEnabled": zod.boolean(),
+  "sourceTrendEnabled": zod.boolean(),
+  "sourceSnsEnabled": zod.boolean(),
+  "sourceNewsWeight": zod.number(),
+  "sourceTrendWeight": zod.number(),
+  "sourceSnsWeight": zod.number(),
+  "applyToPrediction": zod.boolean(),
+  "scheduleEnabled": zod.boolean(),
+  "scheduleInterval": zod.string(),
+  "filterBotRemoval": zod.boolean(),
+  "filterDedup": zod.boolean(),
+  "filterMinItems": zod.number(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Auto-collect signal batches from a hardcoded sample pool (admin)
+ */
+export const autoCollectSignalsBodyCountMax = 8;
+
+
+
+export const AutoCollectSignalsBody = zod.object({
+  "count": zod.number().min(1).max(autoCollectSignalsBodyCountMax).optional(),
+  "source": zod.enum(['뉴스', '검색트렌드', 'SNS·커뮤니티']).optional()
+})
+
+
+/**
+ * @summary Partially update a signal batch (admin)
+ */
+export const UpdateSignalParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateSignalBody = zod.object({
+  "source": zod.enum(['뉴스', '검색트렌드', 'SNS·커뮤니티']).optional(),
+  "title": zod.string().optional(),
+  "linkedProduct": zod.enum(['Lumen', 'Seraph', 'Dynamo']).optional(),
+  "linkedSimulationId": zod.number().nullish(),
+  "collectedAt": zod.string().optional(),
+  "sentimentPos": zod.number().optional(),
+  "sentimentNeu": zod.number().optional(),
+  "sentimentNeg": zod.number().optional(),
+  "valueBefore": zod.number().optional(),
+  "valueAfter": zod.number().optional(),
+  "direction": zod.enum(['up', 'down']).optional(),
+  "magnitude": zod.number().optional()
+})
+
+export const UpdateSignalResponse = zod.object({
+  "id": zod.number(),
+  "source": zod.string(),
+  "title": zod.string(),
+  "collectedAt": zod.string(),
+  "itemCount": zod.number(),
+  "sentimentPos": zod.number(),
+  "sentimentNeu": zod.number(),
+  "sentimentNeg": zod.number(),
+  "summary": zod.string(),
+  "linkedProduct": zod.string(),
+  "linkedSimulationId": zod.number().nullable(),
+  "metric": zod.string(),
+  "valueBefore": zod.number(),
+  "valueAfter": zod.number(),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a signal batch (admin)
+ */
+export const DeleteSignalParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
  * @summary 회원가입 후 자동 로그인
  */
 

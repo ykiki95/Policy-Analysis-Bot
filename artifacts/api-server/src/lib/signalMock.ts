@@ -83,6 +83,7 @@ export function mockSignalEffect(
   source: SignalSource,
   product: SignalProduct,
   title?: string | null,
+  sourceWeight = 1,
 ): SignalEffect {
   const seedKey = `${source}|${product}|${title ?? ""}`;
   const rand = mulberry32(hashStr(seedKey));
@@ -109,16 +110,21 @@ export function mockSignalEffect(
   // before/after: 제품 기준 범위 + ±2~6%p 변화(긍정여론이 높으면 상승 쪽으로)
   const [lo, hi] = meta.base;
   const before = Math.round((lo + rand() * (hi - lo)) * 10) / 10;
-  const magnitude = 2 + rand() * 4; // 2~6
+  // 소스 가중치(0~2)를 강도에 곱한다 — 관리자가 소스 비중을 키우면 효과 Δ 가 커진다.
+  const magnitude = (2 + rand() * 4) * sourceWeight; // (2~6) × sourceWeight
   const direction = pos >= neg ? 1 : -1;
-  const after = Math.round((before + direction * magnitude) * 10) / 10;
+  const after = clamp(
+    Math.round((before + direction * magnitude) * 10) / 10,
+    0,
+    100,
+  );
 
-  const deltaTxt = `${direction > 0 ? "+" : "−"}${magnitude.toFixed(1)}%p`;
+  const realDelta = Math.round((after - before) * 10) / 10;
+  const deltaTxt = `${realDelta >= 0 ? "+" : "−"}${Math.abs(realDelta).toFixed(1)}%p`;
   const summary =
     `${source} 채널에서 '${resolvedTitle}' 관련 신호 ${itemCount.toLocaleString()}건을 배치 수집했습니다. ` +
     `긍정 ${pos}% · 중립 ${neu}% · 부정 ${neg}% 의 감성 분포가 관측되었으며, ` +
-    `합성 여론 ${meta.metric} 지표가 ${before}% → ${after}% (${deltaTxt})로 ${direction > 0 ? "상승" : "하락"}하는 것으로 추정됩니다. ` +
-    `(데모 · 예시 수치)`;
+    `합성 여론 ${meta.metric} 지표가 ${before}% → ${after}% (${deltaTxt})로 ${realDelta >= 0 ? "상승" : "하락"}하는 것으로 추정됩니다.`;
 
   return {
     title: resolvedTitle,

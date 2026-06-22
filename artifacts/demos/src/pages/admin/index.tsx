@@ -24,10 +24,20 @@ import {
   useListAdminAccounts,
   useUpdateAccountBudget,
   useResetAccountPassword,
+  useGetSignalSettings,
+  useUpdateSignalSettings,
+  useListSignals,
+  useCreateSignal,
+  useUpdateSignal,
+  useDeleteSignal,
+  useResetSignals,
+  useAutoCollectSignals,
   getListCalibrationsQueryKey,
   getListSurveysQueryKey,
   getGetSurveyImpactQueryKey,
   getListAdminAccountsQueryKey,
+  getGetSignalSettingsQueryKey,
+  getListSignalsQueryKey,
   type SurveyUploadColumn,
   type SurveyDriver,
   type Calibration,
@@ -35,6 +45,12 @@ import {
   type CalibrationInputProduct,
   type ElectionSource,
   type AdminAccount,
+  type SignalBatch,
+  type SignalSettingsInput,
+  type SignalInputSource,
+  type SignalInputLinkedProduct,
+  type SignalPatchInputSource,
+  type SignalPatchInputLinkedProduct,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,8 +68,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet, KeyRound } from "lucide-react";
+import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet, KeyRound, Radio, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const CALIBRATION_METHODS = [
@@ -423,12 +442,13 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="population">
-        <TabsList className={`grid w-full grid-cols-2 ${isAdmin ? "md:grid-cols-6" : "md:grid-cols-5"}`}>
+        <TabsList className={`grid w-full grid-cols-2 ${isAdmin ? "md:grid-cols-7" : "md:grid-cols-5"}`}>
           <TabsTrigger value="population"><Users className="h-4 w-4 mr-1.5" />인구 구성</TabsTrigger>
           <TabsTrigger value="sources"><Database className="h-4 w-4 mr-1.5" />데이터 출처</TabsTrigger>
           <TabsTrigger value="surveys"><Upload className="h-4 w-4 mr-1.5" />설문 업로드</TabsTrigger>
           <TabsTrigger value="calibration"><SlidersHorizontal className="h-4 w-4 mr-1.5" />보정 설정</TabsTrigger>
           <TabsTrigger value="events"><CheckCircle2 className="h-4 w-4 mr-1.5" />검증 이벤트</TabsTrigger>
+          {isAdmin && <TabsTrigger value="signals"><Radio className="h-4 w-4 mr-1.5" />신호 인제스트</TabsTrigger>}
           {isAdmin && <TabsTrigger value="accounts"><Wallet className="h-4 w-4 mr-1.5" />계정 관리</TabsTrigger>}
         </TabsList>
 
@@ -667,6 +687,12 @@ export default function Admin() {
             }}
           />
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="signals" className="mt-6 space-y-6">
+            <SignalIngestSection />
+          </TabsContent>
+        )}
 
         {isAdmin && (
           <TabsContent value="accounts" className="mt-6 space-y-6">
@@ -1536,6 +1562,506 @@ function CalibrationEventsSection({
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+const SIGNAL_SOURCES = ["뉴스", "검색트렌드", "SNS·커뮤니티"] as const;
+const SIGNAL_PRODUCTS = ["Lumen", "Seraph", "Dynamo"] as const;
+const SIGNAL_SCHEDULES = ["수동", "매시간", "매일"] as const;
+
+function sourceBadgeVariant(source: string): "default" | "secondary" | "outline" {
+  if (source === "뉴스") return "default";
+  if (source === "검색트렌드") return "secondary";
+  return "outline";
+}
+
+function SignalSettingsCard() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { data: settings, isLoading } = useGetSignalSettings();
+  const updateSettings = useUpdateSignalSettings();
+  const [form, setForm] = useState<SignalSettingsInput | null>(null);
+
+  useEffect(() => {
+    if (settings && !form) {
+      setForm({
+        sourceNewsEnabled: settings.sourceNewsEnabled,
+        sourceTrendEnabled: settings.sourceTrendEnabled,
+        sourceSnsEnabled: settings.sourceSnsEnabled,
+        sourceNewsWeight: settings.sourceNewsWeight,
+        sourceTrendWeight: settings.sourceTrendWeight,
+        sourceSnsWeight: settings.sourceSnsWeight,
+        applyToPrediction: settings.applyToPrediction,
+        scheduleEnabled: settings.scheduleEnabled,
+        scheduleInterval: settings.scheduleInterval as SignalSettingsInput["scheduleInterval"],
+        filterBotRemoval: settings.filterBotRemoval,
+        filterDedup: settings.filterDedup,
+        filterMinItems: settings.filterMinItems,
+      });
+    }
+  }, [settings, form]);
+
+  if (isLoading || !form) {
+    return <Card><CardContent className="py-10"><Skeleton className="h-40 w-full" /></CardContent></Card>;
+  }
+
+  const set = <K extends keyof SignalSettingsInput>(k: K, v: SignalSettingsInput[K]) =>
+    setForm((f) => (f ? { ...f, [k]: v } : f));
+
+  const handleSave = async () => {
+    try {
+      await updateSettings.mutateAsync({ data: form });
+      await queryClient.invalidateQueries({ queryKey: getGetSignalSettingsQueryKey() });
+      toast({ title: "신호 설정 저장 완료", description: "소스 가중치와 반영 옵션이 갱신되었습니다." });
+    } catch {
+      toast({ title: "저장 실패", description: "값을 확인해 주세요.", variant: "destructive" });
+    }
+  };
+
+  const sourceRow = (
+    label: string,
+    enabledKey: keyof SignalSettingsInput,
+    weightKey: keyof SignalSettingsInput,
+  ) => {
+    const enabled = form[enabledKey] as boolean;
+    const weight = form[weightKey] as number;
+    return (
+      <div className="rounded-md border p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Badge variant={sourceBadgeVariant(label)}>{label}</Badge>
+          </div>
+          <Switch checked={enabled} onCheckedChange={(v) => set(enabledKey, v as SignalSettingsInput[typeof enabledKey])} />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs text-muted-foreground">효과 가중치</Label>
+            <span className="text-sm font-semibold tabular-nums">×{weight.toFixed(1)}</span>
+          </div>
+          <Slider
+            min={0}
+            max={2}
+            step={0.1}
+            value={[weight]}
+            disabled={!enabled}
+            onValueChange={(v) => set(weightKey, v[0] as SignalSettingsInput[typeof weightKey])}
+          />
+          <p className="text-xs text-muted-foreground">신규 배치의 여론 변화 폭(Δ)에 곱해집니다. 0이면 효과 없음.</p>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>신호 인제스트 설정</CardTitle>
+        <CardDescription>
+          수집 소스의 활성화·가중치, 합성 여론 반영 여부, 수집 주기와 품질 필터를 설정합니다.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid md:grid-cols-3 gap-3">
+          {sourceRow("뉴스", "sourceNewsEnabled", "sourceNewsWeight")}
+          {sourceRow("검색트렌드", "sourceTrendEnabled", "sourceTrendWeight")}
+          {sourceRow("SNS·커뮤니티", "sourceSnsEnabled", "sourceSnsWeight")}
+        </div>
+
+        <div className="rounded-md border p-4 flex items-center justify-between">
+          <div className="space-y-1">
+            <Label>합성 여론에 신호 반영</Label>
+            <p className="text-xs text-muted-foreground">
+              켜면 추이 차트가 신호 반영 후(valueAfter) 기준선을, 끄면 반영 전(valueBefore) 기준선을 표시합니다.
+            </p>
+          </div>
+          <Switch checked={form.applyToPrediction} onCheckedChange={(v) => set("applyToPrediction", v)} />
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="rounded-md border p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>자동 수집 스케줄</Label>
+              <Switch checked={form.scheduleEnabled} onCheckedChange={(v) => set("scheduleEnabled", v)} />
+            </div>
+            <Select
+              value={form.scheduleInterval}
+              onValueChange={(v) => set("scheduleInterval", v as SignalSettingsInput["scheduleInterval"])}
+            >
+              <SelectTrigger disabled={!form.scheduleEnabled}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {SIGNAL_SCHEDULES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">수집 주기 설정값. 실제 수집은 아래 자동 수집 버튼으로 실행합니다.</p>
+          </div>
+
+          <div className="rounded-md border p-4 space-y-3">
+            <Label>품질 필터</Label>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">봇·스팸 제거</span>
+              <Switch checked={form.filterBotRemoval} onCheckedChange={(v) => set("filterBotRemoval", v)} />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">중복 제거</span>
+              <Switch checked={form.filterDedup} onCheckedChange={(v) => set("filterDedup", v)} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">최소 수집 건수</Label>
+              <Input
+                type="number"
+                min={0}
+                value={form.filterMinItems}
+                onChange={(e) => set("filterMinItems", Number(e.target.value))}
+              />
+            </div>
+          </div>
+        </div>
+
+        <Button onClick={handleSave} disabled={updateSettings.isPending}>
+          {updateSettings.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          설정 저장
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SignalAddDialog() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const createSignal = useCreateSignal();
+  const { data: settings } = useGetSignalSettings();
+  const [open, setOpen] = useState(false);
+  const [product, setProduct] = useState<string>(SIGNAL_PRODUCTS[0]);
+  const [title, setTitle] = useState("");
+
+  const enabledSources = SIGNAL_SOURCES.filter((s) => {
+    if (!settings) return true;
+    if (s === "뉴스") return settings.sourceNewsEnabled;
+    if (s === "검색트렌드") return settings.sourceTrendEnabled;
+    return settings.sourceSnsEnabled;
+  });
+  const [source, setSource] = useState<string>(SIGNAL_SOURCES[0]);
+
+  useEffect(() => {
+    if (enabledSources.length > 0 && !enabledSources.includes(source as (typeof SIGNAL_SOURCES)[number])) {
+      setSource(enabledSources[0]);
+    }
+  }, [enabledSources, source]);
+
+  const handleSubmit = async () => {
+    try {
+      await createSignal.mutateAsync({
+        data: {
+          source: source as SignalInputSource,
+          linkedProduct: product as SignalInputLinkedProduct,
+          title: title.trim() || undefined,
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: getListSignalsQueryKey() });
+      toast({ title: "신호 배치 추가됨", description: "새 배치가 등록되었습니다." });
+      setTitle("");
+      setOpen(false);
+    } catch {
+      toast({ title: "추가 실패", description: "값을 확인해 주세요.", variant: "destructive" });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm"><Plus className="h-4 w-4 mr-1.5" />수동 추가</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>새 신호 배치 추가</DialogTitle>
+          <DialogDescription>소스와 제품을 선택해 신호 배치를 생성합니다.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>신호 소스</Label>
+            <Select value={source} onValueChange={setSource} disabled={enabledSources.length === 0}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{enabledSources.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+            {enabledSources.length === 0 && (
+              <p className="text-xs text-destructive">활성화된 소스가 없습니다. 설정에서 소스를 켜 주세요.</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label>연계 제품</Label>
+            <Select value={product} onValueChange={setProduct}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{SIGNAL_PRODUCTS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>제목 (선택)</Label>
+            <Input placeholder="비워두면 자동 생성" value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleSubmit} disabled={createSignal.isPending || enabledSources.length === 0}>
+            {createSignal.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            추가
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SignalEditDialog({ batch }: { batch: SignalBatch }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const updateSignal = useUpdateSignal();
+  const [open, setOpen] = useState(false);
+  const initialDir = batch.valueAfter >= batch.valueBefore ? "up" : "down";
+  const initialMag = Math.round(Math.abs(batch.valueAfter - batch.valueBefore) * 10) / 10;
+  const [title, setTitle] = useState(batch.title);
+  const [source, setSource] = useState<string>(batch.source);
+  const [product, setProduct] = useState<string>(batch.linkedProduct);
+  const [direction, setDirection] = useState<"up" | "down">(initialDir);
+  const [magnitude, setMagnitude] = useState(initialMag);
+
+  useEffect(() => {
+    if (open) {
+      setTitle(batch.title);
+      setSource(batch.source);
+      setProduct(batch.linkedProduct);
+      setDirection(batch.valueAfter >= batch.valueBefore ? "up" : "down");
+      setMagnitude(Math.round(Math.abs(batch.valueAfter - batch.valueBefore) * 10) / 10);
+    }
+  }, [open, batch]);
+
+  const projected = Math.min(100, Math.max(0, Math.round((batch.valueBefore + (direction === "up" ? 1 : -1) * magnitude) * 10) / 10));
+
+  const handleSubmit = async () => {
+    try {
+      await updateSignal.mutateAsync({
+        id: batch.id,
+        data: {
+          title: title.trim() || undefined,
+          source: source as SignalPatchInputSource,
+          linkedProduct: product as SignalPatchInputLinkedProduct,
+          direction,
+          magnitude,
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: getListSignalsQueryKey() });
+      toast({ title: "신호 배치 수정됨", description: "효과 수치가 갱신되었습니다." });
+      setOpen(false);
+    } catch {
+      toast({ title: "수정 실패", description: "값을 확인해 주세요.", variant: "destructive" });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8"><Pencil className="h-4 w-4" /></Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>신호 배치 수정</DialogTitle>
+          <DialogDescription>제목·소스·제품과 합성 여론 효과 방향·강도를 조정합니다.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>제목</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>소스</Label>
+              <Select value={source} onValueChange={setSource}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{SIGNAL_SOURCES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>제품</Label>
+              <Select value={product} onValueChange={setProduct}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{SIGNAL_PRODUCTS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>효과 방향</Label>
+            <div className="flex gap-2">
+              <Button type="button" variant={direction === "up" ? "default" : "outline"} size="sm" className="flex-1" onClick={() => setDirection("up")}>상승</Button>
+              <Button type="button" variant={direction === "down" ? "default" : "outline"} size="sm" className="flex-1" onClick={() => setDirection("down")}>하락</Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>효과 강도</Label>
+              <span className="text-sm font-semibold tabular-nums">{magnitude.toFixed(1)}%p</span>
+            </div>
+            <Slider min={0} max={15} step={0.5} value={[magnitude]} onValueChange={(v) => setMagnitude(v[0])} />
+            <p className="text-xs text-muted-foreground">
+              {batch.metric} {batch.valueBefore}% → <span className="font-medium text-foreground">{projected}%</span>
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleSubmit} disabled={updateSignal.isPending}>
+            {updateSignal.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            저장
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SignalIngestSection() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { data: batches, isLoading } = useListSignals();
+  const deleteSignal = useDeleteSignal();
+  const resetSignals = useResetSignals();
+  const autoCollect = useAutoCollectSignals();
+
+  const handleAuto = async () => {
+    try {
+      const created = await autoCollect.mutateAsync({ data: { count: 1 } });
+      await queryClient.invalidateQueries({ queryKey: getListSignalsQueryKey() });
+      toast({ title: "자동 수집 완료", description: `${created.length}건의 신호 배치를 수집했습니다.` });
+    } catch {
+      toast({ title: "수집 실패", description: "활성 소스를 확인해 주세요.", variant: "destructive" });
+    }
+  };
+
+  const handleReset = async () => {
+    try {
+      const created = await resetSignals.mutateAsync();
+      await queryClient.invalidateQueries({ queryKey: getListSignalsQueryKey() });
+      toast({ title: "시드 리셋 완료", description: `${created.length}건의 샘플 배치로 초기화했습니다.` });
+    } catch {
+      toast({ title: "리셋 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteSignal.mutateAsync({ id });
+      await queryClient.invalidateQueries({ queryKey: getListSignalsQueryKey() });
+      toast({ title: "신호 배치 삭제됨" });
+    } catch {
+      toast({ title: "삭제 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
+    }
+  };
+
+  const list = batches ?? [];
+
+  return (
+    <div className="space-y-6">
+      <SignalSettingsCard />
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>신호 배치 관리 <span className="text-sm font-normal text-muted-foreground">({list.length}건)</span></CardTitle>
+              <CardDescription>수집된 신호 배치를 추가·수정·삭제하거나 샘플 데이터로 초기화합니다.</CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <SignalAddDialog />
+              <Button variant="outline" size="sm" onClick={handleAuto} disabled={autoCollect.isPending}>
+                {autoCollect.isPending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
+                자동 수집
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={resetSignals.isPending}>
+                    <RotateCcw className="h-4 w-4 mr-1.5" />시드 리셋
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>신호 배치를 시드 데이터로 초기화하시겠습니까?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      현재 계정의 모든 신호 배치가 삭제되고 샘플 배치로 다시 채워집니다. 이 작업은 되돌릴 수 없습니다.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>취소</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleReset} className="bg-destructive text-destructive-foreground">초기화</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
+          ) : list.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">수집된 신호 배치가 없습니다.</p>
+          ) : (
+            <div className="border rounded-md overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>제목</TableHead>
+                    <TableHead>소스</TableHead>
+                    <TableHead>제품</TableHead>
+                    <TableHead className="whitespace-nowrap">수집 시각</TableHead>
+                    <TableHead className="text-right">건수</TableHead>
+                    <TableHead className="text-right">감성(긍/중/부)</TableHead>
+                    <TableHead className="text-right">여론 변화</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {list.map((b) => (
+                    <TableRow key={b.id}>
+                      <TableCell className="font-medium max-w-[220px] truncate">{b.title}</TableCell>
+                      <TableCell><Badge variant={sourceBadgeVariant(b.source)}>{b.source}</Badge></TableCell>
+                      <TableCell><Badge variant="outline">{b.linkedProduct}</Badge></TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(b.collectedAt).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{b.itemCount.toLocaleString()}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{b.sentimentPos}/{b.sentimentNeu}/{b.sentimentNeg}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {b.valueBefore}% → <span className="font-medium">{b.valueAfter}%</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end">
+                          <SignalEditDialog batch={b} />
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>이 신호 배치를 삭제하시겠습니까?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  "{b.title}" 배치가 제거됩니다. 이 작업은 되돌릴 수 없습니다.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>취소</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(b.id)} className="bg-destructive text-destructive-foreground">삭제</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

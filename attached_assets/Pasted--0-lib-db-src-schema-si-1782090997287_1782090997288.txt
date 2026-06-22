@@ -1,0 +1,67 @@
+# 작업: 신호 인제스트 관리자 기능 추가 + 데모 문구 제거
+
+## 0) 전제 (반드시 준수)
+- 기존 신호 인제스트 기능을 확장한다: lib/db/src/schema/signalBatches.ts, artifacts/api-server/src/routes/signals.ts, artifacts/api-server/src/lib/signalMock.ts, artifacts/demos/src/pages/signals/index.tsx, artifacts/demos/src/pages/admin/index.tsx.
+- 스택/규약 동일: Express5+Drizzle+Postgres, React+wouter+TanStack Query+recharts+shadcn/ui. API는 lib/api-spec/openapi.yaml 갱신 후 `pnpm --filter @workspace/api-spec run codegen` 로 @workspace/api-zod·api-client-react 재생성(직접 fetch 금지). Drizzle Date→ jsonReady() 후 .parse(). 관리자 쓰기는 requireAdmin. 모든 카피 한국어.
+- simulationEngine.ts, agentGenerator.ts, calibration 4라벨/화면은 수정 금지.
+- 각 항목에 [실제]=진짜 동작 구현, [하드코딩]=화면·영속만 하고 외부수집/스케줄 등 실제 파이프라인은 만들지 않음. 화면상 둘을 시각적으로 구분하지 말 것.
+
+## 1) 데모 문구 전부 제거 (화면 노출분)
+- pages/signals/index.tsx: DemoBadge 컴포넌트와 그 사용처(타이틀 옆) 삭제. NewBatchDialog 의 "효과 수치는 데모용..." 설명을 중립 문구("소스와 제품을 선택하면 신호 배치를 수집합니다.")로 교체.
+- signalMock.ts: summary 끝의 `(데모 · 예시 수치)` 접미사 삭제.
+- 그 외 화면에 렌더되는 "데모", "향후 구현", "예시 수치" 텍스트가 있으면 모두 제거(내부 코드 주석은 그대로 둬도 됨).
+
+## 2) 신규 설정 테이블 [실제] — lib/db/src/schema/signalSettings.ts
+사용자당 1행. 컬럼:
+- userId (integer, unique)
+- sourceNewsEnabled / sourceTrendEnabled / sourceSnsEnabled (boolean, default true)
+- sourceNewsWeight / sourceTrendWeight / sourceSnsWeight (doublePrecision, default 1.0)  // 0~2
+- applyToPrediction (boolean, default true)
+- scheduleEnabled (boolean, default false) / scheduleInterval (text, default '수동')  // '수동'|'매시간'|'매일'
+- filterBotRemoval (boolean, default true) / filterDedup (boolean, default true) / filterMinItems (integer, default 50)
+- updatedAt (timestamptz)
+schema/index.ts export 추가, `pnpm --filter @workspace/db run push`. test 계정(userId=1) 기본 행 시드.
+
+## 3) API (openapi.yaml + codegen)
+- GET /signals/settings — 본인 설정 조회(없으면 기본값 반환). [실제]
+- PUT /admin/signals/settings (requireAdmin) — 설정 저장(upsert). [실제]
+- PATCH /admin/signals/:id (requireAdmin) — 배치 수정. body(부분): source, title, linkedProduct, linkedSimulationId, collectedAt, sentimentPos/Neu/Neg, valueBefore, direction('up'|'down'), magnitude(number). direction+magnitude가 오면 서버가 valueAfter = clamp(valueBefore + (up?+1:-1)*magnitude, 0, 100) 로 재계산. valueAfter 직접 전달도 허용. 감성 3값은 합 100으로 재정규화. [실제]
+- DELETE /admin/signals/:id (requireAdmin) — 삭제. [실제]
+- POST /admin/signals/reset (requireAdmin) — 본인 배치 전체 삭제 후 시드 배치(6~8건, 3소스×3제품 분포, 최근 2~3주 시간순) 재삽입. [실제]
+- POST /admin/signals/auto (requireAdmin) — body: count?(기본 1), source?. 하드코딩 샘플 풀에서 그럴듯한 배치를 골라 실제 insert. [하드코딩] (실제 외부수집 아님)
+- 기존 POST /admin/signals(수동 추가)는 유지. mockSignalEffect 호출 시 해당 source 의 sourceXxxWeight 를 magnitude 에 곱해 반영(소스 가중치가 실제로 효과 크기를 바꾼다). [실제]
+
+## 4) 관리자 화면 — /admin 에 "신호 인제스트" 탭 신설
+pages/admin/index.tsx 의 기존 탭 패턴(Tabs)에 "신호 인제스트" 탭 추가. 두 섹션:
+
+(A) 글로벌 설정 카드 — GET /signals/settings 로드, PUT 으로 저장
+- 소스 관리: 뉴스/검색트렌드/SNS·커뮤니티 각각 Switch(on/off) + 가중치 Slider(0~2, 0.1 단위). [실제 — 가중치는 신규 배치 효과 크기에 실제 반영, off 소스는 수동/자동 수집 소스 선택지에서 제외]
+- "신호 반영" Switch(applyToPrediction). [실제 — /signals 추이 차트의 y가 valueAfter↔valueBefore 로 전환]
+- 수집 주기: Select('수동'/'매시간'/'매일') + Switch(scheduleEnabled). [하드코딩 — 저장만, 실제 크론 없음. "다음 수집 예정" 문구는 고정 표시]
+- 품질 필터: 봇 제거/중복 제거 Switch + 최소 신호건수 Input. [하드코딩 — 저장만, 실제 필터링 없음]
+- 저장 버튼 → PUT → toast + invalidate.
+
+(B) 배치 관리 테이블 — GET /signals 로드
+- 모든 배치 행: 소스·제목·수집시각·건수·감성·before→after Δ.
+- 행별 작업: 수정(Dialog: source/product/linkedSim/title/collectedAt/감성/valueBefore/direction/magnitude 편집 → PATCH), 삭제(AlertDialog 확인 → DELETE).
+- 상단 액션: "수동 배치 추가"(기존 Dialog 재사용, POST /admin/signals), "자동 수집 실행"(POST /admin/signals/auto, 짧은 로딩 후 새 배치 등장), "시드 리셋"(AlertDialog 확인 → POST reset).
+- 모든 변경 후 TanStack Query invalidate 로 테이블·KPI·차트 갱신.
+
+## 5) /signals 뷰어에 라이브 조정 컨트롤 추가 (관리자 데모 핵심)
+- DetailDialog 안에 isAdmin 일 때만 "효과 조정" 영역 추가: 방향 토글(상승/하락) + 강도 Slider(0~10%p) → 변경 시 PATCH(direction/magnitude) → invalidate → 추이 라인차트와 KPI가 즉시 움직인다. (발표 중 "이 신호가 들어오면 여론이 이렇게 변합니다"를 실시간 시연하는 용도)
+- 상단 "지지율 추이" 라인차트는 settings.applyToPrediction 에 따라 valueAfter(on)/valueBefore(off) 를 그린다.
+- isAdmin 분기는 기존 방식(세션 role)을 따른다. 비관리자에겐 조정 컨트롤·관리 탭 미노출.
+
+## 6) UX 규칙
+- shadcn Slider/Switch/Select/Dialog/AlertDialog/Tabs 재사용, 새 색·폰트 토큰 금지.
+- 파괴적 작업(삭제·리셋)은 AlertDialog 확인 필수.
+- 조정→차트 반영은 낙관적 업데이트 또는 invalidate 로 즉각 보이게.
+
+## 완료 기준
+- /admin 에 "신호 인제스트" 탭이 있고 설정 저장이 동작한다(새로고침 후 유지).
+- 소스 가중치를 바꾸면 새로 추가한 배치의 Δ 크기가 실제로 달라진다.
+- "신호 반영" 토글이 /signals 추이 차트 기준선을 전환한다.
+- 배치 수정/삭제/시드 리셋/자동 수집이 동작하고 목록·KPI·차트가 갱신된다.
+- /signals 상세에서 관리자가 효과를 조정하면 차트가 즉시 움직인다.
+- 화면 어디에도 "데모/향후 구현/예시 수치" 문구가 없다.
+- `pnpm run typecheck` 통과, 기존 시뮬레이션·보정 화면 영향 없음.

@@ -88,6 +88,129 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /signals/settings:
+    get:
+      operationId: getSignalSettings
+      tags: [signals]
+      summary: Get signal ingest settings for the current tenant (defaults if none)
+      responses:
+        "200":
+          description: Signal settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalSettings"
+  /admin/signals/settings:
+    put:
+      operationId: updateSignalSettings
+      tags: [signals]
+      summary: Upsert signal ingest settings (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignalSettingsInput"
+      responses:
+        "200":
+          description: Updated signal settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalSettings"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /admin/signals/auto:
+    post:
+      operationId: autoCollectSignals
+      tags: [signals]
+      summary: Auto-collect signal batches from a hardcoded sample pool (admin)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignalAutoInput"
+      responses:
+        "201":
+          description: Created signal batches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalBatch"
+  /admin/signals/reset:
+    post:
+      operationId: resetSignals
+      tags: [signals]
+      summary: Delete all tenant batches and reseed sample batches (admin)
+      responses:
+        "201":
+          description: Reseeded signal batches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalBatch"
+  /admin/signals/{id}:
+    patch:
+      operationId: updateSignal
+      tags: [signals]
+      summary: Partially update a signal batch (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignalPatchInput"
+      responses:
+        "200":
+          description: Updated signal batch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalBatch"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteSignal
+      tags: [signals]
+      summary: Delete a signal batch (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /auth/signup:
     post:
       operationId: signup
@@ -1359,6 +1482,92 @@ components:
         linkedProduct: { type: string, enum: [Lumen, Seraph, Dynamo] }
         linkedSimulationId: { type: integer, nullable: true }
         itemCount: { type: integer }
+
+    SignalSettings:
+      type: object
+      required:
+        - id
+        - userId
+        - sourceNewsEnabled
+        - sourceTrendEnabled
+        - sourceSnsEnabled
+        - sourceNewsWeight
+        - sourceTrendWeight
+        - sourceSnsWeight
+        - applyToPrediction
+        - scheduleEnabled
+        - scheduleInterval
+        - filterBotRemoval
+        - filterDedup
+        - filterMinItems
+        - updatedAt
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        sourceNewsEnabled: { type: boolean }
+        sourceTrendEnabled: { type: boolean }
+        sourceSnsEnabled: { type: boolean }
+        sourceNewsWeight: { type: number }
+        sourceTrendWeight: { type: number }
+        sourceSnsWeight: { type: number }
+        applyToPrediction: { type: boolean }
+        scheduleEnabled: { type: boolean }
+        scheduleInterval: { type: string }
+        filterBotRemoval: { type: boolean }
+        filterDedup: { type: boolean }
+        filterMinItems: { type: integer }
+        updatedAt: { type: string }
+
+    SignalSettingsInput:
+      type: object
+      required:
+        - sourceNewsEnabled
+        - sourceTrendEnabled
+        - sourceSnsEnabled
+        - sourceNewsWeight
+        - sourceTrendWeight
+        - sourceSnsWeight
+        - applyToPrediction
+        - scheduleEnabled
+        - scheduleInterval
+        - filterBotRemoval
+        - filterDedup
+        - filterMinItems
+      properties:
+        sourceNewsEnabled: { type: boolean }
+        sourceTrendEnabled: { type: boolean }
+        sourceSnsEnabled: { type: boolean }
+        sourceNewsWeight: { type: number, minimum: 0, maximum: 2 }
+        sourceTrendWeight: { type: number, minimum: 0, maximum: 2 }
+        sourceSnsWeight: { type: number, minimum: 0, maximum: 2 }
+        applyToPrediction: { type: boolean }
+        scheduleEnabled: { type: boolean }
+        scheduleInterval: { type: string, enum: ["수동", "매시간", "매일"] }
+        filterBotRemoval: { type: boolean }
+        filterDedup: { type: boolean }
+        filterMinItems: { type: integer, minimum: 0 }
+
+    SignalPatchInput:
+      type: object
+      properties:
+        source: { type: string, enum: ["뉴스", "검색트렌드", "SNS·커뮤니티"] }
+        title: { type: string }
+        linkedProduct: { type: string, enum: [Lumen, Seraph, Dynamo] }
+        linkedSimulationId: { type: integer, nullable: true }
+        collectedAt: { type: string }
+        sentimentPos: { type: integer }
+        sentimentNeu: { type: integer }
+        sentimentNeg: { type: integer }
+        valueBefore: { type: number }
+        valueAfter: { type: number }
+        direction: { type: string, enum: [up, down] }
+        magnitude: { type: number }
+
+    SignalAutoInput:
+      type: object
+      properties:
+        count: { type: integer, minimum: 1, maximum: 8 }
+        source: { type: string, enum: ["뉴스", "검색트렌드", "SNS·커뮤니티"] }
 
     SurveyDriver:
       type: object

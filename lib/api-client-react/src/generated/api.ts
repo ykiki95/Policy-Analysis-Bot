@@ -48,8 +48,12 @@ import type {
   RegeneratePopulationInput,
   RegeneratePopulationResult,
   Region,
+  SignalAutoInput,
   SignalBatch,
   SignalInput,
+  SignalPatchInput,
+  SignalSettings,
+  SignalSettingsInput,
   SignupInput,
   Simulation,
   SimulationDetail,
@@ -303,6 +307,437 @@ export const useCreateSignal = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getCreateSignalMutationOptions(options));
+    }
+
+export const getGetSignalSettingsUrl = () => {
+
+
+
+
+  return `/api/signals/settings`
+}
+
+/**
+ * @summary Get signal ingest settings for the current tenant (defaults if none)
+ */
+export const getSignalSettings = async ( options?: RequestInit): Promise<SignalSettings> => {
+
+  return customFetch<SignalSettings>(getGetSignalSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSignalSettingsQueryKey = () => {
+    return [
+    `/api/signals/settings`
+    ] as const;
+    }
+
+
+export const getGetSignalSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getSignalSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSignalSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSignalSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSignalSettings>>> = ({ signal }) => getSignalSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSignalSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSignalSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getSignalSettings>>>
+export type GetSignalSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get signal ingest settings for the current tenant (defaults if none)
+ */
+
+export function useGetSignalSettings<TData = Awaited<ReturnType<typeof getSignalSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSignalSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSignalSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateSignalSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/signals/settings`
+}
+
+/**
+ * @summary Upsert signal ingest settings (admin)
+ */
+export const updateSignalSettings = async (signalSettingsInput: SignalSettingsInput, options?: RequestInit): Promise<SignalSettings> => {
+
+  return customFetch<SignalSettings>(getUpdateSignalSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      signalSettingsInput,)
+  }
+);}
+
+
+
+
+export const getUpdateSignalSettingsMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSignalSettings>>, TError,{data: BodyType<SignalSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSignalSettings>>, TError,{data: BodyType<SignalSettingsInput>}, TContext> => {
+
+const mutationKey = ['updateSignalSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSignalSettings>>, {data: BodyType<SignalSettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateSignalSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSignalSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateSignalSettings>>>
+    export type UpdateSignalSettingsMutationBody = BodyType<SignalSettingsInput>
+    export type UpdateSignalSettingsMutationError = ErrorType<Error>
+
+    /**
+ * @summary Upsert signal ingest settings (admin)
+ */
+export const useUpdateSignalSettings = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSignalSettings>>, TError,{data: BodyType<SignalSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSignalSettings>>,
+        TError,
+        {data: BodyType<SignalSettingsInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateSignalSettingsMutationOptions(options));
+    }
+
+export const getAutoCollectSignalsUrl = () => {
+
+
+
+
+  return `/api/admin/signals/auto`
+}
+
+/**
+ * @summary Auto-collect signal batches from a hardcoded sample pool (admin)
+ */
+export const autoCollectSignals = async (signalAutoInput?: SignalAutoInput, options?: RequestInit): Promise<SignalBatch[]> => {
+
+  return customFetch<SignalBatch[]>(getAutoCollectSignalsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      signalAutoInput,)
+  }
+);}
+
+
+
+
+export const getAutoCollectSignalsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autoCollectSignals>>, TError,{data?: BodyType<SignalAutoInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof autoCollectSignals>>, TError,{data?: BodyType<SignalAutoInput>}, TContext> => {
+
+const mutationKey = ['autoCollectSignals'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof autoCollectSignals>>, {data?: BodyType<SignalAutoInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  autoCollectSignals(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AutoCollectSignalsMutationResult = NonNullable<Awaited<ReturnType<typeof autoCollectSignals>>>
+    export type AutoCollectSignalsMutationBody = BodyType<SignalAutoInput> | undefined
+    export type AutoCollectSignalsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Auto-collect signal batches from a hardcoded sample pool (admin)
+ */
+export const useAutoCollectSignals = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autoCollectSignals>>, TError,{data?: BodyType<SignalAutoInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof autoCollectSignals>>,
+        TError,
+        {data?: BodyType<SignalAutoInput>},
+        TContext
+      > => {
+      return useMutation(getAutoCollectSignalsMutationOptions(options));
+    }
+
+export const getResetSignalsUrl = () => {
+
+
+
+
+  return `/api/admin/signals/reset`
+}
+
+/**
+ * @summary Delete all tenant batches and reseed sample batches (admin)
+ */
+export const resetSignals = async ( options?: RequestInit): Promise<SignalBatch[]> => {
+
+  return customFetch<SignalBatch[]>(getResetSignalsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getResetSignalsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetSignals>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetSignals>>, TError,void, TContext> => {
+
+const mutationKey = ['resetSignals'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetSignals>>, void> = () => {
+
+
+          return  resetSignals(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetSignalsMutationResult = NonNullable<Awaited<ReturnType<typeof resetSignals>>>
+
+    export type ResetSignalsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete all tenant batches and reseed sample batches (admin)
+ */
+export const useResetSignals = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetSignals>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetSignals>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getResetSignalsMutationOptions(options));
+    }
+
+export const getUpdateSignalUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/signals/${id}`
+}
+
+/**
+ * @summary Partially update a signal batch (admin)
+ */
+export const updateSignal = async (id: number,
+    signalPatchInput: SignalPatchInput, options?: RequestInit): Promise<SignalBatch> => {
+
+  return customFetch<SignalBatch>(getUpdateSignalUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      signalPatchInput,)
+  }
+);}
+
+
+
+
+export const getUpdateSignalMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSignal>>, TError,{id: number;data: BodyType<SignalPatchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSignal>>, TError,{id: number;data: BodyType<SignalPatchInput>}, TContext> => {
+
+const mutationKey = ['updateSignal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSignal>>, {id: number;data: BodyType<SignalPatchInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateSignal(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSignalMutationResult = NonNullable<Awaited<ReturnType<typeof updateSignal>>>
+    export type UpdateSignalMutationBody = BodyType<SignalPatchInput>
+    export type UpdateSignalMutationError = ErrorType<Error>
+
+    /**
+ * @summary Partially update a signal batch (admin)
+ */
+export const useUpdateSignal = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSignal>>, TError,{id: number;data: BodyType<SignalPatchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSignal>>,
+        TError,
+        {id: number;data: BodyType<SignalPatchInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateSignalMutationOptions(options));
+    }
+
+export const getDeleteSignalUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/signals/${id}`
+}
+
+/**
+ * @summary Delete a signal batch (admin)
+ */
+export const deleteSignal = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteSignalUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteSignalMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSignal>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSignal>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteSignal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSignal>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteSignal(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSignalMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSignal>>>
+
+    export type DeleteSignalMutationError = ErrorType<Error>
+
+    /**
+ * @summary Delete a signal batch (admin)
+ */
+export const useDeleteSignal = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSignal>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSignal>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSignalMutationOptions(options));
     }
 
 export const getSignupUrl = () => {

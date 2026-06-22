@@ -201,6 +201,120 @@ export interface SignalInput {
   itemCount?: number;
 }
 
+export interface SignalSettings {
+  id: number;
+  userId: number;
+  sourceNewsEnabled: boolean;
+  sourceTrendEnabled: boolean;
+  sourceSnsEnabled: boolean;
+  sourceNewsWeight: number;
+  sourceTrendWeight: number;
+  sourceSnsWeight: number;
+  applyToPrediction: boolean;
+  scheduleEnabled: boolean;
+  scheduleInterval: string;
+  filterBotRemoval: boolean;
+  filterDedup: boolean;
+  filterMinItems: number;
+  updatedAt: string;
+}
+
+export type SignalSettingsInputScheduleInterval = typeof SignalSettingsInputScheduleInterval[keyof typeof SignalSettingsInputScheduleInterval];
+
+
+export const SignalSettingsInputScheduleInterval = {
+  수동: '수동',
+  매시간: '매시간',
+  매일: '매일',
+} as const;
+
+export interface SignalSettingsInput {
+  sourceNewsEnabled: boolean;
+  sourceTrendEnabled: boolean;
+  sourceSnsEnabled: boolean;
+  /**
+     * @minimum 0
+     * @maximum 2
+     */
+  sourceNewsWeight: number;
+  /**
+     * @minimum 0
+     * @maximum 2
+     */
+  sourceTrendWeight: number;
+  /**
+     * @minimum 0
+     * @maximum 2
+     */
+  sourceSnsWeight: number;
+  applyToPrediction: boolean;
+  scheduleEnabled: boolean;
+  scheduleInterval: SignalSettingsInputScheduleInterval;
+  filterBotRemoval: boolean;
+  filterDedup: boolean;
+  /** @minimum 0 */
+  filterMinItems: number;
+}
+
+export type SignalPatchInputSource = typeof SignalPatchInputSource[keyof typeof SignalPatchInputSource];
+
+
+export const SignalPatchInputSource = {
+  뉴스: '뉴스',
+  검색트렌드: '검색트렌드',
+  'SNS·커뮤니티': 'SNS·커뮤니티',
+} as const;
+
+export type SignalPatchInputLinkedProduct = typeof SignalPatchInputLinkedProduct[keyof typeof SignalPatchInputLinkedProduct];
+
+
+export const SignalPatchInputLinkedProduct = {
+  Lumen: 'Lumen',
+  Seraph: 'Seraph',
+  Dynamo: 'Dynamo',
+} as const;
+
+export type SignalPatchInputDirection = typeof SignalPatchInputDirection[keyof typeof SignalPatchInputDirection];
+
+
+export const SignalPatchInputDirection = {
+  up: 'up',
+  down: 'down',
+} as const;
+
+export interface SignalPatchInput {
+  source?: SignalPatchInputSource;
+  title?: string;
+  linkedProduct?: SignalPatchInputLinkedProduct;
+  linkedSimulationId?: number | null;
+  collectedAt?: string;
+  sentimentPos?: number;
+  sentimentNeu?: number;
+  sentimentNeg?: number;
+  valueBefore?: number;
+  valueAfter?: number;
+  direction?: SignalPatchInputDirection;
+  magnitude?: number;
+}
+
+export type SignalAutoInputSource = typeof SignalAutoInputSource[keyof typeof SignalAutoInputSource];
+
+
+export const SignalAutoInputSource = {
+  뉴스: '뉴스',
+  검색트렌드: '검색트렌드',
+  'SNS·커뮤니티': 'SNS·커뮤니티',
+} as const;
+
+export interface SignalAutoInput {
+  /**
+     * @minimum 1
+     * @maximum 8
+     */
+  count?: number;
+  source?: SignalAutoInputSource;
+}
+
 export interface SurveyDriver {
   factor: string;
   issue: string;

@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useListSignals,
   useCreateSignal,
+  useUpdateSignal,
+  useGetSignalSettings,
   useListSimulations,
   getListSignalsQueryKey,
   type SignalBatch,
@@ -15,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
+import { useToast } from "@/hooks/use-toast";
 import {
   Table,
   TableBody,
@@ -152,14 +156,6 @@ function DeltaChip({ b }: { b: SignalBatch }) {
   );
 }
 
-function DemoBadge() {
-  return (
-    <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400">
-      데모 · 향후 구현
-    </Badge>
-  );
-}
-
 function NewBatchDialog() {
   const qc = useQueryClient();
   const createSignal = useCreateSignal();
@@ -209,8 +205,7 @@ function NewBatchDialog() {
         <DialogHeader>
           <DialogTitle>새 신호 배치 수집</DialogTitle>
           <DialogDescription>
-            소스와 제품을 선택하면 신호 배치를 수집합니다. 효과 수치는 데모용
-            예시값으로 채워집니다.
+            소스와 제품을 선택하면 신호 배치를 수집합니다.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -290,41 +285,79 @@ function DetailDialog({
   batch,
   open,
   onOpenChange,
+  isAdmin,
 }: {
   batch: SignalBatch | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  isAdmin: boolean;
 }) {
-  if (!batch) return null;
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const updateSignal = useUpdateSignal();
+  const [current, setCurrent] = useState<SignalBatch | null>(batch);
+  const [direction, setDirection] = useState<"up" | "down">("up");
+  const [magnitude, setMagnitude] = useState(0);
+
+  useEffect(() => {
+    setCurrent(batch);
+    if (batch) {
+      setDirection(batch.valueAfter >= batch.valueBefore ? "up" : "down");
+      setMagnitude(Math.round(Math.abs(batch.valueAfter - batch.valueBefore) * 10) / 10);
+    }
+  }, [batch]);
+
+  if (!current) return null;
   const pieData = [
-    { name: "긍정", value: batch.sentimentPos, color: SENTIMENT_COLOR.pos },
-    { name: "중립", value: batch.sentimentNeu, color: SENTIMENT_COLOR.neu },
-    { name: "부정", value: batch.sentimentNeg, color: SENTIMENT_COLOR.neg },
+    { name: "긍정", value: current.sentimentPos, color: SENTIMENT_COLOR.pos },
+    { name: "중립", value: current.sentimentNeu, color: SENTIMENT_COLOR.neu },
+    { name: "부정", value: current.sentimentNeg, color: SENTIMENT_COLOR.neg },
   ];
   const barData = [
-    { name: "수집 전", value: batch.valueBefore },
-    { name: "수집 후", value: batch.valueAfter },
+    { name: "수집 전", value: current.valueBefore },
+    { name: "수집 후", value: current.valueAfter },
   ];
-  const color = PRODUCT_COLOR[batch.linkedProduct as Product] ?? "#6366f1";
+  const color = PRODUCT_COLOR[current.linkedProduct as Product] ?? "#6366f1";
+  const projected = Math.min(
+    100,
+    Math.max(0, Math.round((current.valueBefore + (direction === "up" ? 1 : -1) * magnitude) * 10) / 10),
+  );
+
+  const handleAdjust = async () => {
+    try {
+      const updated = await updateSignal.mutateAsync({
+        id: current.id,
+        data: { direction, magnitude },
+      });
+      await qc.invalidateQueries({ queryKey: getListSignalsQueryKey() });
+      setCurrent(updated);
+      toast({
+        title: "효과 조정 완료",
+        description: `${updated.metric} ${updated.valueBefore}% → ${updated.valueAfter}%`,
+      });
+    } catch {
+      toast({ title: "조정 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <SourceBadge source={batch.source} />
+            <SourceBadge source={current.source} />
             <Badge style={{ background: color }} className="text-white">
-              {batch.linkedProduct}
+              {current.linkedProduct}
             </Badge>
           </div>
-          <DialogTitle className="pt-1">{batch.title}</DialogTitle>
+          <DialogTitle className="pt-1">{current.title}</DialogTitle>
           <DialogDescription>
-            {fmtDateTime(batch.collectedAt)} · {batch.itemCount.toLocaleString()}건 수집
+            {fmtDateTime(current.collectedAt)} · {current.itemCount.toLocaleString()}건 수집
           </DialogDescription>
         </DialogHeader>
 
         <p className="text-sm leading-relaxed text-muted-foreground">
-          {batch.summary}
+          {current.summary}
         </p>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -355,7 +388,7 @@ function DetailDialog({
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">{batch.metric} 변화</CardTitle>
+              <CardTitle className="text-sm">{current.metric} 변화</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={180}>
@@ -371,10 +404,57 @@ function DetailDialog({
           </Card>
         </div>
 
+        {isAdmin && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">효과 조정 (관리자)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">효과 방향</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={direction === "up" ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setDirection("up")}
+                  >
+                    <ArrowUpRight className="mr-1 h-3.5 w-3.5" />상승
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={direction === "down" ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setDirection("down")}
+                  >
+                    <ArrowDownRight className="mr-1 h-3.5 w-3.5" />하락
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">효과 강도</Label>
+                  <span className="text-sm font-semibold tabular-nums">{magnitude.toFixed(1)}%p</span>
+                </div>
+                <Slider min={0} max={15} step={0.5} value={[magnitude]} onValueChange={(v) => setMagnitude(v[0])} />
+                <p className="text-xs text-muted-foreground">
+                  {current.metric} {current.valueBefore}% → <span className="font-medium text-foreground">{projected}%</span>
+                </p>
+              </div>
+              <Button size="sm" onClick={handleAdjust} disabled={updateSignal.isPending}>
+                {updateSignal.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                효과 적용
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="flex items-center justify-between pt-1">
-          <DeltaChip b={batch} />
-          {batch.linkedSimulationId != null ? (
-            <Link href={`/simulations/${batch.linkedSimulationId}`}>
+          <DeltaChip b={current} />
+          {current.linkedSimulationId != null ? (
+            <Link href={`/simulations/${current.linkedSimulationId}`}>
               <Button variant="outline" size="sm">
                 반영된 시뮬레이션
                 <ExternalLink className="ml-2 h-3.5 w-3.5" />
@@ -391,9 +471,11 @@ function DetailDialog({
 
 export default function Signals() {
   const { data: signals, isLoading } = useListSignals();
+  const { data: settings } = useGetSignalSettings();
   const { isAdmin } = useAuth();
   const [selected, setSelected] = useState<SignalBatch | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const applyToPrediction = settings?.applyToPrediction ?? true;
 
   const chartData = useMemo(() => {
     if (!signals) return [];
@@ -404,9 +486,9 @@ export default function Signals() {
     );
     return sorted.map((s) => ({
       date: fmtDate(s.collectedAt),
-      [s.linkedProduct]: s.valueAfter,
+      [s.linkedProduct]: applyToPrediction ? s.valueAfter : s.valueBefore,
     }));
-  }, [signals]);
+  }, [signals, applyToPrediction]);
 
   const kpi = useMemo(() => {
     if (!signals || signals.length === 0)
@@ -445,10 +527,7 @@ export default function Signals() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">실시간 신호 인제스트</h1>
-            <DemoBadge />
-          </div>
+          <h1 className="text-3xl font-bold tracking-tight">실시간 신호 인제스트</h1>
           <p className="text-muted-foreground mt-1">
             뉴스·검색트렌드·SNS를 배치로 수집해 합성 여론의 변화를 추적합니다.
           </p>
@@ -493,6 +572,9 @@ export default function Signals() {
           <CardTitle className="flex items-center gap-2">
             <Radio className="h-5 w-5 text-muted-foreground" />
             신호 반영 지지율 추이
+            <Badge variant={applyToPrediction ? "default" : "secondary"} className="font-normal">
+              {applyToPrediction ? "신호 반영 후 기준" : "신호 반영 전 기준"}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -590,7 +672,7 @@ export default function Signals() {
         </CardContent>
       </Card>
 
-      <DetailDialog batch={selected} open={detailOpen} onOpenChange={setDetailOpen} />
+      <DetailDialog batch={selected} open={detailOpen} onOpenChange={setDetailOpen} isAdmin={isAdmin} />
     </div>
   );
 }
