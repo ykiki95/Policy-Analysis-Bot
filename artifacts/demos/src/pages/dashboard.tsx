@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { Users, Activity, Beaker, CheckCircle2, Microscope, Sparkles, ArrowRight, ArrowDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { formatCost } from "@/lib/cost";
 import {
   LineChart,
   Line,
@@ -181,7 +182,7 @@ export default function Dashboard() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(summary.totalSpendUsd * 10).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold">{formatCost(summary.totalSpendUsd)}</div>
           </CardContent>
         </Card>
       </div>

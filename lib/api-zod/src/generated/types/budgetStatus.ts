@@ -7,11 +7,10 @@
  */
 
 /**
- * 모든 금액은 화면 표시 금액(실비 ×10)이다.
+ * 모든 금액은 실제 LLM 실비(USD)다. 화면 표시 배수는 프런트가 적용한다.
  */
 export interface BudgetStatus {
   limitUsd: number;
   spentUsd: number;
   remainingUsd: number;
-  multiplier: number;
 }

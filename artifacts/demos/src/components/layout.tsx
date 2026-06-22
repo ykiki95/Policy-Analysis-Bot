@@ -18,23 +18,26 @@ import {
 import { useLogout, getGetMeQueryKey, useGetBudget, useListAdminAccounts } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccountSwitcher } from "@/hooks/use-account-switcher";
-
-/** 화면 표시 금액 포맷($X.XX). */
-function fmtUsd(v: number): string {
-  return `$${v.toFixed(2)}`;
-}
+import { formatCost } from "@/lib/cost";
 
 function BudgetBadge() {
   const { data: budget } = useGetBudget();
   if (!budget) return null;
   const low = budget.remainingUsd <= budget.limitUsd * 0.1;
   return (
-    <div className="hidden sm:flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm">
-      <Wallet className={`h-4 w-4 ${low ? "text-destructive" : "text-muted-foreground"}`} />
-      <span className={low ? "text-destructive font-medium" : "text-foreground"}>
-        {fmtUsd(budget.remainingUsd)}
-      </span>
-      <span className="text-muted-foreground">/ {fmtUsd(budget.limitUsd)} 잔여</span>
+    <div className="hidden sm:flex items-center gap-2.5 rounded-md border border-border px-3 py-1.5 text-sm">
+      <Wallet className={`h-4 w-4 shrink-0 ${low ? "text-destructive" : "text-muted-foreground"}`} />
+      <div className="flex items-center gap-2 leading-tight">
+        <span className="flex items-baseline gap-1">
+          <span className="text-[11px] text-muted-foreground">잔여</span>
+          <span className={low ? "text-destructive font-semibold" : "text-foreground font-semibold"}>
+            {formatCost(budget.remainingUsd)}
+          </span>
+        </span>
+        <span className="text-[11px] text-muted-foreground">
+          사용 {formatCost(budget.spentUsd)} · 한도 {formatCost(budget.limitUsd)}
+        </span>
+      </div>
     </div>
   );
 }

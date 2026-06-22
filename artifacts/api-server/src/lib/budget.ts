@@ -1,12 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, simulationsTable, usersTable } from "@workspace/db";
 
-/**
- * 화면 표시 배수. 내부적으로는 실제 LLM 실비(USD)로 저장/계산하되, 사용자에게
- * 보여줄 때는 ×10 한 금액을 표시한다(기본 실비 $1 = 화면 $10).
- */
-export const DISPLAY_MULTIPLIER = 10;
-
 export type BudgetStatus = {
   limitUsd: number;
   spentUsd: number;

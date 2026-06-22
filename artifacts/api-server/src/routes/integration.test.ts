@@ -63,7 +63,7 @@ describe("API 통합 — 인증/테넌시/예산", () => {
     expect(res.status).toBe(403);
   });
 
-  it("admin 은 전체 계정 목록을 예산과 함께 조회한다(화면 표시 ×10)", async () => {
+  it("admin 은 전체 계정 목록을 예산과 함께 조회한다(실비 USD)", async () => {
     const res = await adminAgent.get("/api/admin/accounts");
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
@@ -75,15 +75,16 @@ describe("API 통합 — 인증/테넌시/예산", () => {
     }
   });
 
-  it("예산 현황은 화면 표시 배수(×10)를 포함한다", async () => {
+  it("예산 현황은 실비(USD)로 반환한다", async () => {
     const res = await testAgent.get("/api/budget");
     expect(res.status).toBe(200);
-    expect(res.body.multiplier).toBe(10);
+    expect(res.body).not.toHaveProperty("multiplier");
     expect(res.body).toHaveProperty("limitUsd");
+    expect(res.body).toHaveProperty("spentUsd");
     expect(res.body).toHaveProperty("remainingUsd");
   });
 
-  it("예산 초과 시 실행(enqueue)은 402로 차단되고 예산 상세는 화면 표시 단위(×10)다", async () => {
+  it("예산 초과 시 실행(enqueue)은 402로 차단되고 예산 상세는 실비(USD)다", async () => {
     // test 계정은 이미 누적 지출이 한도($1 실비)에 근접해 있어, gpt-5(≈$1.44 실비)
     // 한 건만으로도 한도를 초과한다. 시뮬레이션은 생성되지만 run 은 402여야 한다.
     const created = await testAgent.post("/api/simulations").send({
@@ -96,7 +97,7 @@ describe("API 통합 — 인증/테넌시/예산", () => {
     expect(created.status).toBe(201);
     const run = await testAgent.post(`/api/simulations/${created.body.id}/run`);
     expect(run.status).toBe(402);
-    expect(run.body.budget.multiplier).toBe(10);
+    expect(run.body.budget).not.toHaveProperty("multiplier");
     expect(run.body.budget.estimateUsd).toBeGreaterThan(run.body.budget.remainingUsd);
   });
 

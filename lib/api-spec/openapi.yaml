@@ -1292,21 +1292,19 @@ components:
 
     BudgetStatus:
       type: object
-      description: 모든 금액은 화면 표시 금액(실비 ×10)이다.
+      description: 모든 금액은 실제 LLM 실비(USD)다. 화면 표시 배수는 프런트가 적용한다.
       required:
         - limitUsd
         - spentUsd
         - remainingUsd
-        - multiplier
       properties:
         limitUsd: { type: number }
         spentUsd: { type: number }
         remainingUsd: { type: number }
-        multiplier: { type: integer }
 
     AdminAccount:
       type: object
-      description: 예산 금액은 화면 표시 금액(실비 ×10)이다.
+      description: 예산 금액은 실제 LLM 실비(USD)다. 화면 표시 배수는 프런트가 적용한다.
       required:
         - id
         - username
@@ -1329,7 +1327,7 @@ components:
 
     UpdateAccountBudgetInput:
       type: object
-      description: 입력 금액은 화면 표시 금액(실비 ×10)이다.
+      description: 입력 금액은 실제 LLM 실비(USD)다. 화면 표시 배수는 프런트가 적용한다.
       required:
         - budgetLimitUsd
       properties:

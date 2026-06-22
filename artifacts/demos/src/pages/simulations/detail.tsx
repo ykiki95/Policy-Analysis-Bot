@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useGetSimulation, getGetSimulationQueryKey, useListSimulationResponses, getListSimulationResponsesQueryKey, useDeleteSimulation, getListSimulationsQueryKey, useTickSimulation, useRunSimulation, useStopSimulation, useGetBudget, useEnterSimulationActual, useLearnFromSimulation, getListCalibrationsQueryKey } from "@workspace/api-client-react";
 import { runErrorMessage } from "@/lib/utils";
+import { formatCost } from "@/lib/cost";
 import { sectorLabel } from "@/lib/sector";
 import { useAuth } from "@/hooks/use-auth";
 import { useParams, Link, useLocation } from "wouter";
@@ -185,7 +186,7 @@ export default function SimulationDetail() {
   const isQueued = sim.status === "queued";
   const isRunning = sim.status === "running" || isQueued;
   const needsRun = sim.status === "pending" || sim.status === "failed";
-  const runCost = (sim.costEstimateUsd ?? 0) * 10;
+  const runCost = sim.costEstimateUsd ?? 0;
   const insufficientBudget = budget != null && budget.remainingUsd < runCost;
   const completedAgents = Math.min(
     sim.totalAgents,
@@ -335,12 +336,12 @@ export default function SimulationDetail() {
             <div className="flex items-center justify-end gap-1 text-xl font-semibold">
               <DollarSign className="w-5 h-5 text-muted-foreground" />
               <span className={needsRun && insufficientBudget ? "text-destructive" : ""}>
-                {((sim.costActualUsd ?? sim.costEstimateUsd) * 10).toFixed(2)}
+                {formatCost(sim.costActualUsd ?? sim.costEstimateUsd ?? 0)}
               </span>
               {needsRun && budget && (
                 <>
                   <span className="text-muted-foreground font-normal">/</span>
-                  <span className="text-muted-foreground font-normal">{budget.remainingUsd.toFixed(2)}</span>
+                  <span className="text-muted-foreground font-normal">{formatCost(budget.remainingUsd)}</span>
                 </>
               )}
             </div>
@@ -355,7 +356,7 @@ export default function SimulationDetail() {
                   {sim.status === "failed" ? "실행이 중단되었습니다." : "아직 실행되지 않았습니다."}
                 </p>
                 <p className="text-muted-foreground mt-1">
-                  실행하면 {sim.totalAgents.toLocaleString()}명의 합성 에이전트가 반응을 생성합니다. 예상 비용 ${runCost.toFixed(2)}.
+                  실행하면 {sim.totalAgents.toLocaleString()}명의 합성 에이전트가 반응을 생성합니다. 예상 비용 {formatCost(runCost)}.
                 </p>
               </div>
               <Button onClick={handleRun} disabled={runMut.isPending || insufficientBudget}>

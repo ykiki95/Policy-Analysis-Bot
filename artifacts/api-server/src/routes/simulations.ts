@@ -29,7 +29,7 @@ import {
 import { estimateCost, DEFAULT_MODEL, isSupportedModel } from "../lib/pricing";
 import { processSimulationBatch } from "../lib/simulationEngine";
 import { tenantId, isAdmin } from "../lib/tenant";
-import { assertWithinBudgetTx, BudgetExceededError, DISPLAY_MULTIPLIER } from "../lib/budget";
+import { assertWithinBudgetTx, BudgetExceededError } from "../lib/budget";
 import { runLimiter } from "../lib/rateLimit";
 import { POLICY_AXIS_KEYS, POLICY_AXIS_LABELS } from "../lib/policyWeighting";
 import {
@@ -380,16 +380,15 @@ router.post("/simulations/:id/run", runLimiter, async (req, res): Promise<void> 
     });
   } catch (err) {
     if (err instanceof BudgetExceededError) {
-      // 예산 수치는 화면 표시 단위(×10)로 변환해 /budget·admin API 와 일관성 유지.
+      // 예산 수치는 실비(USD) 그대로 내려보낸다. 화면 표시 배수는 프런트 lib/cost.ts 가 적용.
       const d = err.detail;
       res.status(402).json({
         error: err.message,
         budget: {
-          limitUsd: Math.round(d.limitUsd * DISPLAY_MULTIPLIER * 100) / 100,
-          spentUsd: Math.round(d.spentUsd * DISPLAY_MULTIPLIER * 100) / 100,
-          remainingUsd: Math.round(d.remainingUsd * DISPLAY_MULTIPLIER * 100) / 100,
-          estimateUsd: Math.round(d.estimateUsd * DISPLAY_MULTIPLIER * 100) / 100,
-          multiplier: DISPLAY_MULTIPLIER,
+          limitUsd: d.limitUsd,
+          spentUsd: d.spentUsd,
+          remainingUsd: d.remainingUsd,
+          estimateUsd: d.estimateUsd,
         },
       });
       return;

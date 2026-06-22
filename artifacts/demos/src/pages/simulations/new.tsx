@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Calculator, PlayCircle, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { formatCost } from "@/lib/cost";
 
 const formSchema = z.object({
   title: z.string().min(2, { message: "제목은 2자 이상이어야 합니다." }),
@@ -241,7 +242,7 @@ export default function NewSimulation() {
               ) : (
                 <div className="space-y-2">
                   <div className="text-2xl font-bold text-primary">
-                    ${(estimatedCost.min * 10).toFixed(2)} - ${(estimatedCost.max * 10).toFixed(2)}
+                    {formatCost(estimatedCost.min)} - {formatCost(estimatedCost.max)}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     대상 에이전트: {estimatedCost.totalAgents.toLocaleString()}명<br/>

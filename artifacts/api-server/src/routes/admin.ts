@@ -16,7 +16,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { jsonReady } from "../lib/serialize";
 import { tenantId } from "../lib/tenant";
 import { requireAdmin, hashPassword } from "../lib/auth";
-import { getSpend, DISPLAY_MULTIPLIER } from "../lib/budget";
+import { getSpend } from "../lib/budget";
 import { generateAgents } from "../lib/agentGenerator";
 import {
   buildGenerationInputs,
@@ -82,7 +82,7 @@ router.get("/admin/data-sources", async (_req, res): Promise<void> => {
   res.json(ListDataSourcesResponse.parse(rows));
 });
 
-// 전체 계정 목록 + 예산/지출(화면 표시 금액 ×10). admin 전용.
+// 전체 계정 목록 + 예산/지출(모두 실비 USD; 화면 표시 배수는 프런트가 적용). admin 전용.
 router.get("/admin/accounts", requireAdmin, async (_req, res): Promise<void> => {
   const users = await db.select().from(usersTable).orderBy(usersTable.id);
   const accounts = await Promise.all(
@@ -95,16 +95,16 @@ router.get("/admin/accounts", requireAdmin, async (_req, res): Promise<void> => 
         name: u.name,
         role: u.role,
         createdAt: u.createdAt,
-        budgetLimitUsd: u.budgetLimitUsd * DISPLAY_MULTIPLIER,
-        spentUsd: Math.round(spent * DISPLAY_MULTIPLIER * 100) / 100,
-        remainingUsd: Math.round(remaining * DISPLAY_MULTIPLIER * 100) / 100,
+        budgetLimitUsd: u.budgetLimitUsd,
+        spentUsd: Math.round(spent * 10000) / 10000,
+        remainingUsd: Math.round(remaining * 10000) / 10000,
       };
     }),
   );
   res.json(ListAdminAccountsResponse.parse(jsonReady(accounts)));
 });
 
-// 계정별 예산 한도 설정(입력은 화면 표시 금액 ×10 → 실비로 환산 저장). admin 전용.
+// 계정별 예산 한도 설정(입력·응답 모두 실비 USD; 화면 표시 배수는 프런트가 적용). admin 전용.
 router.put("/admin/accounts/:id/budget", requireAdmin, async (req, res): Promise<void> => {
   const params = UpdateAccountBudgetParams.safeParse(req.params);
   const body = UpdateAccountBudgetBody.safeParse(req.body);
@@ -114,10 +114,9 @@ router.put("/admin/accounts/:id/budget", requireAdmin, async (req, res): Promise
       .json({ error: (params.error ?? body.error)?.message ?? "Invalid input" });
     return;
   }
-  const realLimit = body.data.budgetLimitUsd / DISPLAY_MULTIPLIER;
   const [updated] = await db
     .update(usersTable)
-    .set({ budgetLimitUsd: realLimit })
+    .set({ budgetLimitUsd: body.data.budgetLimitUsd })
     .where(eq(usersTable.id, params.data.id))
     .returning();
   if (!updated) {
@@ -135,9 +134,9 @@ router.put("/admin/accounts/:id/budget", requireAdmin, async (req, res): Promise
         avatar: updated.avatar,
         role: updated.role,
         createdAt: updated.createdAt,
-        budgetLimitUsd: updated.budgetLimitUsd * DISPLAY_MULTIPLIER,
-        spentUsd: Math.round(spent * DISPLAY_MULTIPLIER * 100) / 100,
-        remainingUsd: Math.round(remaining * DISPLAY_MULTIPLIER * 100) / 100,
+        budgetLimitUsd: updated.budgetLimitUsd,
+        spentUsd: Math.round(spent * 10000) / 10000,
+        remainingUsd: Math.round(remaining * 10000) / 10000,
       }),
     ),
   );

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { sectorLabel } from "@/lib/sector";
+import { formatCost, toDisplayCost, toActualCost } from "@/lib/cost";
 import {
   useGetAgentSummary,
   useListDataSources,
@@ -239,7 +240,7 @@ function AccountRow({ account }: { account: AdminAccount }) {
   const updateBudget = useUpdateAccountBudget();
   const resetPassword = useResetAccountPassword();
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(String(account.budgetLimitUsd));
+  const [value, setValue] = useState(String(toDisplayCost(account.budgetLimitUsd)));
 
   const resetPw = async () => {
     try {
@@ -257,7 +258,7 @@ function AccountRow({ account }: { account: AdminAccount }) {
       return;
     }
     try {
-      await updateBudget.mutateAsync({ id: account.id, data: { budgetLimitUsd: next } });
+      await updateBudget.mutateAsync({ id: account.id, data: { budgetLimitUsd: toActualCost(next) } });
       await queryClient.invalidateQueries({ queryKey: getListAdminAccountsQueryKey() });
       toast({ title: "한도 변경 완료", description: `${account.name}의 예산 한도를 $${next.toFixed(2)}로 설정했습니다.` });
       setEditing(false);
@@ -296,21 +297,21 @@ function AccountRow({ account }: { account: AdminAccount }) {
               {updateBudget.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
               저장
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setValue(String(account.budgetLimitUsd)); }}>
+            <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setValue(String(toDisplayCost(account.budgetLimitUsd))); }}>
               취소
             </Button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <span>${account.budgetLimitUsd.toFixed(2)}</span>
+            <span>{formatCost(account.budgetLimitUsd)}</span>
             <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
               <Pencil className="h-3.5 w-3.5" />
             </Button>
           </div>
         )}
       </TableCell>
-      <TableCell className="tabular-nums text-muted-foreground">${account.spentUsd.toFixed(2)}</TableCell>
-      <TableCell className="tabular-nums font-medium">${account.remainingUsd.toFixed(2)}</TableCell>
+      <TableCell className="tabular-nums text-muted-foreground">{formatCost(account.spentUsd)}</TableCell>
+      <TableCell className="tabular-nums font-medium">{formatCost(account.remainingUsd)}</TableCell>
       <TableCell className="text-right">
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -353,7 +354,7 @@ function AccountsSection() {
           계정 및 예산 관리
         </CardTitle>
         <CardDescription>
-          모든 계정의 예산 한도와 누적 사용액을 관리합니다. 모든 금액은 화면 표시 금액(실비 ×10)
+          모든 계정의 예산 한도와 누적 사용액을 관리합니다. 표시·입력 금액은 모두 화면 표시 단위
           기준입니다. 상단의 계정 전환기로 각 계정의 데이터를 직접 조회할 수 있습니다.
         </CardDescription>
       </CardHeader>

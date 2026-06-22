@@ -1118,9 +1118,8 @@ export const GetDashboardSummaryResponse = zod.object({
 export const GetBudgetResponse = zod.object({
   "limitUsd": zod.number(),
   "spentUsd": zod.number(),
-  "remainingUsd": zod.number(),
-  "multiplier": zod.number()
-}).describe('모든 금액은 화면 표시 금액(실비 ×10)이다.')
+  "remainingUsd": zod.number()
+}).describe('모든 금액은 실제 LLM 실비(USD)다. 화면 표시 배수는 프런트가 적용한다.')
 
 
 /**
@@ -1136,7 +1135,7 @@ export const ListAdminAccountsResponseItem = zod.object({
   "budgetLimitUsd": zod.number(),
   "spentUsd": zod.number(),
   "remainingUsd": zod.number()
-}).describe('예산 금액은 화면 표시 금액(실비 ×10)이다.')
+}).describe('예산 금액은 실제 LLM 실비(USD)다. 화면 표시 배수는 프런트가 적용한다.')
 export const ListAdminAccountsResponse = zod.array(ListAdminAccountsResponseItem)
 
 
@@ -1153,7 +1152,7 @@ export const updateAccountBudgetBodyBudgetLimitUsdMin = 0;
 
 export const UpdateAccountBudgetBody = zod.object({
   "budgetLimitUsd": zod.number().min(updateAccountBudgetBodyBudgetLimitUsdMin)
-}).describe('입력 금액은 화면 표시 금액(실비 ×10)이다.')
+}).describe('입력 금액은 실제 LLM 실비(USD)다. 화면 표시 배수는 프런트가 적용한다.')
 
 export const UpdateAccountBudgetResponse = zod.object({
   "id": zod.number(),
@@ -1165,7 +1164,7 @@ export const UpdateAccountBudgetResponse = zod.object({
   "budgetLimitUsd": zod.number(),
   "spentUsd": zod.number(),
   "remainingUsd": zod.number()
-}).describe('예산 금액은 화면 표시 금액(실비 ×10)이다.')
+}).describe('예산 금액은 실제 LLM 실비(USD)다. 화면 표시 배수는 프런트가 적용한다.')
 
 
 /**
