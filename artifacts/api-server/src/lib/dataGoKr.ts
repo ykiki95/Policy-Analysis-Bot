@@ -11,7 +11,6 @@
 const SERVICE_BASE =
   "http://apis.data.go.kr/9760000/VoteXmntckInfoInqireService2";
 const OPERATION = "getXmntckSttusInfoInqire";
-const CONSERVATIVE_PARTY = "국민의힘";
 const PAGE_SIZE = 100;
 
 /** 연동 과정에서 사용자에게 보여줄 수 있는, 의미가 명확한 오류. */
@@ -27,12 +26,25 @@ export type ElectionSource = {
   name: string;
   electionType: string;
   electionDate: string;
+  /** 선거관리위원회 선거종류 코드: 1=대통령, 3=시·도지사(광역단체장), 7=비례대표국회의원. */
+  sgTypecode: string;
+  /**
+   * 이 선거에서 "보수 진영"으로 매핑할 정당명. 대선·지방선거는 국민의힘 계열 후보의
+   * 소속 정당, 비례대표는 보수 위성정당명을 쓴다(선거마다 다르므로 선거별로 지정).
+   */
+  conservativeParty: string;
 };
 
 /**
- * 연동 지원 선거. 대통령선거만 지원한다 — 보수 진영을 "국민의힘 후보" 단일 규칙으로
- * 매핑할 수 있는 제20대(윤석열)·제21대(김문수)를 포함한다. 두 선거 모두 보수=국민의힘.
- * 최신 선거가 먼저 오도록 정렬(화면 기본 선택).
+ * 연동 지원 선거. 모든 선거는 data.go.kr 개표 API에서 동일한 후보/정당별(jd/hbj/dugsu/yutusu)
+ * 구조로 내려오며, 시·도별 합계 행에서 보수 진영(conservativeParty) 득표율을 계산한다.
+ *
+ * - 대통령선거(sgTypecode=1): 보수=국민의힘 단일 후보.
+ * - 지방선거 광역단체장(sgTypecode=3): 시·도지사 보수 후보 소속 정당.
+ * - 국회의원선거 비례대표(sgTypecode=7): 보수 위성정당(선거별 상이). 정당 투표라 hbj=정당명.
+ *
+ * 보수 진영 정당명은 선거마다 다르므로(국민의힘/자유한국당, 국민의미래/미래한국당) 선거별로
+ * 지정한다. 종류별로 묶고 각 그룹은 최신이 먼저 오도록 정렬한다(화면 기본 선택).
  */
 export const SUPPORTED_ELECTIONS: ElectionSource[] = [
   {
@@ -40,12 +52,42 @@ export const SUPPORTED_ELECTIONS: ElectionSource[] = [
     name: "제21대 대통령선거",
     electionType: "대통령선거",
     electionDate: "2025-06-03",
+    sgTypecode: "1",
+    conservativeParty: "국민의힘",
   },
   {
     sgId: "20220309",
     name: "제20대 대통령선거",
     electionType: "대통령선거",
     electionDate: "2022-03-09",
+    sgTypecode: "1",
+    conservativeParty: "국민의힘",
+  },
+  {
+    sgId: "20220601",
+    name: "제8회 전국동시지방선거 (광역단체장)",
+    electionType: "지방선거",
+    electionDate: "2022-06-01",
+    sgTypecode: "3",
+    conservativeParty: "국민의힘",
+  },
+  // 제7회(2018) 지방선거는 자유한국당이 광주·전남 등에 광역단체장 후보를 내지 않아
+  // 17개 시·도 보수 ground-truth를 완성할 수 없으므로 자동 연동 대상에서 제외한다.
+  {
+    sgId: "20240410",
+    name: "제22대 국회의원선거 (비례대표)",
+    electionType: "국회의원선거",
+    electionDate: "2024-04-10",
+    sgTypecode: "7",
+    conservativeParty: "국민의미래",
+  },
+  {
+    sgId: "20200415",
+    name: "제21대 국회의원선거 (비례대표)",
+    electionType: "국회의원선거",
+    electionDate: "2020-04-15",
+    sgTypecode: "7",
+    conservativeParty: "미래한국당",
   },
 ];
 
@@ -88,7 +130,10 @@ const EXPECTED_REGION_CODES = [
 
 type RawRow = Record<string, string>;
 
-async function fetchAllRows(sgId: string): Promise<RawRow[]> {
+async function fetchAllRows(
+  sgId: string,
+  sgTypecode: string,
+): Promise<RawRow[]> {
   const key = process.env.DATA_GO_KR_API_KEY;
   if (!key) {
     throw new DataGoKrError(
@@ -106,7 +151,7 @@ async function fetchAllRows(sgId: string): Promise<RawRow[]> {
     url.searchParams.set("numOfRows", String(PAGE_SIZE));
     url.searchParams.set("pageNo", String(pageNo));
     url.searchParams.set("sgId", sgId);
-    url.searchParams.set("sgTypecode", "1");
+    url.searchParams.set("sgTypecode", sgTypecode);
 
     const res = await fetch(url);
     if (!res.ok) {
@@ -163,13 +208,20 @@ export type ImportedRegionResult = {
 };
 
 /**
- * 지정한 대통령선거의 시·도별 보수(국민의힘) 후보 득표율(%)을 실제 개표결과에서 계산해
- * 반환한다. 매핑 가능한 시·도만 포함하며, 하나도 추출하지 못하면 오류를 던진다.
+ * 지정한 선거(sgId)의 시·도별 보수 진영(source.conservativeParty) 득표율(%)을 실제
+ * 개표결과에서 계산해 반환한다. 대통령선거·지방선거 광역단체장은 후보 단위, 비례대표
+ * 국회의원선거는 정당 단위지만 API 응답 구조(jd=정당명, hbj=후보/정당명, dugsu=득표수,
+ * yutusu=유효투표수)가 동일하므로 같은 로직으로 처리한다. 매핑 가능한 시·도만 포함하며,
+ * 하나도 추출하지 못하면 오류를 던진다.
  */
-export async function fetchPresidentialConservativeShares(
+export async function fetchConservativeShares(
   sgId: string,
 ): Promise<ImportedRegionResult[]> {
-  const rows = await fetchAllRows(sgId);
+  const source = findElectionSource(sgId);
+  if (!source) {
+    throw new DataGoKrError("지원하지 않는 선거입니다.");
+  }
+  const rows = await fetchAllRows(sgId, source.sgTypecode);
   const sidoTotals = rows.filter(
     (r) =>
       r.wiwName === "합계" &&
@@ -185,7 +237,7 @@ export async function fetchPresidentialConservativeShares(
     let idx: string | null = null;
     for (let i = 1; i <= 50; i++) {
       const pad = String(i).padStart(2, "0");
-      if (r[`jd${pad}`] === CONSERVATIVE_PARTY) {
+      if (r[`jd${pad}`] === source.conservativeParty) {
         idx = pad;
         break;
       }

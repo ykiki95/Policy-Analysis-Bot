@@ -4,7 +4,7 @@
 - [Budget enforcement](budget-enforcement.md) — enqueue budget check runs in a txn with user-row FOR UPDATE; "committed spend" counts queued/running reservations (max(actual,estimate)) so concurrent/rerun enqueues can't bypass the cap; recompute estimate at enqueue; server/API/402 always return ACTUAL USD (×10 display is frontend-only in lib/cost.ts).
 - [Session auth](session-auth.md) — custom express-session (not Clerk); connect-pg-simple needs createTableIfMissing:false + a hand-provisioned `session` table.
 - [Orval request-body naming](orval-request-body-naming.md) — name OpenAPI body components `XxxInput` not `XxxBody`, else zod const collides with TS interface (TS2308).
-- [data.go.kr election import](datagokr-election-import.md) — NEC 개표 API: numOfRows caps at 100 (paginate), 보수=국민의힘 dugsuNN/yutusu; only 20·21대 대선 supported.
+- [data.go.kr election import](datagokr-election-import.md) — NEC 개표 API: one generic fetcher per sgTypecode(1 대선/3 지방/7 비례)+conservativeParty(선거별 상이); numOfRows caps at 100; 17 시·도 완전성 가드로 자동 연동 가능 선거 결정; metric 라벨은 후보명 아닌 정당명.
 - [Rate limiter mounting](rate-limit-mounting.md) — `router.use(limiter, subRouter)` w/o a path throttles ALL /api traffic; B1 polling/tick → 429 storm (0%-stuck, auto-logout, login-as-401). Scope limiters per-route.
 - [Stop vs tick lease race](stop-tick-lease-race.md) — every post-claim tick write must be lease-conditional (WHERE lockedBy=TICK_WORKER_ID) so stop wins atomically; stop/run must NOT clear costActualUsd (confirmed lifetime spend → cap bypass).
 - [Prod vs dev DB separate](prod-dev-db-separation.md) — deployed Autoscale app uses its OWN Postgres, NOT the dev DATABASE_URL; query prod via executeSql({environment:"production"}) or deployment logs, never dev.

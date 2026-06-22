@@ -63,7 +63,7 @@ import {
 import {
   SUPPORTED_ELECTIONS,
   findElectionSource,
-  fetchPresidentialConservativeShares,
+  fetchConservativeShares,
   DataGoKrError,
 } from "../lib/dataGoKr";
 
@@ -520,9 +520,18 @@ router.post("/admin/elections/import", requireAdmin, async (req, res): Promise<v
   }
 
   try {
-    const shares = await fetchPresidentialConservativeShares(source.sgId);
-    const candidate = shares[0]?.candidate ?? "보수 후보";
-    const metric = `보수 후보(${candidate}) 득표율`;
+    const shares = await fetchConservativeShares(source.sgId);
+    // 메트릭 라벨은 시·도 전역에서 참인 값(보수 정당명)으로만 만든다. 지방선거 광역단체장은
+    // 시·도마다 후보가 다르므로 특정 후보명을 넣으면 안 된다(예: 오세훈을 17개 지역에 공통
+    // 저장 금지). 비례대표는 정당 투표라 "보수 정당", 그 외(대통령·광역단체장)는 "보수 후보".
+    const isPartyVote = source.electionType.includes("국회의원");
+    const metric = isPartyVote
+      ? `보수 정당(${source.conservativeParty}) 득표율`
+      : `보수 후보(${source.conservativeParty}) 득표율`;
+    // 응답의 candidate는 안내용 대표값 — 비례·지방은 정당명, 대선은 단일 후보명.
+    const candidate = isPartyVote
+      ? source.conservativeParty
+      : (shares[0]?.candidate ?? source.conservativeParty);
     const rows = shares.map((s) => ({
       name: source.name,
       electionType: source.electionType,
@@ -536,7 +545,7 @@ router.post("/admin/elections/import", requireAdmin, async (req, res): Promise<v
 
     // 선거 검증 화면은 이제 여러 선거를 선택해 비교하므로, 다른 선거 ground-truth를
     // 건드리지 않도록 같은 선거(electionDate)의 기존 행만 교체한다. 완전성 검증(17개
-    // 시·도)은 fetchPresidentialConservativeShares에서 이미 끝났다.
+    // 시·도)은 fetchConservativeShares에서 이미 끝났다.
     await db.transaction(async (tx) => {
       await tx
         .delete(electionsTable)
