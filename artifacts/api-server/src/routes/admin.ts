@@ -10,6 +10,7 @@ import {
   calibrationsTable,
   demographicMarginsTable,
   electionsTable,
+  regionsTable,
   usersTable,
 } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
@@ -48,6 +49,11 @@ import {
   ListElectionSourcesResponse,
   ImportElectionBody,
   ImportElectionResponse,
+  ListElectionBacktestsResponse,
+  CreateManualElectionBody,
+  CreateManualElectionResponse,
+  DeleteElectionBacktestParams,
+  DeleteElectionBacktestResponse,
   ListAdminAccountsResponse,
   UpdateAccountBudgetParams,
   UpdateAccountBudgetBody,
@@ -564,6 +570,123 @@ router.post("/admin/elections/import", requireAdmin, async (req, res): Promise<v
       error: "공공데이터 연동에 실패했습니다. 잠시 후 다시 시도해 주세요.",
     });
   }
+});
+
+// 등록된 모든 선거 백테스트를 electionDate별로 묶어 요약한다. 관리 목록·삭제 UI에서 사용.
+// manual = data.go.kr 자동 연동 대상(SUPPORTED_ELECTIONS) 날짜가 아니면 수동 입력으로 표시.
+router.get("/admin/elections", requireAdmin, async (_req, res): Promise<void> => {
+  const rows = await db.select().from(electionsTable);
+  const supportedDates = new Set(SUPPORTED_ELECTIONS.map((s) => s.electionDate));
+  const groups = new Map<
+    string,
+    { name: string; electionType: string; metric: string; regionCount: number }
+  >();
+  for (const r of rows) {
+    const g = groups.get(r.electionDate);
+    if (g) {
+      g.regionCount += 1;
+    } else {
+      groups.set(r.electionDate, {
+        name: r.name,
+        electionType: r.electionType,
+        metric: r.metric,
+        regionCount: 1,
+      });
+    }
+  }
+  const summaries = [...groups.entries()]
+    .map(([electionDate, g]) => ({
+      name: g.name,
+      electionType: g.electionType,
+      electionDate,
+      metric: g.metric,
+      regionCount: g.regionCount,
+      manual: !supportedDates.has(electionDate),
+    }))
+    .sort((a, b) => (a.electionDate < b.electionDate ? 1 : -1));
+  res.json(ListElectionBacktestsResponse.parse(summaries));
+});
+
+// 관리자가 시·도별 보수 득표율을 직접 입력해 백테스트(ground-truth)를 등록한다. API가 없는
+// 선거·여론조사도 수동 등록 가능. electionDate를 키로 같은 날짜의 기존 행을 교체한다.
+router.post("/admin/elections/manual", requireAdmin, async (req, res): Promise<void> => {
+  const parsed = CreateManualElectionBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { name, electionType, electionDate, metric, rows: inputRows } = parsed.data;
+
+  const validRegions = await db
+    .select({ code: regionsTable.code })
+    .from(regionsTable);
+  const validCodes = new Set(validRegions.map((r) => r.code));
+
+  const seen = new Set<string>();
+  for (const r of inputRows) {
+    if (!validCodes.has(r.regionCode)) {
+      res.status(400).json({ error: `알 수 없는 지역 코드: ${r.regionCode}` });
+      return;
+    }
+    if (seen.has(r.regionCode)) {
+      res.status(400).json({ error: `중복된 지역 코드: ${r.regionCode}` });
+      return;
+    }
+    seen.add(r.regionCode);
+    if (r.actualValue < 0 || r.actualValue > 100) {
+      res.status(400).json({ error: "득표율은 0~100 사이여야 합니다." });
+      return;
+    }
+    if (r.actualWinner !== "conservative" && r.actualWinner !== "progressive") {
+      res.status(400).json({ error: "actualWinner는 conservative 또는 progressive여야 합니다." });
+      return;
+    }
+  }
+
+  const rows = inputRows.map((r) => ({
+    name,
+    electionType,
+    electionDate,
+    regionCode: r.regionCode,
+    metric,
+    leaning: "conservative",
+    actualValue: r.actualValue,
+    actualWinner: r.actualWinner,
+  }));
+
+  await db.transaction(async (tx) => {
+    await tx.delete(electionsTable).where(eq(electionsTable.electionDate, electionDate));
+    await tx.insert(electionsTable).values(rows);
+  });
+
+  req.log.info({ electionDate, regions: rows.length }, "Registered manual election backtest");
+  res.json(
+    CreateManualElectionResponse.parse({
+      name,
+      electionType,
+      electionDate,
+      metric,
+      regionCount: rows.length,
+      manual: true,
+    }),
+  );
+});
+
+// 등록된 선거 백테스트를 electionDate 기준으로 삭제한다(자동·수동 모두).
+router.delete("/admin/elections/:electionDate", requireAdmin, async (req, res): Promise<void> => {
+  const parsed = DeleteElectionBacktestParams.safeParse(req.params);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { electionDate } = parsed.data;
+  const deleted = await db
+    .delete(electionsTable)
+    .where(eq(electionsTable.electionDate, electionDate))
+    .returning({ id: electionsTable.id });
+  res.json(
+    DeleteElectionBacktestResponse.parse({ electionDate, deleted: deleted.length }),
+  );
 });
 
 export default router;

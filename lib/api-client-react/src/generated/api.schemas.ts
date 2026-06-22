@@ -726,6 +726,39 @@ export interface ImportElectionResult {
   source: string;
 }
 
+export interface ElectionBacktestSummary {
+  name: string;
+  electionType: string;
+  electionDate: string;
+  metric: string;
+  regionCount: number;
+  /** data.go.kr 자동 연동이 아닌, 관리자가 직접 입력한 백테스트 여부. */
+  manual: boolean;
+}
+
+export interface ManualElectionRowInput {
+  regionCode: string;
+  /** 해당 시·도의 보수 후보 득표율(%). */
+  actualValue: number;
+  /** 실제 1위 진영: conservative | progressive */
+  actualWinner: string;
+}
+
+export interface ManualElectionInput {
+  name: string;
+  electionType: string;
+  /** 백테스트 식별 키(YYYY-MM-DD). 같은 날짜가 있으면 교체합니다. */
+  electionDate: string;
+  metric: string;
+  /** @minItems 1 */
+  rows: ManualElectionRowInput[];
+}
+
+export interface DeleteElectionResult {
+  electionDate: string;
+  deleted: number;
+}
+
 export interface ElectionCalibrationRow {
   electionId: number;
   electionName: string;

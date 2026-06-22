@@ -32,8 +32,10 @@ import type {
   CostEstimate,
   DashboardSummary,
   DataSource,
+  DeleteElectionResult,
   DemographicMargin,
   Election,
+  ElectionBacktestSummary,
   ElectionCalibrationResult,
   ElectionSource,
   EnterActualInput,
@@ -45,6 +47,7 @@ import type {
   LearnSimulationResult,
   ListAgentsParams,
   LoginInput,
+  ManualElectionInput,
   OkResult,
   Product,
   RegeneratePopulationInput,
@@ -4218,6 +4221,224 @@ export function useGetSurveyImpact<TData = Awaited<ReturnType<typeof getSurveyIm
 
 
 
+
+export const getListElectionBacktestsUrl = () => {
+
+
+
+
+  return `/api/admin/elections`
+}
+
+/**
+ * @summary Registered election backtests (grouped ground-truth) for management
+ */
+export const listElectionBacktests = async ( options?: RequestInit): Promise<ElectionBacktestSummary[]> => {
+
+  return customFetch<ElectionBacktestSummary[]>(getListElectionBacktestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListElectionBacktestsQueryKey = () => {
+    return [
+    `/api/admin/elections`
+    ] as const;
+    }
+
+
+export const getListElectionBacktestsQueryOptions = <TData = Awaited<ReturnType<typeof listElectionBacktests>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listElectionBacktests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListElectionBacktestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listElectionBacktests>>> = ({ signal }) => listElectionBacktests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listElectionBacktests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListElectionBacktestsQueryResult = NonNullable<Awaited<ReturnType<typeof listElectionBacktests>>>
+export type ListElectionBacktestsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Registered election backtests (grouped ground-truth) for management
+ */
+
+export function useListElectionBacktests<TData = Awaited<ReturnType<typeof listElectionBacktests>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listElectionBacktests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListElectionBacktestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateManualElectionUrl = () => {
+
+
+
+
+  return `/api/admin/elections/manual`
+}
+
+/**
+ * @summary Manually register an election/poll backtest with per-region conservative shares
+ */
+export const createManualElection = async (manualElectionInput: ManualElectionInput, options?: RequestInit): Promise<ElectionBacktestSummary> => {
+
+  return customFetch<ElectionBacktestSummary>(getCreateManualElectionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      manualElectionInput,)
+  }
+);}
+
+
+
+
+export const getCreateManualElectionMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createManualElection>>, TError,{data: BodyType<ManualElectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createManualElection>>, TError,{data: BodyType<ManualElectionInput>}, TContext> => {
+
+const mutationKey = ['createManualElection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createManualElection>>, {data: BodyType<ManualElectionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createManualElection(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateManualElectionMutationResult = NonNullable<Awaited<ReturnType<typeof createManualElection>>>
+    export type CreateManualElectionMutationBody = BodyType<ManualElectionInput>
+    export type CreateManualElectionMutationError = ErrorType<Error>
+
+    /**
+ * @summary Manually register an election/poll backtest with per-region conservative shares
+ */
+export const useCreateManualElection = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createManualElection>>, TError,{data: BodyType<ManualElectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createManualElection>>,
+        TError,
+        {data: BodyType<ManualElectionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateManualElectionMutationOptions(options));
+    }
+
+export const getDeleteElectionBacktestUrl = (electionDate: string,) => {
+
+
+
+
+  return `/api/admin/elections/${electionDate}`
+}
+
+/**
+ * @summary Delete a registered election backtest (all rows for that electionDate)
+ */
+export const deleteElectionBacktest = async (electionDate: string, options?: RequestInit): Promise<DeleteElectionResult> => {
+
+  return customFetch<DeleteElectionResult>(getDeleteElectionBacktestUrl(electionDate),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteElectionBacktestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteElectionBacktest>>, TError,{electionDate: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteElectionBacktest>>, TError,{electionDate: string}, TContext> => {
+
+const mutationKey = ['deleteElectionBacktest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteElectionBacktest>>, {electionDate: string}> = (props) => {
+          const {electionDate} = props ?? {};
+
+          return  deleteElectionBacktest(electionDate,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteElectionBacktestMutationResult = NonNullable<Awaited<ReturnType<typeof deleteElectionBacktest>>>
+
+    export type DeleteElectionBacktestMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a registered election backtest (all rows for that electionDate)
+ */
+export const useDeleteElectionBacktest = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteElectionBacktest>>, TError,{electionDate: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteElectionBacktest>>,
+        TError,
+        {electionDate: string},
+        TContext
+      > => {
+      return useMutation(getDeleteElectionBacktestMutationOptions(options));
+    }
 
 export const getListElectionSourcesUrl = () => {
 

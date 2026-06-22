@@ -1211,6 +1211,64 @@ paths:
               schema:
                 $ref: "#/components/schemas/SurveyImpactResult"
 
+  /admin/elections:
+    get:
+      operationId: listElectionBacktests
+      tags: [admin]
+      summary: Registered election backtests (grouped ground-truth) for management
+      responses:
+        "200":
+          description: Registered election backtests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ElectionBacktestSummary"
+
+  /admin/elections/manual:
+    post:
+      operationId: createManualElection
+      tags: [admin]
+      summary: Manually register an election/poll backtest with per-region conservative shares
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManualElectionInput"
+      responses:
+        "200":
+          description: Created backtest summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ElectionBacktestSummary"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/elections/{electionDate}:
+    delete:
+      operationId: deleteElectionBacktest
+      tags: [admin]
+      summary: Delete a registered election backtest (all rows for that electionDate)
+      parameters:
+        - name: electionDate
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Delete result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteElectionResult"
+
   /admin/elections/sources:
     get:
       operationId: listElectionSources
@@ -2176,6 +2234,69 @@ components:
         candidate: { type: string }
         imported: { type: integer }
         source: { type: string }
+
+    ElectionBacktestSummary:
+      type: object
+      required:
+        - name
+        - electionType
+        - electionDate
+        - metric
+        - regionCount
+        - manual
+      properties:
+        name: { type: string }
+        electionType: { type: string }
+        electionDate: { type: string }
+        metric: { type: string }
+        regionCount: { type: integer }
+        manual:
+          type: boolean
+          description: data.go.kr 자동 연동이 아닌, 관리자가 직접 입력한 백테스트 여부.
+
+    ManualElectionRowInput:
+      type: object
+      required:
+        - regionCode
+        - actualValue
+        - actualWinner
+      properties:
+        regionCode: { type: string }
+        actualValue:
+          type: number
+          description: 해당 시·도의 보수 후보 득표율(%).
+        actualWinner:
+          type: string
+          description: "실제 1위 진영: conservative | progressive"
+
+    ManualElectionInput:
+      type: object
+      required:
+        - name
+        - electionType
+        - electionDate
+        - metric
+        - rows
+      properties:
+        name: { type: string }
+        electionType: { type: string }
+        electionDate:
+          type: string
+          description: 백테스트 식별 키(YYYY-MM-DD). 같은 날짜가 있으면 교체합니다.
+        metric: { type: string }
+        rows:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/ManualElectionRowInput" }
+
+    DeleteElectionResult:
+      type: object
+      required:
+        - electionDate
+        - deleted
+      properties:
+        electionDate: { type: string }
+        deleted: { type: integer }
 
     ElectionCalibrationRow:
       type: object

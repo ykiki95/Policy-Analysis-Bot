@@ -12,7 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
 import { useAccuracyTrend } from "@/lib/accuracyTrend";
-import { Info, FlaskConical, FlaskRound, Microscope, RefreshCw, Sparkles, Printer } from "lucide-react";
+import { Info, FlaskConical, FlaskRound, Microscope, RefreshCw, Sparkles, Printer, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -221,9 +222,58 @@ function CalibrationLoopHub({ calibrations }: { calibrations: Calibration[] }) {
   );
 }
 
+type ElectionSortKey = "electionName" | "electionDate" | "regionCount" | "avgRawError" | "avgCalibratedError" | "improvement";
+
+function SortableHeader({
+  label,
+  sortKey,
+  activeKey,
+  dir,
+  onSort,
+  align = "left",
+}: {
+  label: string;
+  sortKey: ElectionSortKey;
+  activeKey: ElectionSortKey;
+  dir: "asc" | "desc";
+  onSort: (key: ElectionSortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = activeKey === sortKey;
+  return (
+    <TableHead className={align === "right" ? "text-right" : undefined}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${
+          align === "right" ? "flex-row-reverse" : ""
+        } ${active ? "text-foreground font-semibold" : ""}`}
+      >
+        {label}
+        {active ? (
+          dir === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+        )}
+      </button>
+    </TableHead>
+  );
+}
+
 function ElectionCalibrationView() {
   const { data, isLoading } = useGetElectionCalibration();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<ElectionSortKey>("electionDate");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleSort(key: ElectionSortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "electionName" || key === "electionDate" ? "asc" : "desc");
+    }
+  }
 
   if (isLoading || !data) {
     return (
@@ -262,6 +312,31 @@ function ElectionCalibrationView() {
       calibratedError: r.calibratedError,
     }));
 
+  const sortedElections = [...elections].sort((a, b) => {
+    let cmp: number;
+    switch (sortKey) {
+      case "electionName":
+        cmp = a.electionName.localeCompare(b.electionName, "ko");
+        break;
+      case "electionDate":
+        cmp = a.electionDate.localeCompare(b.electionDate);
+        break;
+      case "regionCount":
+        cmp = a.rows.length - b.rows.length;
+        break;
+      case "avgRawError":
+        cmp = a.avgRawError - b.avgRawError;
+        break;
+      case "avgCalibratedError":
+        cmp = a.avgCalibratedError - b.avgCalibratedError;
+        break;
+      case "improvement":
+        cmp = (a.avgRawError - a.avgCalibratedError) - (b.avgRawError - b.avgCalibratedError);
+        break;
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
   return (
     <div className="space-y-6">
       <Alert>
@@ -275,55 +350,69 @@ function ElectionCalibrationView() {
         </AlertDescription>
       </Alert>
 
-      {elections.length > 1 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">선거별 평균 오차 비교</CardTitle>
-            <CardDescription>여러 과거 대선을 같은 합성 인구로 백테스트한 결과를 나란히 비교합니다.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {elections.map((e) => (
-                <button
-                  key={e.electionDate}
-                  type="button"
-                  onClick={() => setSelectedDate(e.electionDate)}
-                  className={`rounded-lg border p-4 text-left transition-colors ${
-                    e.electionDate === selected.electionDate
-                      ? "border-primary bg-primary/5"
-                      : "hover:bg-muted/40"
-                  }`}
-                >
-                  <div className="text-sm font-semibold">{e.electionName}</div>
-                  <div className="text-xs text-muted-foreground">{e.electionDate}</div>
-                  <div className="mt-2 flex items-baseline gap-3">
-                    <div>
-                      <div className="text-2xl font-bold text-muted-foreground">{e.avgRawError.toFixed(2)}<span className="text-sm font-medium">%p</span></div>
-                      <div className="text-[11px] text-muted-foreground">평균 원시 오차</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-primary">{e.avgCalibratedError.toFixed(2)}<span className="text-sm font-medium">%p</span></div>
-                      <div className="text-[11px] text-muted-foreground">평균 보정 오차</div>
-                    </div>
-                  </div>
-                </button>
-              ))}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <CardTitle className="text-base">선거별 백테스트 비교</CardTitle>
+              <CardDescription>등록된 모든 선거를 같은 합성 인구로 백테스트한 결과입니다. 표 머리글을 눌러 정렬하거나 행을 선택해 상세를 확인하세요.</CardDescription>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Tabs value={selected.electionDate} onValueChange={setSelectedDate}>
-        {elections.length > 1 && (
-          <TabsList className="no-print">
-            {elections.map((e) => (
-              <TabsTrigger key={e.electionDate} value={e.electionDate}>
-                {e.electionName}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        )}
-      </Tabs>
+            <div className="space-y-1.5">
+              <Label className="text-xs">선거 선택</Label>
+              <Select value={selected.electionDate} onValueChange={setSelectedDate}>
+                <SelectTrigger className="sm:w-64">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {elections.map((e) => (
+                    <SelectItem key={e.electionDate} value={e.electionDate}>
+                      {e.electionName} ({e.electionDate})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="border rounded-md overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortableHeader label="선거" sortKey="electionName" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                  <SortableHeader label="선거일" sortKey="electionDate" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                  <SortableHeader label="시·도 수" sortKey="regionCount" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
+                  <SortableHeader label="평균 원시 오차" sortKey="avgRawError" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
+                  <SortableHeader label="평균 보정 오차" sortKey="avgCalibratedError" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
+                  <SortableHeader label="개선폭" sortKey="improvement" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedElections.map((e) => {
+                  const improvement = e.avgRawError - e.avgCalibratedError;
+                  const isSelected = e.electionDate === selected.electionDate;
+                  return (
+                    <TableRow
+                      key={e.electionDate}
+                      onClick={() => setSelectedDate(e.electionDate)}
+                      className={`cursor-pointer ${isSelected ? "bg-primary/5" : ""}`}
+                    >
+                      <TableCell className="font-medium">{e.electionName}</TableCell>
+                      <TableCell className="tabular-nums text-muted-foreground">{e.electionDate}</TableCell>
+                      <TableCell className="text-right tabular-nums">{e.rows.length}</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">{e.avgRawError.toFixed(2)}%p</TableCell>
+                      <TableCell className="text-right tabular-nums font-semibold text-primary">{e.avgCalibratedError.toFixed(2)}%p</TableCell>
+                      <TableCell className={`text-right tabular-nums font-medium ${improvement >= 0 ? "text-emerald-600" : "text-destructive"}`}>
+                        {improvement >= 0 ? "−" : "+"}{Math.abs(improvement).toFixed(2)}%p
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

@@ -23,6 +23,10 @@ import {
   useGetSurveyImpact,
   useListElectionSources,
   useImportElection,
+  useListElectionBacktests,
+  useCreateManualElection,
+  useDeleteElectionBacktest,
+  getListElectionBacktestsQueryKey,
   useListAdminAccounts,
   useUpdateAccountBudget,
   useResetAccountPassword,
@@ -46,6 +50,8 @@ import {
   type CalibrationInput,
   type CalibrationInputProduct,
   type ElectionSource,
+  type ElectionBacktestSummary,
+  type Region,
   type AdminAccount,
   type SignalBatch,
   type SignalSettingsInput,
@@ -74,7 +80,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet, KeyRound, Radio, RefreshCw } from "lucide-react";
+import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet, KeyRound, Radio, RefreshCw, ClipboardList } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const CALIBRATION_METHODS = [
@@ -229,6 +235,284 @@ function ElectionImportSection({
           출처: 중앙선거관리위원회 · 공공데이터포털(data.go.kr). 보수 후보 = 국민의힘 후보 기준
           (제21대 김문수). 시·도별 득표율 = 후보 득표수 ÷ 유효투표수.
         </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+type ManualRowState = { actualValue: string; actualWinner: "conservative" | "progressive" };
+
+// 관리자가 API가 없는 선거·여론조사도 시·도별 보수 득표율을 직접 입력해 백테스트로 등록한다.
+// 값을 입력한 시·도만 제출하며, winner는 득표율 50% 기준으로 기본 자동 설정 후 편집 가능하다.
+function ManualElectionSection({ regions }: { regions: Region[] }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const createManual = useCreateManualElection();
+
+  const [name, setName] = useState("");
+  const [electionType, setElectionType] = useState("대통령선거");
+  const [electionDate, setElectionDate] = useState("");
+  const [metric, setMetric] = useState("보수 후보 득표율");
+  const [rowState, setRowState] = useState<Record<string, ManualRowState>>({});
+
+  const sortedRegions = useMemo(
+    () => [...regions].sort((a, b) => a.displayOrder - b.displayOrder),
+    [regions],
+  );
+
+  function setValue(code: string, actualValue: string) {
+    setRowState((prev) => {
+      const num = Number(actualValue);
+      const autoWinner: "conservative" | "progressive" =
+        Number.isFinite(num) && num > 50 ? "conservative" : "progressive";
+      const existing = prev[code];
+      return {
+        ...prev,
+        [code]: {
+          actualValue,
+          actualWinner: existing?.actualWinner ?? autoWinner,
+        },
+      };
+    });
+  }
+
+  function setWinner(code: string, actualWinner: "conservative" | "progressive") {
+    setRowState((prev) => ({
+      ...prev,
+      [code]: { actualValue: prev[code]?.actualValue ?? "", actualWinner },
+    }));
+  }
+
+  const filledRows = sortedRegions
+    .map((r) => ({ region: r, state: rowState[r.code] }))
+    .filter((x) => x.state && x.state.actualValue.trim() !== "");
+
+  const canSubmit =
+    name.trim() !== "" &&
+    electionDate.trim() !== "" &&
+    metric.trim() !== "" &&
+    filledRows.length > 0 &&
+    !createManual.isPending;
+
+  async function handleSubmit() {
+    const rows = filledRows.map((x) => ({
+      regionCode: x.region.code,
+      actualValue: Number(x.state!.actualValue),
+      actualWinner: x.state!.actualWinner,
+    }));
+    const invalid = rows.find((r) => !Number.isFinite(r.actualValue) || r.actualValue < 0 || r.actualValue > 100);
+    if (invalid) {
+      toast({ title: "입력 오류", description: "득표율은 0~100 사이 숫자여야 합니다.", variant: "destructive" });
+      return;
+    }
+    try {
+      const result = await createManual.mutateAsync({
+        data: { name: name.trim(), electionType: electionType.trim(), electionDate: electionDate.trim(), metric: metric.trim(), rows },
+      });
+      await queryClient.invalidateQueries();
+      toast({
+        title: "백테스트 등록 완료",
+        description: `${result.name} · ${result.regionCount}개 시·도`,
+      });
+      setName("");
+      setElectionDate("");
+      setRowState({});
+    } catch {
+      toast({
+        title: "등록 실패",
+        description: "입력값을 확인해 주세요. 같은 선거일이 있으면 교체됩니다.",
+        variant: "destructive",
+      });
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Plus className="h-5 w-5 text-primary" />
+          수동 백테스트 입력
+        </CardTitle>
+        <CardDescription>
+          공공데이터 API가 없는 선거·여론조사도 시·도별 보수 후보 득표율(%)을 직접 입력해 검증
+          기준값(ground truth)으로 등록합니다. 값을 입력한 시·도만 저장되며, 같은 선거일을 다시
+          등록하면 기존 데이터를 교체합니다.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">선거/조사명</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 제22대 총선 여론조사" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">유형</Label>
+            <Input value={electionType} onChange={(e) => setElectionType(e.target.value)} placeholder="예: 대통령선거" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">선거일 (YYYY-MM-DD)</Label>
+            <Input value={electionDate} onChange={(e) => setElectionDate(e.target.value)} placeholder="2024-04-10" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">지표</Label>
+            <Input value={metric} onChange={(e) => setMetric(e.target.value)} placeholder="보수 후보 득표율" />
+          </div>
+        </div>
+
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>시·도</TableHead>
+                <TableHead className="w-40">보수 득표율 (%)</TableHead>
+                <TableHead className="w-40">실제 1위 진영</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedRegions.map((r) => {
+                const st = rowState[r.code];
+                return (
+                  <TableRow key={r.code}>
+                    <TableCell className="font-medium">{r.name}</TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.01}
+                        value={st?.actualValue ?? ""}
+                        onChange={(e) => setValue(r.code, e.target.value)}
+                        placeholder="—"
+                        className="h-8"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={st?.actualWinner ?? "progressive"}
+                        onValueChange={(v) => setWinner(r.code, v as "conservative" | "progressive")}
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="conservative">보수</SelectItem>
+                          <SelectItem value="progressive">진보</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            입력된 시·도: {filledRows.length} / {sortedRegions.length}
+          </p>
+          <Button onClick={handleSubmit} disabled={!canSubmit}>
+            {createManual.isPending ? (
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4 mr-1.5" />
+            )}
+            백테스트 등록
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// 자동·수동으로 등록된 선거 백테스트 목록을 보여주고, 선거일 기준으로 삭제할 수 있다.
+function RegisteredBacktestsSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: backtests, isLoading } = useListElectionBacktests();
+  const deleteBacktest = useDeleteElectionBacktest();
+
+  async function handleDelete(item: ElectionBacktestSummary) {
+    try {
+      const result = await deleteBacktest.mutateAsync({ electionDate: item.electionDate });
+      await queryClient.invalidateQueries({ queryKey: getListElectionBacktestsQueryKey() });
+      await queryClient.invalidateQueries();
+      toast({
+        title: "백테스트 삭제 완료",
+        description: `${item.name} · ${result.deleted}개 행 삭제`,
+      });
+    } catch {
+      toast({ title: "삭제 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ClipboardList className="h-5 w-5 text-primary" />
+          등록된 백테스트
+        </CardTitle>
+        <CardDescription>
+          자동 연동·수동 입력으로 등록된 선거 검증 기준값 목록입니다. 삭제하면 해당 선거의 모든
+          시·도 기준값이 제거되고 선거 검증 화면에서 사라집니다.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : !backtests || backtests.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">등록된 백테스트가 없습니다.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>선거/조사명</TableHead>
+                <TableHead>선거일</TableHead>
+                <TableHead>지표</TableHead>
+                <TableHead className="text-center">시·도 수</TableHead>
+                <TableHead className="text-center">출처</TableHead>
+                <TableHead className="w-16" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {backtests.map((item) => (
+                <TableRow key={item.electionDate}>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="tabular-nums">{item.electionDate}</TableCell>
+                  <TableCell className="text-muted-foreground">{item.metric}</TableCell>
+                  <TableCell className="text-center tabular-nums">{item.regionCount}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant={item.manual ? "secondary" : "outline"}>
+                      {item.manual ? "수동" : "자동(data.go.kr)"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>백테스트를 삭제할까요?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            “{item.name}” ({item.electionDate})의 모든 시·도 기준값이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>취소</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(item)}>삭제</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );
@@ -439,12 +723,13 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="population">
-        <TabsList className={`grid w-full grid-cols-2 ${isAdmin ? "md:grid-cols-7" : "md:grid-cols-5"}`}>
+        <TabsList className={`grid w-full grid-cols-2 ${isAdmin ? "md:grid-cols-8" : "md:grid-cols-5"}`}>
           <TabsTrigger value="population"><Users className="h-4 w-4 mr-1.5" />인구 구성</TabsTrigger>
           <TabsTrigger value="sources"><Database className="h-4 w-4 mr-1.5" />데이터 출처</TabsTrigger>
           <TabsTrigger value="surveys"><Upload className="h-4 w-4 mr-1.5" />설문 업로드</TabsTrigger>
           <TabsTrigger value="calibration"><SlidersHorizontal className="h-4 w-4 mr-1.5" />보정 설정</TabsTrigger>
           <TabsTrigger value="events"><CheckCircle2 className="h-4 w-4 mr-1.5" />검증 이벤트</TabsTrigger>
+          {isAdmin && <TabsTrigger value="elections"><Vote className="h-4 w-4 mr-1.5" />선거 백테스트</TabsTrigger>}
           {isAdmin && <TabsTrigger value="signals"><Radio className="h-4 w-4 mr-1.5" />신호 인제스트</TabsTrigger>}
           {isAdmin && <TabsTrigger value="accounts"><Wallet className="h-4 w-4 mr-1.5" />계정 관리</TabsTrigger>}
         </TabsList>
@@ -692,8 +977,7 @@ export default function Admin() {
         )}
 
         {isAdmin && (
-          <TabsContent value="accounts" className="mt-6 space-y-6">
-            <AccountsSection />
+          <TabsContent value="elections" className="mt-6 space-y-6">
             <ElectionImportSection
               sources={electionSources ?? []}
               isPending={importElection.isPending}
@@ -714,6 +998,14 @@ export default function Admin() {
                 }
               }}
             />
+            <ManualElectionSection regions={regions ?? []} />
+            <RegisteredBacktestsSection />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="accounts" className="mt-6 space-y-6">
+            <AccountsSection />
           </TabsContent>
         )}
       </Tabs>

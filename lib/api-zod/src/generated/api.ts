@@ -1400,6 +1400,61 @@ export const GetSurveyImpactResponse = zod.object({
 
 
 /**
+ * @summary Registered election backtests (grouped ground-truth) for management
+ */
+export const ListElectionBacktestsResponseItem = zod.object({
+  "name": zod.string(),
+  "electionType": zod.string(),
+  "electionDate": zod.string(),
+  "metric": zod.string(),
+  "regionCount": zod.number(),
+  "manual": zod.boolean().describe('data.go.kr 자동 연동이 아닌, 관리자가 직접 입력한 백테스트 여부.')
+})
+export const ListElectionBacktestsResponse = zod.array(ListElectionBacktestsResponseItem)
+
+
+/**
+ * @summary Manually register an election/poll backtest with per-region conservative shares
+ */
+
+
+
+export const CreateManualElectionBody = zod.object({
+  "name": zod.string(),
+  "electionType": zod.string(),
+  "electionDate": zod.string().describe('백테스트 식별 키(YYYY-MM-DD). 같은 날짜가 있으면 교체합니다.'),
+  "metric": zod.string(),
+  "rows": zod.array(zod.object({
+  "regionCode": zod.string(),
+  "actualValue": zod.number().describe('해당 시·도의 보수 후보 득표율(%).'),
+  "actualWinner": zod.string().describe('실제 1위 진영: conservative | progressive')
+})).min(1)
+})
+
+export const CreateManualElectionResponse = zod.object({
+  "name": zod.string(),
+  "electionType": zod.string(),
+  "electionDate": zod.string(),
+  "metric": zod.string(),
+  "regionCount": zod.number(),
+  "manual": zod.boolean().describe('data.go.kr 자동 연동이 아닌, 관리자가 직접 입력한 백테스트 여부.')
+})
+
+
+/**
+ * @summary Delete a registered election backtest (all rows for that electionDate)
+ */
+export const DeleteElectionBacktestParams = zod.object({
+  "electionDate": zod.coerce.string()
+})
+
+export const DeleteElectionBacktestResponse = zod.object({
+  "electionDate": zod.string(),
+  "deleted": zod.number()
+})
+
+
+/**
  * @summary Presidential elections available to import from data.go.kr (NEC)
  */
 export const ListElectionSourcesResponseItem = zod.object({
