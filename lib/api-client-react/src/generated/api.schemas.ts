@@ -256,6 +256,10 @@ export interface SignalSettingsInput {
   filterMinItems: number;
 }
 
+export interface UserSignalSettingsInput {
+  applyToPrediction: boolean;
+}
+
 export type SignalPatchInputSource = typeof SignalPatchInputSource[keyof typeof SignalPatchInputSource];
 
 

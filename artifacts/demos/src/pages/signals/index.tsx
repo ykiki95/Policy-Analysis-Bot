@@ -4,8 +4,10 @@ import {
   useCreateSignal,
   useUpdateSignal,
   useGetSignalSettings,
+  useUpdateUserSignalSettings,
   useListSimulations,
   getListSignalsQueryKey,
+  getGetSignalSettingsQueryKey,
   type SignalBatch,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import {
   Table,
@@ -83,6 +86,16 @@ const PRODUCT_COLOR: Record<Product, string> = {
   Seraph: "#0ea5e9",
   Dynamo: "#f59e0b",
 };
+
+const PRODUCT_AUDIENCE: Record<Product, string> = {
+  Lumen: "비즈니스",
+  Seraph: "정부",
+  Dynamo: "정치",
+};
+
+function audienceLabel(product: string): string {
+  return PRODUCT_AUDIENCE[product as Product] ?? product;
+}
 
 const SENTIMENT_COLOR = {
   pos: "#22c55e",
@@ -347,7 +360,7 @@ function DetailDialog({
           <div className="flex items-center gap-2">
             <SourceBadge source={current.source} />
             <Badge style={{ background: color }} className="text-white">
-              {current.linkedProduct}
+              {audienceLabel(current.linkedProduct)}
             </Badge>
           </div>
           <DialogTitle className="pt-1">{current.title}</DialogTitle>
@@ -473,9 +486,25 @@ export default function Signals() {
   const { data: signals, isLoading } = useListSignals();
   const { data: settings } = useGetSignalSettings();
   const { isAdmin } = useAuth();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const updateUserSettings = useUpdateUserSignalSettings();
   const [selected, setSelected] = useState<SignalBatch | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const applyToPrediction = settings?.applyToPrediction ?? true;
+
+  const handleToggleApply = async (next: boolean) => {
+    try {
+      await updateUserSettings.mutateAsync({ data: { applyToPrediction: next } });
+      await qc.invalidateQueries({ queryKey: getGetSignalSettingsQueryKey() });
+    } catch {
+      toast({
+        title: "설정 저장 실패",
+        description: "잠시 후 다시 시도해 주세요.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const chartData = useMemo(() => {
     if (!signals) return [];
@@ -569,13 +598,26 @@ export default function Signals() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Radio className="h-5 w-5 text-muted-foreground" />
-            신호 반영 지지율 추이
-            <Badge variant={applyToPrediction ? "default" : "secondary"} className="font-normal">
-              {applyToPrediction ? "신호 반영 후 기준" : "신호 반영 전 기준"}
-            </Badge>
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle className="flex items-center gap-2">
+              <Radio className="h-5 w-5 text-muted-foreground" />
+              신호 반영 지지율 추이
+              <Badge variant={applyToPrediction ? "default" : "secondary"} className="font-normal">
+                {applyToPrediction ? "신호 반영 후 기준" : "신호 반영 전 기준"}
+              </Badge>
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="apply-signal" className="text-sm font-normal text-muted-foreground">
+                내 예측에 신호 반영
+              </Label>
+              <Switch
+                id="apply-signal"
+                checked={applyToPrediction}
+                disabled={updateUserSettings.isPending}
+                onCheckedChange={handleToggleApply}
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {chartData.length === 0 ? (
@@ -595,6 +637,7 @@ export default function Signals() {
                     key={p}
                     type="monotone"
                     dataKey={p}
+                    name={PRODUCT_AUDIENCE[p]}
                     stroke={PRODUCT_COLOR[p]}
                     strokeWidth={2}
                     dot={{ r: 3 }}
@@ -617,7 +660,7 @@ export default function Signals() {
               <TableRow>
                 <TableHead className="pl-6">소스</TableHead>
                 <TableHead>제목</TableHead>
-                <TableHead>제품</TableHead>
+                <TableHead>부문</TableHead>
                 <TableHead>수집 시각</TableHead>
                 <TableHead className="text-right">건수</TableHead>
                 <TableHead>감성</TableHead>
@@ -649,7 +692,7 @@ export default function Signals() {
                         style={{ background: PRODUCT_COLOR[b.linkedProduct as Product] }}
                         className="text-white"
                       >
-                        {b.linkedProduct}
+                        {audienceLabel(b.linkedProduct)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">

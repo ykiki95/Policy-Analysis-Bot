@@ -94,6 +94,32 @@ export const GetSignalSettingsResponse = zod.object({
 
 
 /**
+ * @summary Update the current tenant's own signal preferences (non-admin)
+ */
+export const UpdateUserSignalSettingsBody = zod.object({
+  "applyToPrediction": zod.boolean()
+})
+
+export const UpdateUserSignalSettingsResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "sourceNewsEnabled": zod.boolean(),
+  "sourceTrendEnabled": zod.boolean(),
+  "sourceSnsEnabled": zod.boolean(),
+  "sourceNewsWeight": zod.number(),
+  "sourceTrendWeight": zod.number(),
+  "sourceSnsWeight": zod.number(),
+  "applyToPrediction": zod.boolean(),
+  "scheduleEnabled": zod.boolean(),
+  "scheduleInterval": zod.string(),
+  "filterBotRemoval": zod.boolean(),
+  "filterDedup": zod.boolean(),
+  "filterMinItems": zod.number(),
+  "updatedAt": zod.string()
+})
+
+
+/**
  * @summary Upsert signal ingest settings (admin)
  */
 export const updateSignalSettingsBodySourceNewsWeightMin = 0;

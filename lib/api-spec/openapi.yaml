@@ -100,6 +100,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SignalSettings"
+    put:
+      operationId: updateUserSignalSettings
+      tags: [signals]
+      summary: Update the current tenant's own signal preferences (non-admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserSignalSettingsInput"
+      responses:
+        "200":
+          description: Updated signal settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalSettings"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /admin/signals/settings:
     put:
       operationId: updateSignalSettings
@@ -1546,6 +1569,13 @@ components:
         filterBotRemoval: { type: boolean }
         filterDedup: { type: boolean }
         filterMinItems: { type: integer, minimum: 0 }
+
+    UserSignalSettingsInput:
+      type: object
+      required:
+        - applyToPrediction
+      properties:
+        applyToPrediction: { type: boolean }
 
     SignalPatchInput:
       type: object

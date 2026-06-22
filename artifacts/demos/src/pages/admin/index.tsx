@@ -1578,6 +1578,14 @@ function CalibrationEventsSection({
 const SIGNAL_SOURCES = ["뉴스", "검색트렌드", "SNS·커뮤니티"] as const;
 const SIGNAL_PRODUCTS = ["Lumen", "Seraph", "Dynamo"] as const;
 const SIGNAL_SCHEDULES = ["수동", "매시간", "매일"] as const;
+const SIGNAL_AUDIENCE: Record<string, string> = {
+  Lumen: "비즈니스",
+  Seraph: "정부",
+  Dynamo: "정치",
+};
+function signalAudienceLabel(product: string): string {
+  return SIGNAL_AUDIENCE[product] ?? product;
+}
 
 function sourceBadgeVariant(source: string): "default" | "secondary" | "outline" {
   if (source === "뉴스") return "default";
@@ -1799,10 +1807,10 @@ function SignalAddDialog() {
             )}
           </div>
           <div className="space-y-2">
-            <Label>연계 제품</Label>
+            <Label>연계 부문</Label>
             <Select value={product} onValueChange={setProduct}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{SIGNAL_PRODUCTS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+              <SelectContent>{SIGNAL_PRODUCTS.map((p) => <SelectItem key={p} value={p}>{signalAudienceLabel(p)}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
@@ -1890,10 +1898,10 @@ function SignalEditDialog({ batch }: { batch: SignalBatch }) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>제품</Label>
+              <Label>부문</Label>
               <Select value={product} onValueChange={setProduct}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{SIGNAL_PRODUCTS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                <SelectContent>{SIGNAL_PRODUCTS.map((p) => <SelectItem key={p} value={p}>{signalAudienceLabel(p)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
@@ -2017,7 +2025,7 @@ function SignalIngestSection() {
                   <TableRow>
                     <TableHead>제목</TableHead>
                     <TableHead>소스</TableHead>
-                    <TableHead>제품</TableHead>
+                    <TableHead>부문</TableHead>
                     <TableHead className="whitespace-nowrap">수집 시각</TableHead>
                     <TableHead className="text-right">건수</TableHead>
                     <TableHead className="text-right">감성(긍/중/부)</TableHead>
@@ -2030,7 +2038,7 @@ function SignalIngestSection() {
                     <TableRow key={b.id}>
                       <TableCell className="font-medium max-w-[220px] truncate">{b.title}</TableCell>
                       <TableCell><Badge variant={sourceBadgeVariant(b.source)}>{b.source}</Badge></TableCell>
-                      <TableCell><Badge variant="outline">{b.linkedProduct}</Badge></TableCell>
+                      <TableCell><Badge variant="outline">{signalAudienceLabel(b.linkedProduct)}</Badge></TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         {new Date(b.collectedAt).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </TableCell>

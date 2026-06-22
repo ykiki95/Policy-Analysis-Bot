@@ -13,6 +13,8 @@ import {
   GetSignalSettingsResponse,
   UpdateSignalSettingsBody,
   UpdateSignalSettingsResponse,
+  UpdateUserSignalSettingsBody,
+  UpdateUserSignalSettingsResponse,
   UpdateSignalParams,
   UpdateSignalBody,
   UpdateSignalResponse,
@@ -82,6 +84,23 @@ function renormSentiment(
 router.get("/signals/settings", async (req, res): Promise<void> => {
   const row = await getOrCreateSettings(tenantId(req));
   res.json(GetSignalSettingsResponse.parse(jsonReady(row)));
+});
+
+// 사용자 본인 설정: 신호 반영 여부만 변경 가능(수집 구성은 관리자 전용).
+router.put("/signals/settings", async (req, res): Promise<void> => {
+  const parsed = UpdateUserSignalSettingsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const uid = tenantId(req);
+  const existing = await getOrCreateSettings(uid);
+  const [saved] = await db
+    .update(signalSettingsTable)
+    .set({ applyToPrediction: parsed.data.applyToPrediction, updatedAt: new Date() })
+    .where(eq(signalSettingsTable.id, existing.id))
+    .returning();
+  res.json(UpdateUserSignalSettingsResponse.parse(jsonReady(saved)));
 });
 
 router.put(
