@@ -80,7 +80,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet, KeyRound, Radio, RefreshCw, ClipboardList } from "lucide-react";
+import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet, KeyRound, Radio, RefreshCw, ClipboardList, Box, Building2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const CALIBRATION_METHODS = [
@@ -719,18 +719,17 @@ export default function Admin() {
         <p className="text-muted-foreground mt-1">
           {isAdmin
             ? "합성 인구 구성, 데이터 출처, 설문 기준, 보정 방법, 계정 예산을 관리합니다."
-            : "내 합성 인구 구성, 설문 업로드, 보정 방법, 검증 이벤트를 직접 관리합니다."}
+            : "내 합성 인구 구성, 설문 업로드, 보정 방법, 백테스트를 직접 관리합니다."}
         </p>
       </div>
 
       <Tabs defaultValue="population">
-        <TabsList className={`grid w-full grid-cols-2 ${isAdmin ? "md:grid-cols-8" : "md:grid-cols-5"}`}>
+        <TabsList className={`grid w-full grid-cols-2 ${isAdmin ? "md:grid-cols-7" : "md:grid-cols-5"}`}>
           <TabsTrigger value="population"><Users className="h-4 w-4 mr-1.5" />인구 구성</TabsTrigger>
           <TabsTrigger value="sources"><Database className="h-4 w-4 mr-1.5" />데이터 출처</TabsTrigger>
           <TabsTrigger value="surveys"><Upload className="h-4 w-4 mr-1.5" />설문 업로드</TabsTrigger>
           <TabsTrigger value="calibration"><SlidersHorizontal className="h-4 w-4 mr-1.5" />보정 설정</TabsTrigger>
-          <TabsTrigger value="events"><CheckCircle2 className="h-4 w-4 mr-1.5" />검증 이벤트</TabsTrigger>
-          {isAdmin && <TabsTrigger value="elections"><Vote className="h-4 w-4 mr-1.5" />선거 백테스트</TabsTrigger>}
+          <TabsTrigger value="backtest"><CheckCircle2 className="h-4 w-4 mr-1.5" />백테스트</TabsTrigger>
           {isAdmin && <TabsTrigger value="signals"><Radio className="h-4 w-4 mr-1.5" />신호 인제스트</TabsTrigger>}
           {isAdmin && <TabsTrigger value="accounts"><Wallet className="h-4 w-4 mr-1.5" />계정 관리</TabsTrigger>}
         </TabsList>
@@ -943,64 +942,88 @@ export default function Admin() {
           )}
         </TabsContent>
 
-        <TabsContent value="events" className="mt-6">
-          <CalibrationEventsSection
-            events={calibrationEvents ?? []}
-            isLoading={eventsLoading}
-            isCreating={createEvent.isPending}
-            onCreate={async (input) => {
+        <TabsContent value="backtest" className="mt-6">
+          {(() => {
+            const onCreate = async (input: CalibrationInput) => {
               try {
                 await createEvent.mutateAsync({ data: input });
                 await queryClient.invalidateQueries({ queryKey: getListCalibrationsQueryKey() });
-                toast({ title: "검증 이벤트 추가됨", description: `${input.title} 이벤트가 등록되었습니다.` });
+                toast({ title: "백테스트 추가됨", description: `${input.title} 항목이 등록되었습니다.` });
                 return true;
               } catch {
                 toast({ title: "추가 실패", description: "값을 확인해 주세요.", variant: "destructive" });
                 return false;
               }
-            }}
-            onDelete={async (id) => {
+            };
+            const onDelete = async (id: number) => {
               try {
                 await deleteEvent.mutateAsync({ id });
                 await queryClient.invalidateQueries({ queryKey: getListCalibrationsQueryKey() });
-                toast({ title: "검증 이벤트 삭제됨" });
+                toast({ title: "백테스트 삭제됨" });
               } catch {
                 toast({ title: "삭제 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
               }
-            }}
-          />
+            };
+            const eventsProps = {
+              events: calibrationEvents ?? [],
+              isLoading: eventsLoading,
+              isCreating: createEvent.isPending,
+              onCreate,
+              onDelete,
+            };
+            return (
+              <Tabs defaultValue="politics">
+                <TabsList className="grid w-full grid-cols-3 max-w-xl">
+                  <TabsTrigger value="politics"><Vote className="h-4 w-4 mr-1.5" />정치(선거)</TabsTrigger>
+                  <TabsTrigger value="business"><Box className="h-4 w-4 mr-1.5" />비즈니스</TabsTrigger>
+                  <TabsTrigger value="government"><Building2 className="h-4 w-4 mr-1.5" />정부(정책)</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="politics" className="mt-6 space-y-6">
+                  <CalibrationEventsSection {...eventsProps} domain="Dynamo" />
+                  {isAdmin && (
+                    <>
+                      <ElectionImportSection
+                        sources={electionSources ?? []}
+                        isPending={importElection.isPending}
+                        onImport={async (sgId) => {
+                          try {
+                            const result = await importElection.mutateAsync({ data: { sgId } });
+                            await queryClient.invalidateQueries();
+                            toast({
+                              title: "실제 선거 데이터 연동 완료",
+                              description: `${result.electionName} · ${result.metric} · ${result.imported}개 시·도 (출처: ${result.source})`,
+                            });
+                          } catch {
+                            toast({
+                              title: "연동 실패",
+                              description: "공공데이터포털 응답을 확인해 주세요. 활용신청 승인 상태가 필요할 수 있습니다.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      />
+                      <ManualElectionSection regions={regions ?? []} />
+                      <RegisteredBacktestsSection />
+                    </>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="business" className="mt-6">
+                  <CalibrationEventsSection {...eventsProps} domain="Lumen" />
+                </TabsContent>
+
+                <TabsContent value="government" className="mt-6">
+                  <CalibrationEventsSection {...eventsProps} domain="Seraph" />
+                </TabsContent>
+              </Tabs>
+            );
+          })()}
         </TabsContent>
 
         {isAdmin && (
           <TabsContent value="signals" className="mt-6 space-y-6">
             <SignalIngestSection />
-          </TabsContent>
-        )}
-
-        {isAdmin && (
-          <TabsContent value="elections" className="mt-6 space-y-6">
-            <ElectionImportSection
-              sources={electionSources ?? []}
-              isPending={importElection.isPending}
-              onImport={async (sgId) => {
-                try {
-                  const result = await importElection.mutateAsync({ data: { sgId } });
-                  await queryClient.invalidateQueries();
-                  toast({
-                    title: "실제 선거 데이터 연동 완료",
-                    description: `${result.electionName} · ${result.metric} · ${result.imported}개 시·도 (출처: ${result.source})`,
-                  });
-                } catch {
-                  toast({
-                    title: "연동 실패",
-                    description: "공공데이터포털 응답을 확인해 주세요. 활용신청 승인 상태가 필요할 수 있습니다.",
-                    variant: "destructive",
-                  });
-                }
-              }}
-            />
-            <ManualElectionSection regions={regions ?? []} />
-            <RegisteredBacktestsSection />
           </TabsContent>
         )}
 
@@ -1690,15 +1713,19 @@ function CalibrationEventsSection({
   isCreating,
   onCreate,
   onDelete,
+  domain,
 }: {
   events: Calibration[];
   isLoading: boolean;
   isCreating: boolean;
   onCreate: (input: CalibrationInput) => Promise<boolean>;
   onDelete: (id: number) => Promise<void>;
+  domain?: CalibrationInputProduct;
 }) {
+  // domain이 지정되면 해당 제품 라인 백테스트만 다루고 제품 선택을 잠근다(하위 탭별 분리).
+  const visibleEvents = domain ? events.filter((e) => e.product === domain) : events;
   const [title, setTitle] = useState("");
-  const [product, setProduct] = useState(CALIBRATION_PRODUCT_OPTIONS[0].value);
+  const [product, setProduct] = useState<CalibrationInputProduct>(domain ?? CALIBRATION_PRODUCT_OPTIONS[0].value);
   const [eventType, setEventType] = useState(EVENT_TYPE_OPTIONS[0]);
   const [targetDate, setTargetDate] = useState("");
   const [metric, setMetric] = useState("");
@@ -1736,10 +1763,10 @@ function CalibrationEventsSection({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>검증 이벤트 추가</CardTitle>
+          <CardTitle>백테스트 추가</CardTitle>
           <CardDescription>
             결과가 알려진 과거 이벤트의 실제값과 모델의 원시 예측을 입력하면, 현재 보정 설정(축소 계수)에 따라
-            보정 예측과 오차가 자동 계산되어 검증 내역에 추가됩니다.
+            보정 예측과 오차가 자동 계산되어 백테스트 내역에 추가됩니다.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1748,15 +1775,17 @@ function CalibrationEventsSection({
               <Label>이벤트 제목</Label>
               <Input placeholder="예: 2024 서울시장 보궐선거" value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label>제품 라인</Label>
-              <Select value={product} onValueChange={(v) => setProduct(v as CalibrationInputProduct)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CALIBRATION_PRODUCT_OPTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {!domain && (
+              <div className="space-y-2">
+                <Label>제품 라인</Label>
+                <Select value={product} onValueChange={(v) => setProduct(v as CalibrationInputProduct)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CALIBRATION_PRODUCT_OPTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>이벤트 유형</Label>
               <Select value={eventType} onValueChange={setEventType}>
@@ -1785,21 +1814,21 @@ function CalibrationEventsSection({
           </div>
           <Button onClick={handleSubmit} disabled={!valid || isCreating}>
             {isCreating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-            이벤트 추가
+            백테스트 추가
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>검증 이벤트 내역 <span className="text-sm font-normal text-muted-foreground">({events.length}개)</span></CardTitle>
+          <CardTitle>백테스트 내역 <span className="text-sm font-normal text-muted-foreground">({visibleEvents.length}개)</span></CardTitle>
           <CardDescription>오래된 이벤트는 삭제하고 최신 이벤트를 추가하는 방식으로 관리합니다.</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="space-y-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
-          ) : events.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">등록된 검증 이벤트가 없습니다.</p>
+          ) : visibleEvents.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">등록된 백테스트 데이터가 없습니다.</p>
           ) : (
             <div className="border rounded-md overflow-x-auto">
               <Table>
@@ -1818,7 +1847,7 @@ function CalibrationEventsSection({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {events.map((ev) => (
+                  {visibleEvents.map((ev) => (
                     <TableRow key={ev.id}>
                       <TableCell className="font-medium">
                         {ev.title}
@@ -1841,9 +1870,9 @@ function CalibrationEventsSection({
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>이 검증 이벤트를 삭제하시겠습니까?</AlertDialogTitle>
+                              <AlertDialogTitle>이 백테스트를 삭제하시겠습니까?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                "{ev.title}" 이벤트가 검증 내역에서 제거됩니다. 이 작업은 되돌릴 수 없습니다.
+                                "{ev.title}" 항목이 백테스트 내역에서 제거됩니다. 이 작업은 되돌릴 수 없습니다.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
