@@ -25,3 +25,5 @@ description: signal_settings AND signal_batches (and all learning inputs) are gl
 **Why:** 데모 제품 모델 = 관리자가 큰 합성 학습 인구·검증셋을 큐레이션하고, 모든 계정이 같은 인구를 공유하되 시뮬레이션만 계정별로 표본추출해 실행. 초기엔 per-tenant agents/signal_batches 였으나 "역할기반 데이터 공유 전면 정합"으로 전역화.
 
 **How to apply:** 새 학습-데이터 mutation 라우트 추가 시 항상 requireAdmin + userId=0. 전역 자산 조회/삭제는 0 으로 필터. 시뮬 인구 선택은 selectSampledAgents 만 사용(agents 라이브 조인 금지 — 집계는 응답 스냅샷 기반). userId=0 sentinel user 행은 FK 무결성 운영 전제(없으면 학습 데이터 insert 실패).
+
+**파생 계산 함수 주의(라이브 agents/settings 읽는 것 전부):** `computeElectionCalibration` 처럼 라이브 `agents`·`calibration_settings` 를 읽어 진단/보정 산출하는 함수는 **반드시 GLOBAL_LEARNING_USER_ID 로 읽어야** 한다 — tenantId 로 읽으면 전역화 이후 비-admin 계정은 0행 → 선거 백테스트 전 시·도 skip(오차·시·도별 예측 전부 사라짐). 전역화로 마이그레이션할 때 이런 read-path 가 라우트뿐 아니라 lib 계산 함수에도 숨어 있으니 같이 바꿀 것.

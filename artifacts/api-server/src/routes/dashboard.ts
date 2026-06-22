@@ -1,13 +1,17 @@
 import { Router, type IRouter } from "express";
 import { jsonReady } from "../lib/serialize";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import {
   db,
   agentsTable,
   simulationsTable,
   calibrationsTable,
 } from "@workspace/db";
-import { tenantId } from "../lib/tenant";
+import {
+  tenantId,
+  GLOBAL_LEARNING_USER_ID,
+  learningReadIds,
+} from "../lib/tenant";
 import { GetDashboardSummaryResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -15,7 +19,10 @@ const router: IRouter = Router();
 router.get("/dashboard/summary", async (req, res): Promise<void> => {
   const uid = tenantId(req);
   const [agents, simulations, calibrations] = await Promise.all([
-    db.select().from(agentsTable).where(eq(agentsTable.userId, uid)),
+    db
+      .select()
+      .from(agentsTable)
+      .where(eq(agentsTable.userId, GLOBAL_LEARNING_USER_ID)),
     db
       .select()
       .from(simulationsTable)
@@ -24,7 +31,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     db
       .select()
       .from(calibrationsTable)
-      .where(eq(calibrationsTable.userId, uid)),
+      .where(inArray(calibrationsTable.userId, learningReadIds(req))),
   ]);
 
   const completed = simulations.filter((s) => s.status === "completed");

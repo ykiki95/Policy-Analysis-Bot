@@ -8,6 +8,7 @@ import {
   type Agent,
 } from "@workspace/db";
 import { logger } from "./logger";
+import { GLOBAL_LEARNING_USER_ID } from "./tenant";
 
 const LOGISTIC_SCALE = 35;
 
@@ -68,17 +69,18 @@ export type ElectionCalibrationResult = {
  *
  * 라이브 agents(현재 인구 진단)를 읽는다 — 저장된 시뮬레이션 스냅샷과 의도적으로 독립.
  */
-export async function computeElectionCalibration(
-  userId: number,
-): Promise<ElectionCalibrationResult> {
+export async function computeElectionCalibration(): Promise<ElectionCalibrationResult> {
   const [agents, elections, regions, settingsRow] = await Promise.all([
-    db.select().from(agentsTable).where(eq(agentsTable.userId, userId)),
+    db
+      .select()
+      .from(agentsTable)
+      .where(eq(agentsTable.userId, GLOBAL_LEARNING_USER_ID)),
     db.select().from(electionsTable).orderBy(electionsTable.id),
     db.select().from(regionsTable),
     db
       .select()
       .from(calibrationSettingsTable)
-      .where(eq(calibrationSettingsTable.userId, userId))
+      .where(eq(calibrationSettingsTable.userId, GLOBAL_LEARNING_USER_ID))
       .limit(1),
   ]);
 
@@ -165,7 +167,7 @@ export async function computeElectionCalibration(
     if (skipped.length > 0) {
       logger.warn(
         {
-          userId,
+          userId: GLOBAL_LEARNING_USER_ID,
           electionDate,
           skippedCount: skipped.length,
           scoredCount: rows.length,

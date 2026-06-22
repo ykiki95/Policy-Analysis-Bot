@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { inArray } from "drizzle-orm";
 import { db, calibrationsTable, electionsTable } from "@workspace/db";
-import { tenantId, learningReadIds } from "../lib/tenant";
+import { learningReadIds } from "../lib/tenant";
 import {
   ListCalibrationsResponse,
   ListElectionsResponse,
@@ -22,7 +22,7 @@ router.get("/calibration", async (req, res): Promise<void> => {
 });
 
 router.get("/calibration/elections", async (req, res): Promise<void> => {
-  const result = await computeElectionCalibration(tenantId(req));
+  const result = await computeElectionCalibration();
   res.json(GetElectionCalibrationResponse.parse(result));
 });
 
