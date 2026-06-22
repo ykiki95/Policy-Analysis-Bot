@@ -701,6 +701,8 @@ export interface Election {
   metric: string;
   leaning: string;
   actualValue: number;
+  /** 실제 1위 진영: conservative | progressive */
+  actualWinner: string;
 }
 
 export interface ElectionSource {
@@ -732,6 +734,8 @@ export interface ElectionCalibrationRow {
   regionName: string;
   metric: string;
   leaning: string;
+  /** 실제 1위 진영: conservative | progressive */
+  actualWinner: string;
   actualValue: number;
   rawPrediction: number;
   calibratedPrediction: number;

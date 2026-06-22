@@ -1,4 +1,5 @@
-import { useGetDashboardSummary, useListCalibrations } from "@workspace/api-client-react";
+import { useGetDashboardSummary } from "@workspace/api-client-react";
+import { useAccuracyTrend } from "@/lib/accuracyTrend";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
@@ -66,21 +67,11 @@ function RefreshIndicator() {
 
 /** 검증 이벤트(보정 데이터) 기반 정확도 추이 — 원시 vs 보정 정확도(100−오차). */
 function AccuracyTrend() {
-  const { data: calibrations, isLoading } = useListCalibrations();
+  const { points: chartData, isLoading } = useAccuracyTrend();
 
   if (isLoading) {
     return <Skeleton className="h-72 w-full" />;
   }
-
-  const events = (calibrations ?? [])
-    .slice()
-    .sort((a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime());
-
-  const chartData = events.map((c) => ({
-    name: c.targetDate?.slice(0, 7) ?? c.title,
-    rawAccuracy: Math.max(0, 100 - c.rawError),
-    calibratedAccuracy: Math.max(0, 100 - c.calibratedError),
-  }));
 
   return (
     <Card>

@@ -31,7 +31,7 @@ export type ElectionSource = {
 
 /**
  * 연동 지원 선거. 대통령선거만 지원한다 — 보수 진영을 "국민의힘 후보" 단일 규칙으로
- * 매핑할 수 있는 20·21대만 포함(그 이전은 당명이 달라 제외).
+ * 매핑할 수 있는 제21대만 포함(데모는 제21대 대선으로 통일).
  */
 export const SUPPORTED_ELECTIONS: ElectionSource[] = [
   {
@@ -39,12 +39,6 @@ export const SUPPORTED_ELECTIONS: ElectionSource[] = [
     name: "제21대 대통령선거",
     electionType: "대통령선거",
     electionDate: "2025-06-03",
-  },
-  {
-    sgId: "20220309",
-    name: "제20대 대통령선거",
-    electionType: "대통령선거",
-    electionDate: "2022-03-09",
   },
 ];
 
@@ -157,6 +151,8 @@ export type ImportedRegionResult = {
   sidoName: string;
   candidate: string;
   actualValue: number;
+  /** 실제 1위 진영: 보수 후보 득표수가 전 후보 중 최다면 conservative, 아니면 progressive. */
+  actualWinner: "conservative" | "progressive";
 };
 
 /**
@@ -193,11 +189,21 @@ export async function fetchPresidentialConservativeShares(
     const candidateVotes = Number(r[`dugsu${idx}`]);
     if (!validVotes || !Number.isFinite(candidateVotes)) continue;
 
+    // 진영 판정은 득표율 임계값이 아니라 실제 1위 후보를 기준으로 한다 — 전 후보의
+    // 득표수를 비교해 보수 후보가 최다면 conservative, 아니면 progressive.
+    let maxVotes = 0;
+    for (let i = 1; i <= 50; i++) {
+      const pad = String(i).padStart(2, "0");
+      const v = Number(r[`dugsu${pad}`]);
+      if (Number.isFinite(v) && v > maxVotes) maxVotes = v;
+    }
+
     out.push({
       regionCode,
       sidoName: r.sdName,
       candidate: r[`hbj${idx}`] ?? "",
       actualValue: Number(((candidateVotes / validVotes) * 100).toFixed(2)),
+      actualWinner: candidateVotes >= maxVotes ? "conservative" : "progressive",
     });
   }
 

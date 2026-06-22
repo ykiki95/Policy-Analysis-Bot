@@ -2126,6 +2126,7 @@ components:
         - metric
         - leaning
         - actualValue
+        - actualWinner
       properties:
         id: { type: integer }
         name: { type: string }
@@ -2135,6 +2136,7 @@ components:
         metric: { type: string }
         leaning: { type: string }
         actualValue: { type: number }
+        actualWinner: { type: string, description: "실제 1위 진영: conservative | progressive" }
 
     ElectionSource:
       type: object
@@ -2185,6 +2187,7 @@ components:
         - regionName
         - metric
         - leaning
+        - actualWinner
         - actualValue
         - rawPrediction
         - calibratedPrediction
@@ -2198,6 +2201,7 @@ components:
         regionName: { type: string }
         metric: { type: string }
         leaning: { type: string }
+        actualWinner: { type: string, description: "실제 1위 진영: conservative | progressive" }
         actualValue: { type: number }
         rawPrediction: { type: number }
         calibratedPrediction: { type: number }

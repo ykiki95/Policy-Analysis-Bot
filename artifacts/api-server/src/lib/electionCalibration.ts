@@ -24,6 +24,7 @@ export type ElectionCalibrationRow = {
   regionName: string;
   metric: string;
   leaning: string;
+  actualWinner: string;
   actualValue: number;
   rawPrediction: number;
   calibratedPrediction: number;
@@ -134,6 +135,7 @@ export async function computeElectionCalibration(
       regionName,
       metric: e.metric,
       leaning: e.leaning,
+      actualWinner: e.actualWinner,
       actualValue: round1(e.actualValue),
       rawPrediction: round1(rawPrediction),
       calibratedPrediction: round1(calibratedPrediction),

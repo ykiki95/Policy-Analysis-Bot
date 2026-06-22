@@ -15,4 +15,6 @@ export interface Election {
   metric: string;
   leaning: string;
   actualValue: number;
+  /** 실제 1위 진영: conservative | progressive */
+  actualWinner: string;
 }

@@ -525,6 +525,7 @@ router.post("/admin/elections/import", requireAdmin, async (req, res): Promise<v
       metric,
       leaning: "conservative",
       actualValue: s.actualValue,
+      actualWinner: s.actualWinner,
     }));
 
     // 선거 검증 화면은 단일 선거(rows[0])를 기준으로 표시하므로, 새 선거를 불러올 때

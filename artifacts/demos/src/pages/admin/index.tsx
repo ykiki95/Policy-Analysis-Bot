@@ -227,7 +227,7 @@ function ElectionImportSection({
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
           출처: 중앙선거관리위원회 · 공공데이터포털(data.go.kr). 보수 후보 = 국민의힘 후보 기준
-          (제20대 윤석열 / 제21대 김문수). 시·도별 득표율 = 후보 득표수 ÷ 유효투표수.
+          (제21대 김문수). 시·도별 득표율 = 후보 득표수 ÷ 유효투표수.
         </p>
       </CardContent>
     </Card>

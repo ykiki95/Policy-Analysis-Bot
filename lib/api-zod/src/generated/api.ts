@@ -1000,6 +1000,7 @@ export const GetElectionCalibrationResponse = zod.object({
   "regionName": zod.string(),
   "metric": zod.string(),
   "leaning": zod.string(),
+  "actualWinner": zod.string().describe('실제 1위 진영: conservative | progressive'),
   "actualValue": zod.number(),
   "rawPrediction": zod.number(),
   "calibratedPrediction": zod.number(),
@@ -1025,7 +1026,8 @@ export const ListElectionsResponseItem = zod.object({
   "regionCode": zod.string(),
   "metric": zod.string(),
   "leaning": zod.string(),
-  "actualValue": zod.number()
+  "actualValue": zod.number(),
+  "actualWinner": zod.string().describe('실제 1위 진영: conservative | progressive')
 })
 export const ListElectionsResponse = zod.array(ListElectionsResponseItem)
 

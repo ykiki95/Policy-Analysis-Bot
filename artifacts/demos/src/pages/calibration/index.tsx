@@ -9,7 +9,8 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
+import { useAccuracyTrend } from "@/lib/accuracyTrend";
 import { Info, FlaskConical, FlaskRound, Microscope, RefreshCw, Sparkles, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -24,6 +25,65 @@ const PRODUCT_META: { key: string; product: string; label: string; track: string
   { key: "Lumen", product: "Lumen", label: "비즈니스", track: "소비 성향 기준선" },
   { key: "Seraph", product: "Seraph", label: "정부", track: "정책 태도 기준선" },
 ];
+
+/**
+ * 학습 효과 대표 지표 — 검증 이벤트가 쌓일수록 학습 전(원시) 예측 오차가
+ * 줄어드는 추세를 라인차트로 보여준다. 대시보드 정확도 추이와 동일 데이터·계산
+ * (useAccuracyTrend)을 공유한다.
+ */
+function AccuracyTrendLearning() {
+  const { points, eventCount, avgRawError, isLoading } = useAccuracyTrend();
+
+  if (isLoading) {
+    return <Skeleton className="h-80 w-full" />;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>정확도 추이 (학습 효과)</CardTitle>
+        <CardDescription>
+          검증 이벤트가 쌓일수록 학습 전 예측 오차가 줄어드는 추세를 보여줍니다. (입력 보정 ON 기준)
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {points.length === 0 ? (
+          <div className="py-16 text-center text-sm text-muted-foreground">
+            검증 이벤트가 없습니다. 검증 이벤트를 등록하면 학습 효과 추이가 표시됩니다.
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-lg border bg-card p-4">
+                <div className="text-xs text-muted-foreground">평균 원시 오차 (학습 전)</div>
+                <div className="text-4xl font-bold text-primary mt-1">
+                  {avgRawError.toFixed(1)}<span className="text-lg font-medium">%p</span>
+                </div>
+              </div>
+              <div className="rounded-lg border bg-card p-4">
+                <div className="text-xs text-muted-foreground">검증 이벤트 수</div>
+                <div className="text-4xl font-bold mt-1">
+                  {eventCount}<span className="text-lg font-medium">건</span>
+                </div>
+              </div>
+            </div>
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={points} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={(v) => `${v}`} />
+                  <RechartsTooltip />
+                  <Line type="monotone" dataKey="rawError" name="원시 오차(학습 전)" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 /**
  * 보정 루프 허브 — 두 레버(출력 보정·입력 보정)와 4단계 피드백 루프를
@@ -250,7 +310,9 @@ function ElectionCalibrationView() {
       <Card>
         <CardHeader>
           <CardTitle>예측 vs 실제 상세</CardTitle>
-          <CardDescription>{data.rows[0]?.electionName} · {data.rows[0]?.electionDate}</CardDescription>
+          <CardDescription>
+            {data.rows[0]?.electionName} · {data.rows[0]?.electionDate} · 값은 보수 후보(김문수) 득표율이며, 배지는 해당 시·도 실제 1위 진영입니다.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="border rounded-md overflow-x-auto">
@@ -258,7 +320,7 @@ function ElectionCalibrationView() {
               <TableHeader>
                 <TableRow>
                   <TableHead>지역</TableHead>
-                  <TableHead>진영</TableHead>
+                  <TableHead>우세 진영</TableHead>
                   <TableHead className="text-right">실제</TableHead>
                   <TableHead className="text-right">원시 예측</TableHead>
                   <TableHead className="text-right">보정 예측</TableHead>
@@ -271,8 +333,8 @@ function ElectionCalibrationView() {
                   <TableRow key={`${r.electionId}-${r.regionCode}-${r.leaning}`}>
                     <TableCell className="font-medium">{r.regionName}</TableCell>
                     <TableCell>
-                      <Badge variant={r.leaning === "conservative" ? "destructive" : "default"}>
-                        {r.leaning === "conservative" ? "보수" : "진보"}
+                      <Badge variant={r.actualWinner === "conservative" ? "destructive" : "default"}>
+                        {r.actualWinner === "conservative" ? "보수 우세" : "진보 우세"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{r.actualValue}%</TableCell>
@@ -518,7 +580,8 @@ export default function Calibration() {
           </Tabs>
         </TabsContent>
 
-        <TabsContent value="learning" className="mt-6">
+        <TabsContent value="learning" className="mt-6 space-y-8">
+          <AccuracyTrendLearning />
           <CalibrationLoopHub calibrations={calibrations} />
         </TabsContent>
       </Tabs>

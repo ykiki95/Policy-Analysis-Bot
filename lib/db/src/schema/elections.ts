@@ -5,6 +5,10 @@ import { pgTable, serial, text, doublePrecision } from "drizzle-orm/pg-core";
  * (election × region × metric). `regionCode` references regions.code. `leaning`
  * is "conservative" | "progressive" — which bloc the metric measures, so the
  * generator can derive a comparable prediction from the synthetic population.
+ * `actualWinner` ("conservative" | "progressive") is the bloc that actually
+ * placed first in that region, independent of the metric value — e.g. 강원·울산
+ * had the conservative candidate win with under 50%, so a >50% threshold would
+ * mislabel them. Badges use `actualWinner`, not a vote-share cutoff.
  */
 export const electionsTable = pgTable("elections", {
   id: serial("id").primaryKey(),
@@ -15,6 +19,7 @@ export const electionsTable = pgTable("elections", {
   metric: text("metric").notNull(),
   leaning: text("leaning").notNull(),
   actualValue: doublePrecision("actual_value").notNull(),
+  actualWinner: text("actual_winner").notNull(),
 });
 
 export type Election = typeof electionsTable.$inferSelect;

@@ -14,8 +14,11 @@ election calibration, replacing the hardcoded seed.
   `totalCount` (~270 rows per 대선).
 - 시·도 합계행 = `wiwName === "합계"` && sdName ∉ {합계, 전국}. Conservative share =
   `dugsuNN / yutusu * 100` where `jdNN === "국민의힘"`.
-- Only 20대(20220309, 윤석열) and 21대(20250603, 김문수) are supported — both have 보수=국민의힘.
-  Earlier elections used different party names, so the single-rule mapping would break.
+- Only 21대(20250603, 김문수) is supported (보수=국민의힘). 데모는 제21대 대선으로 통일했고
+  20대 흔적은 제거됨. Earlier elections used different party names, so the single-rule mapping breaks.
+- **진영 배지는 actualWinner(실제 1위 진영) 기준** — 득표율 임계값(>50%) 금지. 강원·울산은 보수
+  후보가 <50%로 1위였기에 임계값 방식이면 오판함. import 경로는 전 후보 dugsuNN 최대 득표수와
+  비교해 winner를 판정하고, elections.actual_winner(NOT NULL) 컬럼에 저장한다.
 
 **Why import REPLACES the whole elections table:** the frontend ElectionCalibrationView is
 single-election (reads `rows[0]` for the header), so importing a new election deletes + reseeds
