@@ -13,6 +13,139 @@ export interface Error {
   error: string;
 }
 
+export type TrackEventInputType = typeof TrackEventInputType[keyof typeof TrackEventInputType];
+
+
+export const TrackEventInputType = {
+  pageview: 'pageview',
+  heartbeat: 'heartbeat',
+} as const;
+
+/**
+ * 프런트 접속 분석 비콘 페이로드.
+ */
+export interface TrackEventInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  clientId: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  sessionId: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  path: string;
+  type: TrackEventInputType;
+}
+
+export interface AnalyticsSummary {
+  totalEvents: number;
+  totalSessions: number;
+  uniqueVisitors: number;
+  loggedInAccounts: number;
+  anonymousSessions: number;
+  totalMinutes: number;
+  mobileSessions: number;
+  desktopSessions: number;
+  tabletSessions: number;
+  loginSuccess: number;
+  loginFail: number;
+}
+
+export interface AnalyticsAccount {
+  userId: number;
+  username: string;
+  name: string;
+  role: string;
+  sessions: number;
+  events: number;
+  pageviews: number;
+  totalMinutes: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  mobileSessions: number;
+  desktopSessions: number;
+}
+
+export interface AnalyticsAnon {
+  sessions: number;
+  events: number;
+  totalMinutes: number;
+}
+
+export interface AnalyticsMenu {
+  path: string;
+  views: number;
+  heartbeats: number;
+  sessions: number;
+  visitors: number;
+  totalMinutes: number;
+}
+
+export interface AnalyticsDevice {
+  deviceType: string;
+  sessions: number;
+  events: number;
+}
+
+export interface AnalyticsBrowser {
+  browser: string;
+  sessions: number;
+}
+
+export interface AnalyticsLocation {
+  country: string | null;
+  countryCode: string | null;
+  region: string | null;
+  city: string | null;
+  sessions: number;
+  visitors: number;
+}
+
+export interface AnalyticsSession {
+  sessionId: string;
+  userId: number | null;
+  username: string | null;
+  name: string | null;
+  ip: string | null;
+  deviceType: string | null;
+  browser: string | null;
+  os: string | null;
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  startAt: string;
+  endAt: string;
+  durationMinutes: number;
+  pageviews: number;
+  events: number;
+}
+
+export interface AnalyticsDaily {
+  date: string;
+  events: number;
+  sessions: number;
+  visitors: number;
+}
+
+export interface AnalyticsResponse {
+  rangeDays: number;
+  summary: AnalyticsSummary;
+  accounts: AnalyticsAccount[];
+  anonymous: AnalyticsAnon;
+  menus: AnalyticsMenu[];
+  devices: AnalyticsDevice[];
+  browsers: AnalyticsBrowser[];
+  locations: AnalyticsLocation[];
+  sessions: AnalyticsSession[];
+  daily: AnalyticsDaily[];
+}
+
 export interface User {
   id: number;
   username: string;
@@ -881,5 +1014,12 @@ district?: string;
 gender?: string;
 ageBracket?: string;
 limit?: number;
+};
+
+export type GetAnalyticsParams = {
+/**
+ * 집계 기간(일). 0 = 전체.
+ */
+days?: number;
 };
 

@@ -26,6 +26,8 @@ tags:
     description: Dashboard aggregates
   - name: signals
     description: Realtime signal ingest batches (demo)
+  - name: analytics
+    description: 접속 분석(방문자/세션/메뉴/위치 추적)
 paths:
   /signals:
     get:
@@ -1315,6 +1317,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /track:
+    post:
+      operationId: trackEvent
+      tags: [analytics]
+      summary: 접속 분석 비콘 수집(비로그인 허용, fire-and-forget)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrackEventInput"
+      responses:
+        "204":
+          description: 기록됨
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/analytics:
+    get:
+      operationId: getAnalytics
+      tags: [analytics]
+      summary: 접속 분석 집계(관리자 전용)
+      parameters:
+        - name: days
+          in: query
+          required: false
+          description: 집계 기간(일). 0 = 전체.
+          schema: { type: integer, default: 30 }
+      responses:
+        "200":
+          description: 접속 분석 집계
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -1330,6 +1372,206 @@ components:
       properties:
         error: { type: string }
       required: [error]
+
+    TrackEventInput:
+      type: object
+      description: 프런트 접속 분석 비콘 페이로드.
+      required:
+        - clientId
+        - sessionId
+        - path
+        - type
+      properties:
+        clientId: { type: string, minLength: 1, maxLength: 80 }
+        sessionId: { type: string, minLength: 1, maxLength: 80 }
+        path: { type: string, minLength: 1, maxLength: 300 }
+        type: { type: string, enum: [pageview, heartbeat] }
+
+    AnalyticsSummary:
+      type: object
+      required:
+        - totalEvents
+        - totalSessions
+        - uniqueVisitors
+        - loggedInAccounts
+        - anonymousSessions
+        - totalMinutes
+        - mobileSessions
+        - desktopSessions
+        - tabletSessions
+        - loginSuccess
+        - loginFail
+      properties:
+        totalEvents: { type: integer }
+        totalSessions: { type: integer }
+        uniqueVisitors: { type: integer }
+        loggedInAccounts: { type: integer }
+        anonymousSessions: { type: integer }
+        totalMinutes: { type: number }
+        mobileSessions: { type: integer }
+        desktopSessions: { type: integer }
+        tabletSessions: { type: integer }
+        loginSuccess: { type: integer }
+        loginFail: { type: integer }
+
+    AnalyticsAccount:
+      type: object
+      required:
+        - userId
+        - username
+        - name
+        - role
+        - sessions
+        - events
+        - pageviews
+        - totalMinutes
+        - firstSeenAt
+        - lastSeenAt
+        - mobileSessions
+        - desktopSessions
+      properties:
+        userId: { type: integer }
+        username: { type: string }
+        name: { type: string }
+        role: { type: string }
+        sessions: { type: integer }
+        events: { type: integer }
+        pageviews: { type: integer }
+        totalMinutes: { type: number }
+        firstSeenAt: { type: string }
+        lastSeenAt: { type: string }
+        mobileSessions: { type: integer }
+        desktopSessions: { type: integer }
+
+    AnalyticsAnon:
+      type: object
+      required: [sessions, events, totalMinutes]
+      properties:
+        sessions: { type: integer }
+        events: { type: integer }
+        totalMinutes: { type: number }
+
+    AnalyticsMenu:
+      type: object
+      required: [path, views, heartbeats, sessions, visitors, totalMinutes]
+      properties:
+        path: { type: string }
+        views: { type: integer }
+        heartbeats: { type: integer }
+        sessions: { type: integer }
+        visitors: { type: integer }
+        totalMinutes: { type: number }
+
+    AnalyticsDevice:
+      type: object
+      required: [deviceType, sessions, events]
+      properties:
+        deviceType: { type: string }
+        sessions: { type: integer }
+        events: { type: integer }
+
+    AnalyticsBrowser:
+      type: object
+      required: [browser, sessions]
+      properties:
+        browser: { type: string }
+        sessions: { type: integer }
+
+    AnalyticsLocation:
+      type: object
+      required: [country, countryCode, region, city, sessions, visitors]
+      properties:
+        country: { type: string, nullable: true }
+        countryCode: { type: string, nullable: true }
+        region: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        sessions: { type: integer }
+        visitors: { type: integer }
+
+    AnalyticsSession:
+      type: object
+      required:
+        - sessionId
+        - userId
+        - username
+        - name
+        - ip
+        - deviceType
+        - browser
+        - os
+        - country
+        - region
+        - city
+        - startAt
+        - endAt
+        - durationMinutes
+        - pageviews
+        - events
+      properties:
+        sessionId: { type: string }
+        userId: { type: integer, nullable: true }
+        username: { type: string, nullable: true }
+        name: { type: string, nullable: true }
+        ip: { type: string, nullable: true }
+        deviceType: { type: string, nullable: true }
+        browser: { type: string, nullable: true }
+        os: { type: string, nullable: true }
+        country: { type: string, nullable: true }
+        region: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        startAt: { type: string }
+        endAt: { type: string }
+        durationMinutes: { type: number }
+        pageviews: { type: integer }
+        events: { type: integer }
+
+    AnalyticsDaily:
+      type: object
+      required: [date, events, sessions, visitors]
+      properties:
+        date: { type: string }
+        events: { type: integer }
+        sessions: { type: integer }
+        visitors: { type: integer }
+
+    AnalyticsResponse:
+      type: object
+      required:
+        - rangeDays
+        - summary
+        - accounts
+        - anonymous
+        - menus
+        - devices
+        - browsers
+        - locations
+        - sessions
+        - daily
+      properties:
+        rangeDays: { type: integer }
+        summary: { $ref: "#/components/schemas/AnalyticsSummary" }
+        accounts:
+          type: array
+          items: { $ref: "#/components/schemas/AnalyticsAccount" }
+        anonymous: { $ref: "#/components/schemas/AnalyticsAnon" }
+        menus:
+          type: array
+          items: { $ref: "#/components/schemas/AnalyticsMenu" }
+        devices:
+          type: array
+          items: { $ref: "#/components/schemas/AnalyticsDevice" }
+        browsers:
+          type: array
+          items: { $ref: "#/components/schemas/AnalyticsBrowser" }
+        locations:
+          type: array
+          items: { $ref: "#/components/schemas/AnalyticsLocation" }
+        sessions:
+          type: array
+          items: { $ref: "#/components/schemas/AnalyticsSession" }
+        daily:
+          type: array
+          items: { $ref: "#/components/schemas/AnalyticsDaily" }
 
     User:
       type: object

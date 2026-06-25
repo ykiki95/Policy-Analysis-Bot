@@ -13,3 +13,4 @@
 - [Orval enum+nullable drops null](orval-enum-nullable.md) — adding `enum` to a `nullable` OpenAPI string makes Orval generate `T | undefined` (no null), breaking "clear to null" flows; keep plain `type: string, nullable: true` if null must be sendable.
 - [Backup snapshot layout](backup-snapshots.md) — backup keeps a latest pointer (demos_full_dump.sql) PLUS date-stamped snapshots (snapshots/demos_YYYY-MM-DD.sql, one/day, same-day overwrites) with retention; stage with git add --all to capture pruned deletions.
 - [drizzle-kit push needs a TTY](drizzle-push-tty.md) — `run push` aborts in the agent shell (interactive create-vs-rename resolver, no --yes); create new tables via raw `CREATE TABLE IF NOT EXISTS` DDL through executeSql instead.
+- [Access analytics](access-analytics.md) — public anonymous `/track` beacon MUST stay rate-limited; dwell-time excludes login events; ip-api HTTP + header IP-trust are accepted demo tradeoffs.

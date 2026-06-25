@@ -12,3 +12,4 @@ export * from "./elections";
 export * from "./users";
 export * from "./signalBatches";
 export * from "./signalSettings";
+export * from "./analytics";

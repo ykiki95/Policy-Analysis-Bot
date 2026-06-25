@@ -38,6 +38,8 @@ import {
   useDeleteSignal,
   useResetSignals,
   useAutoCollectSignals,
+  useGetAnalytics,
+  getGetAnalyticsQueryKey,
   getListCalibrationsQueryKey,
   getListSurveysQueryKey,
   getGetSurveyImpactQueryKey,
@@ -80,7 +82,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet, KeyRound, Radio, RefreshCw, Box, Building2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet, KeyRound, Radio, RefreshCw, Box, Building2, ChevronLeft, ChevronRight, Activity, Smartphone, Monitor, Globe, Clock, MousePointerClick } from "lucide-react";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from "recharts";
 import { useAuth } from "@/hooks/use-auth";
 
 const CALIBRATION_METHODS = [
@@ -741,7 +744,7 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="population">
-        <TabsList className={`grid w-full h-auto gap-1 grid-cols-2 sm:grid-cols-3 ${isAdmin ? "lg:grid-cols-7" : "lg:grid-cols-5"}`}>
+        <TabsList className={`grid w-full h-auto gap-1 grid-cols-2 sm:grid-cols-3 ${isAdmin ? "lg:grid-cols-8" : "lg:grid-cols-5"}`}>
           <TabsTrigger value="population"><Users className="h-4 w-4 mr-1.5" />인구 구성</TabsTrigger>
           <TabsTrigger value="sources"><Database className="h-4 w-4 mr-1.5" />데이터 출처</TabsTrigger>
           <TabsTrigger value="surveys"><Upload className="h-4 w-4 mr-1.5" />설문 업로드</TabsTrigger>
@@ -749,6 +752,7 @@ export default function Admin() {
           <TabsTrigger value="backtest"><CheckCircle2 className="h-4 w-4 mr-1.5" />백테스트</TabsTrigger>
           {isAdmin && <TabsTrigger value="signals"><Radio className="h-4 w-4 mr-1.5" />신호 인제스트</TabsTrigger>}
           {isAdmin && <TabsTrigger value="accounts"><Wallet className="h-4 w-4 mr-1.5" />계정 관리</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="analytics"><Activity className="h-4 w-4 mr-1.5" />접속 분석</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="population" className="mt-6">
@@ -1047,7 +1051,335 @@ export default function Admin() {
             <AccountsSection />
           </TabsContent>
         )}
+
+        {isAdmin && (
+          <TabsContent value="analytics" className="mt-6 space-y-6">
+            <AnalyticsSection />
+          </TabsContent>
+        )}
       </Tabs>
+    </div>
+  );
+}
+
+function fmtMinutes(min: number): string {
+  if (min < 1) return `${Math.round(min * 60)}초`;
+  if (min < 60) return `${min.toFixed(1)}분`;
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return `${h}시간 ${m}분`;
+}
+
+function fmtDateTime(iso: string): string {
+  const d = new Date(iso.includes("T") ? iso : iso.replace(" ", "T"));
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function deviceLabel(t: string | null): string {
+  switch (t) {
+    case "mobile":
+      return "모바일";
+    case "tablet":
+      return "태블릿";
+    case "desktop":
+      return "PC";
+    case "bot":
+      return "봇";
+    default:
+      return "알수없음";
+  }
+}
+
+function locationText(s: {
+  country: string | null;
+  region: string | null;
+  city: string | null;
+}): string {
+  const parts = [s.country, s.region, s.city].filter(
+    (p): p is string => Boolean(p) && p !== "(로컬/사설)",
+  );
+  if (parts.length === 0) return s.country ?? "—";
+  return parts.join(" · ");
+}
+
+const ANALYTICS_RANGES = [
+  { label: "7일", value: 7 },
+  { label: "30일", value: 30 },
+  { label: "90일", value: 90 },
+  { label: "전체", value: 0 },
+];
+
+function AnalyticsSection() {
+  const [days, setDays] = useState(30);
+  const { data, isLoading, isFetching, refetch } = useGetAnalytics(
+    { days },
+    {
+      query: {
+        refetchOnWindowFocus: false,
+        queryKey: getGetAnalyticsQueryKey({ days }),
+      },
+    },
+  );
+
+  const kpis = data
+    ? [
+        { label: "총 방문자", value: data.summary.uniqueVisitors.toLocaleString(), icon: Users, hint: "고유 브라우저 수" },
+        { label: "세션 수", value: data.summary.totalSessions.toLocaleString(), icon: MousePointerClick, hint: `로그인 ${data.summary.loggedInAccounts} · 익명 ${data.summary.anonymousSessions}` },
+        { label: "총 체류시간", value: fmtMinutes(data.summary.totalMinutes), icon: Clock, hint: "heartbeat 기반" },
+        { label: "모바일 / PC", value: `${data.summary.mobileSessions} / ${data.summary.desktopSessions}`, icon: Smartphone, hint: `태블릿 ${data.summary.tabletSessions}` },
+      ]
+    : [];
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <CardTitle>접속 분석</CardTitle>
+              <CardDescription>
+                외부 공개 서비스의 접속 현황입니다. 비로그인 방문도 집계되며, 위치는 IP 기반 추정(ip-api.com)입니다.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ANALYTICS_RANGES.map((r) => (
+                    <SelectItem key={r.value} value={String(r.value)}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
+                <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin mr-2" />불러오는 중…
+        </div>
+      ) : !data ? (
+        <div className="text-center py-16 text-muted-foreground">데이터가 없습니다.</div>
+      ) : (
+        <>
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            {kpis.map((k) => (
+              <Card key={k.label}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">{k.label}</span>
+                    <k.icon className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="text-2xl font-bold mt-2 tabular-nums">{k.value}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{k.hint}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">일별 추이</CardTitle>
+              <CardDescription>방문자·세션·이벤트 일별 변화</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {data.daily.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground text-sm">기록 없음</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={data.daily} margin={{ left: -20, right: 8, top: 8 }}>
+                    <defs>
+                      <linearGradient id="anVisitors" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d: string) => d.slice(5)} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <RechartsTooltip
+                      contentStyle={{ fontSize: 12 }}
+                      formatter={(v: number, name: string) => [v, name === "visitors" ? "방문자" : name === "sessions" ? "세션" : "이벤트"]}
+                    />
+                    <Area type="monotone" dataKey="visitors" stroke="hsl(var(--primary))" fill="url(#anVisitors)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="sessions" stroke="hsl(var(--muted-foreground))" fill="transparent" strokeWidth={1.5} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">메뉴별 사용량</CardTitle>
+                <CardDescription>경로별 조회수·방문자·체류시간</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>메뉴(경로)</TableHead>
+                      <TableHead className="text-right">조회</TableHead>
+                      <TableHead className="text-right">방문자</TableHead>
+                      <TableHead className="text-right">체류</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.menus.length === 0 ? (
+                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">기록 없음</TableCell></TableRow>
+                    ) : (
+                      data.menus.map((m) => (
+                        <TableRow key={m.path}>
+                          <TableCell className="font-mono text-xs">{m.path}</TableCell>
+                          <TableCell className="text-right tabular-nums">{m.views.toLocaleString()}</TableCell>
+                          <TableCell className="text-right tabular-nums">{m.visitors.toLocaleString()}</TableCell>
+                          <TableCell className="text-right tabular-nums">{fmtMinutes(m.totalMinutes)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" />접속 위치</CardTitle>
+                <CardDescription>IP 기반 국가·지역 추정</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>위치</TableHead>
+                      <TableHead className="text-right">세션</TableHead>
+                      <TableHead className="text-right">방문자</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.locations.length === 0 ? (
+                      <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">기록 없음</TableCell></TableRow>
+                    ) : (
+                      data.locations.map((l, i) => (
+                        <TableRow key={`${l.country}-${l.city}-${i}`}>
+                          <TableCell>{locationText(l)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{l.sessions.toLocaleString()}</TableCell>
+                          <TableCell className="text-right tabular-nums">{l.visitors.toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">계정별 접속</CardTitle>
+              <CardDescription>로그인 계정의 접속 횟수·체류시간 (로그인 성공 {data.summary.loginSuccess} · 실패 {data.summary.loginFail})</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>계정</TableHead>
+                    <TableHead className="text-right">세션</TableHead>
+                    <TableHead className="text-right">조회</TableHead>
+                    <TableHead className="text-right">체류</TableHead>
+                    <TableHead className="text-right">모바일/PC</TableHead>
+                    <TableHead className="text-right">최근 접속</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.accounts.length === 0 ? (
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">로그인 접속 기록 없음</TableCell></TableRow>
+                  ) : (
+                    data.accounts.map((a) => (
+                      <TableRow key={a.userId}>
+                        <TableCell>
+                          <div className="font-medium">{a.name}</div>
+                          <div className="text-xs text-muted-foreground">@{a.username}{a.role === "admin" ? " · 관리자" : ""}</div>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{a.sessions.toLocaleString()}</TableCell>
+                        <TableCell className="text-right tabular-nums">{a.pageviews.toLocaleString()}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtMinutes(a.totalMinutes)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{a.mobileSessions}/{a.desktopSessions}</TableCell>
+                        <TableCell className="text-right text-xs">{fmtDateTime(a.lastSeenAt)}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">최근 세션</CardTitle>
+              <CardDescription>최근 200개 세션 (IP·기기·위치·체류시간)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>계정/익명</TableHead>
+                      <TableHead>IP</TableHead>
+                      <TableHead>기기</TableHead>
+                      <TableHead>위치</TableHead>
+                      <TableHead className="text-right">조회</TableHead>
+                      <TableHead className="text-right">체류</TableHead>
+                      <TableHead className="text-right">시작</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.sessions.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">기록 없음</TableCell></TableRow>
+                    ) : (
+                      data.sessions.map((s) => (
+                        <TableRow key={s.sessionId}>
+                          <TableCell>
+                            {s.username ? (
+                              <span className="font-medium">{s.name} <span className="text-xs text-muted-foreground">@{s.username}</span></span>
+                            ) : (
+                              <span className="text-muted-foreground">익명</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{s.ip ?? "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              {s.deviceType === "mobile" ? <Smartphone className="h-3.5 w-3.5" /> : <Monitor className="h-3.5 w-3.5" />}
+                              <span className="text-xs">{deviceLabel(s.deviceType)}{s.browser && s.browser !== "unknown" ? ` · ${s.browser}` : ""}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs">{locationText(s)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{s.pageviews}</TableCell>
+                          <TableCell className="text-right tabular-nums">{fmtMinutes(s.durationMinutes)}</TableCell>
+                          <TableCell className="text-right text-xs">{fmtDateTime(s.startAt)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

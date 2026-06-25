@@ -10,8 +10,25 @@ import {
   findUserByUsername,
 } from "../lib/auth";
 import { authLimiter } from "../lib/rateLimit";
+import { recordEvent } from "../lib/analytics";
 
 const router: IRouter = Router();
+
+/** 로그인 시도를 접속 분석에 기록(성공/실패). 클라이언트가 보낸 추적 ID 가 있으면
+ * 같은 세션으로 묶고, 없으면 헤더에서 추출하거나 익명 식별자를 만든다. */
+function loginTrackingIds(req: {
+  body: { clientId?: unknown; sessionId?: unknown };
+}): { clientId: string; sessionId: string } {
+  const cid =
+    typeof req.body?.clientId === "string" && req.body.clientId.trim()
+      ? req.body.clientId
+      : "login-form";
+  const sid =
+    typeof req.body?.sessionId === "string" && req.body.sessionId.trim()
+      ? req.body.sessionId
+      : "login-form";
+  return { clientId: cid, sessionId: sid };
+}
 
 router.post("/auth/signup", authLimiter, async (req, res): Promise<void> => {
   const parsed = SignupBody.safeParse(req.body);
@@ -53,12 +70,28 @@ router.post("/auth/login", authLimiter, async (req, res): Promise<void> => {
     return;
   }
   const { username, password } = parsed.data;
+  const ids = loginTrackingIds(req);
 
   const user = await findUserByUsername(username);
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    await recordEvent(req, {
+      ...ids,
+      userId: user?.id ?? null,
+      path: "/login",
+      type: "login",
+      success: false,
+    });
     res.status(401).json({ error: "아이디 또는 비밀번호가 올바르지 않습니다." });
     return;
   }
+
+  await recordEvent(req, {
+    ...ids,
+    userId: user.id,
+    path: "/login",
+    type: "login",
+    success: true,
+  });
 
   req.session.regenerate((err) => {
     if (err) {

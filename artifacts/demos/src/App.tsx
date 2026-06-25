@@ -1,5 +1,7 @@
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { startTracking, trackPageview } from "@/lib/tracking";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
@@ -46,6 +48,19 @@ function ProtectedApp() {
   );
 }
 
+/** 라우트 변경마다 pageview 기록 + 최초 마운트 시 전역 추적기 기동. */
+function RouteTracker() {
+  const [location] = useLocation();
+  useEffect(() => {
+    startTracking(location);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    trackPageview(location);
+  }, [location]);
+  return null;
+}
+
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
@@ -85,6 +100,7 @@ function App() {
       <AccountSwitcherProvider>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <RouteTracker />
             <Router />
           </WouterRouter>
           <Toaster />

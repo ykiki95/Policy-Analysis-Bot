@@ -1486,3 +1486,117 @@ export const ImportElectionResponse = zod.object({
 })
 
 
+/**
+ * @summary 접속 분석 비콘 수집(비로그인 허용, fire-and-forget)
+ */
+export const trackEventBodyClientIdMax = 80;
+
+export const trackEventBodySessionIdMax = 80;
+
+export const trackEventBodyPathMax = 300;
+
+
+
+export const TrackEventBody = zod.object({
+  "clientId": zod.string().min(1).max(trackEventBodyClientIdMax),
+  "sessionId": zod.string().min(1).max(trackEventBodySessionIdMax),
+  "path": zod.string().min(1).max(trackEventBodyPathMax),
+  "type": zod.enum(['pageview', 'heartbeat'])
+}).describe('프런트 접속 분석 비콘 페이로드.')
+
+
+/**
+ * @summary 접속 분석 집계(관리자 전용)
+ */
+export const getAnalyticsQueryDaysDefault = 30;
+
+export const GetAnalyticsQueryParams = zod.object({
+  "days": zod.coerce.number().default(getAnalyticsQueryDaysDefault).describe('집계 기간(일). 0 = 전체.')
+})
+
+export const GetAnalyticsResponse = zod.object({
+  "rangeDays": zod.number(),
+  "summary": zod.object({
+  "totalEvents": zod.number(),
+  "totalSessions": zod.number(),
+  "uniqueVisitors": zod.number(),
+  "loggedInAccounts": zod.number(),
+  "anonymousSessions": zod.number(),
+  "totalMinutes": zod.number(),
+  "mobileSessions": zod.number(),
+  "desktopSessions": zod.number(),
+  "tabletSessions": zod.number(),
+  "loginSuccess": zod.number(),
+  "loginFail": zod.number()
+}),
+  "accounts": zod.array(zod.object({
+  "userId": zod.number(),
+  "username": zod.string(),
+  "name": zod.string(),
+  "role": zod.string(),
+  "sessions": zod.number(),
+  "events": zod.number(),
+  "pageviews": zod.number(),
+  "totalMinutes": zod.number(),
+  "firstSeenAt": zod.string(),
+  "lastSeenAt": zod.string(),
+  "mobileSessions": zod.number(),
+  "desktopSessions": zod.number()
+})),
+  "anonymous": zod.object({
+  "sessions": zod.number(),
+  "events": zod.number(),
+  "totalMinutes": zod.number()
+}),
+  "menus": zod.array(zod.object({
+  "path": zod.string(),
+  "views": zod.number(),
+  "heartbeats": zod.number(),
+  "sessions": zod.number(),
+  "visitors": zod.number(),
+  "totalMinutes": zod.number()
+})),
+  "devices": zod.array(zod.object({
+  "deviceType": zod.string(),
+  "sessions": zod.number(),
+  "events": zod.number()
+})),
+  "browsers": zod.array(zod.object({
+  "browser": zod.string(),
+  "sessions": zod.number()
+})),
+  "locations": zod.array(zod.object({
+  "country": zod.string().nullable(),
+  "countryCode": zod.string().nullable(),
+  "region": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "sessions": zod.number(),
+  "visitors": zod.number()
+})),
+  "sessions": zod.array(zod.object({
+  "sessionId": zod.string(),
+  "userId": zod.number().nullable(),
+  "username": zod.string().nullable(),
+  "name": zod.string().nullable(),
+  "ip": zod.string().nullable(),
+  "deviceType": zod.string().nullable(),
+  "browser": zod.string().nullable(),
+  "os": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "region": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "startAt": zod.string(),
+  "endAt": zod.string(),
+  "durationMinutes": zod.number(),
+  "pageviews": zod.number(),
+  "events": zod.number()
+})),
+  "daily": zod.array(zod.object({
+  "date": zod.string(),
+  "events": zod.number(),
+  "sessions": zod.number(),
+  "visitors": zod.number()
+}))
+})
+
+

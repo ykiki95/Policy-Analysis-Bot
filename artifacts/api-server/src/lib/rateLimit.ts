@@ -27,3 +27,18 @@ export const runLimiter: RequestHandler = rateLimit({
       : ipKeyGenerator(req.ip ?? ""),
   message: { error: "실행 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." },
 });
+
+/**
+ * 접속 분석 비콘(/track) 남용 방지용 제한기. 공개(비로그인) write 엔드포인트라
+ * 임의 스크립트의 대량 이벤트 주입(지표 오염 + DB write 폭증)을 차단한다.
+ * IP당 1분에 60회(정상 비콘은 pageview + 20초 heartbeat 수준이라 넉넉).
+ * 초과해도 비콘은 fire-and-forget 이므로 429 를 무시해도 UX 영향이 없다.
+ */
+export const trackLimiter: RequestHandler = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ""),
+  message: { error: "요청이 너무 많습니다." },
+});

@@ -23,6 +23,7 @@ import type {
   AdminAccount,
   Agent,
   AgentSummary,
+  AnalyticsResponse,
   BudgetStatus,
   Calibration,
   CalibrationInput,
@@ -41,6 +42,7 @@ import type {
   EnterActualInput,
   Error,
   EstimateInput,
+  GetAnalyticsParams,
   HealthStatus,
   ImportElectionInput,
   ImportElectionResult,
@@ -72,6 +74,7 @@ import type {
   SurveyInput,
   SurveyUpload,
   SurveyUploadInput,
+  TrackEventInput,
   UpdateAccountBudgetInput,
   UpdateProfileInput,
   User
@@ -4587,4 +4590,159 @@ export const useImportElection = <TError = ErrorType<Error>,
       > => {
       return useMutation(getImportElectionMutationOptions(options));
     }
+
+export const getTrackEventUrl = () => {
+
+
+
+
+  return `/api/track`
+}
+
+/**
+ * @summary 접속 분석 비콘 수집(비로그인 허용, fire-and-forget)
+ */
+export const trackEvent = async (trackEventInput: TrackEventInput, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getTrackEventUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      trackEventInput,)
+  }
+);}
+
+
+
+
+export const getTrackEventMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof trackEvent>>, TError,{data: BodyType<TrackEventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof trackEvent>>, TError,{data: BodyType<TrackEventInput>}, TContext> => {
+
+const mutationKey = ['trackEvent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof trackEvent>>, {data: BodyType<TrackEventInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  trackEvent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TrackEventMutationResult = NonNullable<Awaited<ReturnType<typeof trackEvent>>>
+    export type TrackEventMutationBody = BodyType<TrackEventInput>
+    export type TrackEventMutationError = ErrorType<Error>
+
+    /**
+ * @summary 접속 분석 비콘 수집(비로그인 허용, fire-and-forget)
+ */
+export const useTrackEvent = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof trackEvent>>, TError,{data: BodyType<TrackEventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof trackEvent>>,
+        TError,
+        {data: BodyType<TrackEventInput>},
+        TContext
+      > => {
+      return useMutation(getTrackEventMutationOptions(options));
+    }
+
+export const getGetAnalyticsUrl = (params?: GetAnalyticsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/analytics?${stringifiedParams}` : `/api/admin/analytics`
+}
+
+/**
+ * @summary 접속 분석 집계(관리자 전용)
+ */
+export const getAnalytics = async (params?: GetAnalyticsParams, options?: RequestInit): Promise<AnalyticsResponse> => {
+
+  return customFetch<AnalyticsResponse>(getGetAnalyticsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAnalyticsQueryKey = (params?: GetAnalyticsParams,) => {
+    return [
+    `/api/admin/analytics`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAnalyticsQueryOptions = <TData = Awaited<ReturnType<typeof getAnalytics>>, TError = ErrorType<unknown>>(params?: GetAnalyticsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAnalyticsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnalytics>>> = ({ signal }) => getAnalytics(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnalytics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAnalyticsQueryResult = NonNullable<Awaited<ReturnType<typeof getAnalytics>>>
+export type GetAnalyticsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary 접속 분석 집계(관리자 전용)
+ */
+
+export function useGetAnalytics<TData = Awaited<ReturnType<typeof getAnalytics>>, TError = ErrorType<unknown>>(
+ params?: GetAnalyticsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAnalyticsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 

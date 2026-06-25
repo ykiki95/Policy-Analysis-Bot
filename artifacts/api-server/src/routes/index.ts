@@ -11,6 +11,7 @@ import dashboardRouter from "./dashboard";
 import budgetRouter from "./budget";
 import profileRouter from "./profile";
 import signalsRouter from "./signals";
+import trackRouter from "./track";
 import adminRouter from "./admin";
 import { requireAuth } from "../lib/auth";
 import { withTenant } from "../lib/tenant";
@@ -23,6 +24,8 @@ router.use(healthRouter);
 // 라우트에만 직접 적용한다(전역 마운트 시 폴링/tick 등 모든 /api 요청이 제한되어
 // 429 가 발생하므로 경로별로 좁게 건다).
 router.use(authRouter);
+// 접속 분석 비콘. 비로그인 방문자도 집계하므로 requireAuth 이전에 마운트한다.
+router.use(trackRouter);
 
 // 이하 모든 데이터 라우트는 로그인 필수 + 테넌트 컨텍스트(소유자 스코프) 부여
 router.use(requireAuth);

@@ -17,6 +17,8 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { jsonReady } from "../lib/serialize";
 import { GLOBAL_LEARNING_USER_ID } from "../lib/tenant";
 import { requireAdmin, hashPassword } from "../lib/auth";
+import { HEARTBEAT_SECONDS } from "../lib/analytics";
+import { ensureGeoForIps } from "../lib/geoLookup";
 import { getSpend } from "../lib/budget";
 import { generateAgents } from "../lib/agentGenerator";
 import {
@@ -59,6 +61,8 @@ import {
   UpdateAccountBudgetBody,
   UpdateAccountBudgetResponse,
   ResetAccountPasswordParams,
+  GetAnalyticsQueryParams,
+  GetAnalyticsResponse,
 } from "@workspace/api-zod";
 import {
   SUPPORTED_ELECTIONS,
@@ -700,6 +704,301 @@ router.delete("/admin/elections/:electionDate", requireAdmin, async (req, res): 
   res.json(
     DeleteElectionBacktestResponse.parse({ electionDate, deleted: deleted.length }),
   );
+});
+
+// ── 접속 분석 ──────────────────────────────────────────────────────────────
+router.get("/admin/analytics", requireAdmin, async (req, res): Promise<void> => {
+  const parsedQuery = GetAnalyticsQueryParams.safeParse(req.query);
+  const days = parsedQuery.success ? Math.max(0, Math.round(parsedQuery.data.days)) : 30;
+  // days 는 검증된 정수라 인터벌 인라인이 안전(인젝션 불가).
+  const range = days > 0 ? `created_at >= now() - interval '${days} days'` : `TRUE`;
+  const HB = HEARTBEAT_SECONDS;
+
+  // 위치 lazy 해결: 범위 내 비-null IP 중 미해결분만 ip-api 로 채운다.
+  const ipRows = await db.execute<{ ip: string }>(
+    sql.raw(
+      `SELECT DISTINCT ip FROM access_events WHERE ip IS NOT NULL AND ${range}`,
+    ),
+  );
+  await ensureGeoForIps(ipRows.rows.map((r) => r.ip));
+
+  // 세션 단위 집계 CTE(로그인 이벤트는 세션 지표에서 제외).
+  const sessCte = `
+    WITH sess AS (
+      SELECT
+        session_id,
+        max(user_id) AS user_id,
+        (array_agg(ip ORDER BY created_at DESC) FILTER (WHERE ip IS NOT NULL))[1] AS ip,
+        (array_agg(device_type ORDER BY created_at DESC) FILTER (WHERE device_type IS NOT NULL))[1] AS device_type,
+        (array_agg(browser ORDER BY created_at DESC) FILTER (WHERE browser IS NOT NULL))[1] AS browser,
+        (array_agg(os ORDER BY created_at DESC) FILTER (WHERE os IS NOT NULL))[1] AS os,
+        (array_agg(client_id ORDER BY created_at DESC))[1] AS client_id,
+        min(created_at) AS start_at,
+        max(created_at) AS end_at,
+        count(*) FILTER (WHERE type = 'pageview') AS pageviews,
+        count(*) FILTER (WHERE type = 'heartbeat') AS heartbeats,
+        count(*) AS events
+      FROM access_events
+      WHERE type IN ('pageview','heartbeat') AND ${range}
+      GROUP BY session_id
+    )`;
+
+  const [
+    summaryRes,
+    loginRes,
+    accountsRes,
+    anonRes,
+    devicesRes,
+    browsersRes,
+    menusRes,
+    locationsRes,
+    sessionsRes,
+    dailyRes,
+  ] = await Promise.all([
+    db.execute<{
+      total_sessions: string;
+      total_events: string;
+      unique_visitors: string;
+      logged_in_accounts: string;
+      anonymous_sessions: string;
+      total_heartbeats: string;
+      mobile_sessions: string;
+      desktop_sessions: string;
+      tablet_sessions: string;
+    }>(
+      sql.raw(`${sessCte}
+        SELECT
+          count(*) AS total_sessions,
+          coalesce(sum(events),0) AS total_events,
+          count(DISTINCT client_id) AS unique_visitors,
+          count(DISTINCT user_id) FILTER (WHERE user_id IS NOT NULL) AS logged_in_accounts,
+          count(*) FILTER (WHERE user_id IS NULL) AS anonymous_sessions,
+          coalesce(sum(heartbeats),0) AS total_heartbeats,
+          count(*) FILTER (WHERE device_type='mobile') AS mobile_sessions,
+          count(*) FILTER (WHERE device_type='desktop') AS desktop_sessions,
+          count(*) FILTER (WHERE device_type='tablet') AS tablet_sessions
+        FROM sess`),
+    ),
+    db.execute<{ login_success: string; login_fail: string }>(
+      sql.raw(`SELECT
+          count(*) FILTER (WHERE success IS TRUE) AS login_success,
+          count(*) FILTER (WHERE success IS FALSE) AS login_fail
+        FROM access_events WHERE type='login' AND ${range}`),
+    ),
+    db.execute<{
+      user_id: number;
+      username: string;
+      name: string;
+      role: string;
+      sessions: string;
+      events: string;
+      pageviews: string;
+      heartbeats: string;
+      first_seen: string;
+      last_seen: string;
+      mobile_sessions: string;
+      desktop_sessions: string;
+    }>(
+      sql.raw(`${sessCte}
+        SELECT s.user_id, u.username, u.name, u.role,
+          count(*) AS sessions, coalesce(sum(s.events),0) AS events,
+          coalesce(sum(s.pageviews),0) AS pageviews,
+          coalesce(sum(s.heartbeats),0) AS heartbeats,
+          min(s.start_at) AS first_seen, max(s.end_at) AS last_seen,
+          count(*) FILTER (WHERE s.device_type='mobile') AS mobile_sessions,
+          count(*) FILTER (WHERE s.device_type='desktop') AS desktop_sessions
+        FROM sess s JOIN users u ON u.id = s.user_id
+        WHERE s.user_id IS NOT NULL
+        GROUP BY s.user_id, u.username, u.name, u.role
+        ORDER BY last_seen DESC`),
+    ),
+    db.execute<{ sessions: string; events: string; heartbeats: string }>(
+      sql.raw(`${sessCte}
+        SELECT count(*) AS sessions, coalesce(sum(events),0) AS events,
+          coalesce(sum(heartbeats),0) AS heartbeats
+        FROM sess WHERE user_id IS NULL`),
+    ),
+    db.execute<{ device_type: string | null; sessions: string; events: string }>(
+      sql.raw(`${sessCte}
+        SELECT coalesce(device_type,'unknown') AS device_type,
+          count(*) AS sessions, coalesce(sum(events),0) AS events
+        FROM sess GROUP BY device_type ORDER BY sessions DESC`),
+    ),
+    db.execute<{ browser: string | null; sessions: string }>(
+      sql.raw(`${sessCte}
+        SELECT coalesce(browser,'unknown') AS browser, count(*) AS sessions
+        FROM sess GROUP BY browser ORDER BY sessions DESC`),
+    ),
+    db.execute<{
+      path: string;
+      views: string;
+      heartbeats: string;
+      sessions: string;
+      visitors: string;
+    }>(
+      sql.raw(`SELECT path,
+          count(*) FILTER (WHERE type='pageview') AS views,
+          count(*) FILTER (WHERE type='heartbeat') AS heartbeats,
+          count(DISTINCT session_id) AS sessions,
+          count(DISTINCT client_id) AS visitors
+        FROM access_events
+        WHERE type IN ('pageview','heartbeat') AND ${range}
+        GROUP BY path ORDER BY views DESC`),
+    ),
+    db.execute<{
+      country: string | null;
+      country_code: string | null;
+      region: string | null;
+      city: string | null;
+      sessions: string;
+      visitors: string;
+    }>(
+      sql.raw(`${sessCte}
+        SELECT g.country, g.country_code, g.region, g.city,
+          count(*) AS sessions, count(DISTINCT s.client_id) AS visitors
+        FROM sess s LEFT JOIN ip_geo g ON g.ip = s.ip
+        GROUP BY g.country, g.country_code, g.region, g.city
+        ORDER BY sessions DESC`),
+    ),
+    db.execute<{
+      session_id: string;
+      user_id: number | null;
+      username: string | null;
+      name: string | null;
+      ip: string | null;
+      device_type: string | null;
+      browser: string | null;
+      os: string | null;
+      country: string | null;
+      region: string | null;
+      city: string | null;
+      start_at: string;
+      end_at: string;
+      heartbeats: string;
+      pageviews: string;
+      events: string;
+    }>(
+      sql.raw(`${sessCte}
+        SELECT s.session_id, s.user_id, u.username, u.name, s.ip,
+          s.device_type, s.browser, s.os,
+          g.country, g.region, g.city,
+          s.start_at, s.end_at, s.heartbeats, s.pageviews, s.events
+        FROM sess s
+        LEFT JOIN users u ON u.id = s.user_id
+        LEFT JOIN ip_geo g ON g.ip = s.ip
+        ORDER BY s.end_at DESC
+        LIMIT 200`),
+    ),
+    db.execute<{
+      date: string;
+      events: string;
+      sessions: string;
+      visitors: string;
+    }>(
+      sql.raw(`SELECT to_char(date_trunc('day', created_at),'YYYY-MM-DD') AS date,
+          count(*) AS events,
+          count(DISTINCT session_id) AS sessions,
+          count(DISTINCT client_id) AS visitors
+        FROM access_events
+        WHERE type IN ('pageview','heartbeat') AND ${range}
+        GROUP BY 1 ORDER BY 1`),
+    ),
+  ]);
+
+  const n = (v: string | number | null | undefined): number => Number(v ?? 0);
+  const minutesFromHb = (hb: number): number =>
+    Math.round(((hb * HB) / 60) * 10) / 10;
+
+  const s = summaryRes.rows[0];
+  const lg = loginRes.rows[0];
+  const totalHeartbeats = n(s?.total_heartbeats);
+
+  const payload = {
+    rangeDays: days,
+    summary: {
+      totalEvents: n(s?.total_events),
+      totalSessions: n(s?.total_sessions),
+      uniqueVisitors: n(s?.unique_visitors),
+      loggedInAccounts: n(s?.logged_in_accounts),
+      anonymousSessions: n(s?.anonymous_sessions),
+      totalMinutes: minutesFromHb(totalHeartbeats),
+      mobileSessions: n(s?.mobile_sessions),
+      desktopSessions: n(s?.desktop_sessions),
+      tabletSessions: n(s?.tablet_sessions),
+      loginSuccess: n(lg?.login_success),
+      loginFail: n(lg?.login_fail),
+    },
+    accounts: accountsRes.rows.map((r) => ({
+      userId: n(r.user_id),
+      username: r.username,
+      name: r.name,
+      role: r.role,
+      sessions: n(r.sessions),
+      events: n(r.events),
+      pageviews: n(r.pageviews),
+      totalMinutes: minutesFromHb(n(r.heartbeats)),
+      firstSeenAt: r.first_seen,
+      lastSeenAt: r.last_seen,
+      mobileSessions: n(r.mobile_sessions),
+      desktopSessions: n(r.desktop_sessions),
+    })),
+    anonymous: {
+      sessions: n(anonRes.rows[0]?.sessions),
+      events: n(anonRes.rows[0]?.events),
+      totalMinutes: minutesFromHb(n(anonRes.rows[0]?.heartbeats)),
+    },
+    menus: menusRes.rows.map((r) => ({
+      path: r.path,
+      views: n(r.views),
+      heartbeats: n(r.heartbeats),
+      sessions: n(r.sessions),
+      visitors: n(r.visitors),
+      totalMinutes: minutesFromHb(n(r.heartbeats)),
+    })),
+    devices: devicesRes.rows.map((r) => ({
+      deviceType: r.device_type ?? "unknown",
+      sessions: n(r.sessions),
+      events: n(r.events),
+    })),
+    browsers: browsersRes.rows.map((r) => ({
+      browser: r.browser ?? "unknown",
+      sessions: n(r.sessions),
+    })),
+    locations: locationsRes.rows.map((r) => ({
+      country: r.country,
+      countryCode: r.country_code,
+      region: r.region,
+      city: r.city,
+      sessions: n(r.sessions),
+      visitors: n(r.visitors),
+    })),
+    sessions: sessionsRes.rows.map((r) => ({
+      sessionId: r.session_id,
+      userId: r.user_id,
+      username: r.username,
+      name: r.name,
+      ip: r.ip,
+      deviceType: r.device_type,
+      browser: r.browser,
+      os: r.os,
+      country: r.country,
+      region: r.region,
+      city: r.city,
+      startAt: r.start_at,
+      endAt: r.end_at,
+      durationMinutes: minutesFromHb(n(r.heartbeats)),
+      pageviews: n(r.pageviews),
+      events: n(r.events),
+    })),
+    daily: dailyRes.rows.map((r) => ({
+      date: r.date,
+      events: n(r.events),
+      sessions: n(r.sessions),
+      visitors: n(r.visitors),
+    })),
+  };
+
+  res.json(GetAnalyticsResponse.parse(jsonReady(payload)));
 });
 
 export default router;
