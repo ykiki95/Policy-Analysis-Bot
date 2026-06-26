@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './accuracyTrendPoint';
 export * from './adminAccount';
 export * from './agent';
 export * from './agentSummary';
@@ -29,11 +30,17 @@ export * from './calibrationSettings';
 export * from './calibrationSettingsInput';
 export * from './changePasswordInput';
 export * from './consumerStances';
+export * from './contributionDecisionInput';
+export * from './contributionDecisionInputAction';
+export * from './contributionSubmitResult';
 export * from './costEstimate';
+export * from './createContributionInput';
+export * from './createContributionInputDomain';
 export * from './dashboardSummary';
 export * from './dataSource';
 export * from './deleteElectionResult';
 export * from './demographicMargin';
+export * from './domainAccuracy';
 export * from './election';
 export * from './electionBacktestSummary';
 export * from './electionCalibrationGroup';
@@ -50,8 +57,12 @@ export * from './healthStatus';
 export * from './importElectionInput';
 export * from './importElectionResult';
 export * from './issueStances';
+export * from './learningContribution';
+export * from './learningCycleResult';
+export * from './learningOverview';
 export * from './learnSimulationResult';
 export * from './listAgentsParams';
+export * from './listContributionsParams';
 export * from './loginInput';
 export * from './manualElectionInput';
 export * from './manualElectionRowInput';

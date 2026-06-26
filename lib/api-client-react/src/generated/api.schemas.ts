@@ -5,6 +5,103 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type CreateContributionInputDomain = typeof CreateContributionInputDomain[keyof typeof CreateContributionInputDomain];
+
+
+export const CreateContributionInputDomain = {
+  political: 'political',
+  commercial: 'commercial',
+  policy: 'policy',
+} as const;
+
+export interface CreateContributionInput {
+  domain: CreateContributionInputDomain;
+  /** @minLength 1 */
+  title: string;
+  observedValue: number;
+  /** @minimum 0 */
+  sampleSize: number;
+}
+
+export type ContributionDecisionInputAction = typeof ContributionDecisionInputAction[keyof typeof ContributionDecisionInputAction];
+
+
+export const ContributionDecisionInputAction = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface ContributionDecisionInput {
+  action: ContributionDecisionInputAction;
+}
+
+export interface LearningContribution {
+  id: number;
+  userId: number;
+  domain: string;
+  product: string;
+  title: string;
+  observedValue: number;
+  predictedValue: number;
+  bias: number;
+  proposedOffset: number;
+  sampleSize: number;
+  status: string;
+  qualityScore: number;
+  accuracyDelta?: number | null;
+  decidedBy?: string | null;
+  flagReason?: string | null;
+  createdAt: string;
+  evaluatedAt?: string | null;
+}
+
+export interface AccuracyTrendPoint {
+  cycle: number;
+  accuracy: number;
+  rawError: number;
+  calibratedError: number;
+  createdAt: string;
+}
+
+export interface DomainAccuracy {
+  domain: string;
+  product: string;
+  error: number;
+  accuracy: number;
+}
+
+export interface LearningOverview {
+  accuracy: number;
+  accuracyDelta: number;
+  rawError: number;
+  calibratedError: number;
+  populationSize: number;
+  cycles: number;
+  totalContributions: number;
+  autoApplied: number;
+  manualApplied: number;
+  flaggedPending: number;
+  quarantined: number;
+  contributors: number;
+  trend: AccuracyTrendPoint[];
+  domains: DomainAccuracy[];
+}
+
+export interface LearningCycleResult {
+  cycle: number;
+  promoted: number;
+  quarantined: number;
+  flagged: number;
+  rawError: number;
+  accuracy: number;
+  message: string;
+}
+
+export interface ContributionSubmitResult {
+  contribution: LearningContribution;
+  cycle: LearningCycleResult;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -1010,6 +1107,10 @@ export interface CalibrationSettingsInput {
   applyToPopulation?: boolean;
   description?: string;
 }
+
+export type ListContributionsParams = {
+status?: string;
+};
 
 export type ListAgentsParams = {
 district?: string;

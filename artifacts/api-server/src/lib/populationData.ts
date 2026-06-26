@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   db,
   regionsTable,
@@ -6,8 +6,10 @@ import {
   surveysTable,
   calibrationsTable,
   calibrationSettingsTable,
+  accuracySnapshotsTable,
   type Region,
 } from "@workspace/db";
+import { GLOBAL_LEARNING_USER_ID } from "./tenant";
 import { computeSurveyAdjustments } from "./surveyWeighting";
 import { computeConsumerAdjustments } from "./consumerWeighting";
 import { computePolicyAdjustments } from "./policyWeighting";
@@ -102,6 +104,26 @@ export async function buildGenerationInputs(
     settings?.applyToPopulation ?? false,
   );
 
+  // 자동 자가학습 누적 offset(전역 인구에만 적용). 검증 게이트를 통과해 승격된
+  // 학습이 누적된 기준선 이동량으로, 전역(0) 인구 재생성 시 수동 보정 레버와 합산된다.
+  // 두 레버 합이 과도하지 않게 최종 clamp.
+  if (userId === GLOBAL_LEARNING_USER_ID) {
+    const auto = await loadAutoLearnedOffsets();
+    const clamp = (v: number, lim: number) => Math.max(-lim, Math.min(lim, v));
+    calibrationOffsets.political = clamp(
+      calibrationOffsets.political + auto.political,
+      35,
+    );
+    calibrationOffsets.consumer = clamp(
+      calibrationOffsets.consumer + auto.consumer,
+      20,
+    );
+    calibrationOffsets.policy = clamp(
+      calibrationOffsets.policy + auto.policy,
+      20,
+    );
+  }
+
   return {
     inputs: {
       count,
@@ -117,6 +139,29 @@ export async function buildGenerationInputs(
       calibrationOffsets,
     },
     scopeName,
+  };
+}
+
+/**
+ * 가장 최근 정확도 스냅샷에 저장된 누적 auto offset. 스냅샷이 없으면 0.
+ * 자가학습이 승격할 때마다 새 스냅샷에 누적 offset이 기록되며, 전역 인구 재생성이
+ * 이 값을 읽어 기준선을 이동한다.
+ */
+export async function loadAutoLearnedOffsets(): Promise<{
+  political: number;
+  consumer: number;
+  policy: number;
+}> {
+  const [latest] = await db
+    .select()
+    .from(accuracySnapshotsTable)
+    .orderBy(desc(accuracySnapshotsTable.cycle))
+    .limit(1);
+  if (!latest) return { political: 0, consumer: 0, policy: 0 };
+  return {
+    political: latest.offsetPolitical,
+    consumer: latest.offsetConsumer,
+    policy: latest.offsetPolicy,
   };
 }
 

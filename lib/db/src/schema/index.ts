@@ -13,3 +13,6 @@ export * from "./users";
 export * from "./signalBatches";
 export * from "./signalSettings";
 export * from "./analytics";
+export * from "./learningContributions";
+export * from "./accuracySnapshots";
+export * from "./contributorReputation";

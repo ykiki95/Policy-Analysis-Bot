@@ -30,7 +30,10 @@ import type {
   CalibrationSettings,
   CalibrationSettingsInput,
   ChangePasswordInput,
+  ContributionDecisionInput,
+  ContributionSubmitResult,
   CostEstimate,
+  CreateContributionInput,
   DashboardSummary,
   DataSource,
   DeleteElectionResult,
@@ -47,7 +50,11 @@ import type {
   ImportElectionInput,
   ImportElectionResult,
   LearnSimulationResult,
+  LearningContribution,
+  LearningCycleResult,
+  LearningOverview,
   ListAgentsParams,
+  ListContributionsParams,
   LoginInput,
   ManualElectionInput,
   OkResult,
@@ -91,6 +98,380 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
+
+export const getLearningOverviewUrl = () => {
+
+
+
+
+  return `/api/learning/overview`
+}
+
+/**
+ * @summary Global synthetic-population accuracy overview (trend + stats + domains)
+ */
+export const learningOverview = async ( options?: RequestInit): Promise<LearningOverview> => {
+
+  return customFetch<LearningOverview>(getLearningOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getLearningOverviewQueryKey = () => {
+    return [
+    `/api/learning/overview`
+    ] as const;
+    }
+
+
+export const getLearningOverviewQueryOptions = <TData = Awaited<ReturnType<typeof learningOverview>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof learningOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLearningOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof learningOverview>>> = ({ signal }) => learningOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof learningOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type LearningOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof learningOverview>>>
+export type LearningOverviewQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Global synthetic-population accuracy overview (trend + stats + domains)
+ */
+
+export function useLearningOverview<TData = Awaited<ReturnType<typeof learningOverview>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof learningOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getLearningOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListContributionsUrl = (params?: ListContributionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/learning/contributions?${stringifiedParams}` : `/api/learning/contributions`
+}
+
+/**
+ * @summary List learning contributions (admin sees all; users see global + own)
+ */
+export const listContributions = async (params?: ListContributionsParams, options?: RequestInit): Promise<LearningContribution[]> => {
+
+  return customFetch<LearningContribution[]>(getListContributionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListContributionsQueryKey = (params?: ListContributionsParams,) => {
+    return [
+    `/api/learning/contributions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListContributionsQueryOptions = <TData = Awaited<ReturnType<typeof listContributions>>, TError = ErrorType<unknown>>(params?: ListContributionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listContributions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListContributionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listContributions>>> = ({ signal }) => listContributions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listContributions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListContributionsQueryResult = NonNullable<Awaited<ReturnType<typeof listContributions>>>
+export type ListContributionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List learning contributions (admin sees all; users see global + own)
+ */
+
+export function useListContributions<TData = Awaited<ReturnType<typeof listContributions>>, TError = ErrorType<unknown>>(
+ params?: ListContributionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listContributions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListContributionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateContributionUrl = () => {
+
+
+
+
+  return `/api/learning/contributions`
+}
+
+/**
+ * @summary Submit a learning contribution (auto-evaluated immediately)
+ */
+export const createContribution = async (createContributionInput: CreateContributionInput, options?: RequestInit): Promise<ContributionSubmitResult> => {
+
+  return customFetch<ContributionSubmitResult>(getCreateContributionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createContributionInput,)
+  }
+);}
+
+
+
+
+export const getCreateContributionMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createContribution>>, TError,{data: BodyType<CreateContributionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createContribution>>, TError,{data: BodyType<CreateContributionInput>}, TContext> => {
+
+const mutationKey = ['createContribution'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createContribution>>, {data: BodyType<CreateContributionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createContribution(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateContributionMutationResult = NonNullable<Awaited<ReturnType<typeof createContribution>>>
+    export type CreateContributionMutationBody = BodyType<CreateContributionInput>
+    export type CreateContributionMutationError = ErrorType<Error>
+
+    /**
+ * @summary Submit a learning contribution (auto-evaluated immediately)
+ */
+export const useCreateContribution = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createContribution>>, TError,{data: BodyType<CreateContributionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createContribution>>,
+        TError,
+        {data: BodyType<CreateContributionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateContributionMutationOptions(options));
+    }
+
+export const getRunLearningUrl = () => {
+
+
+
+
+  return `/api/admin/learning/run`
+}
+
+/**
+ * @summary Run a self-learning cycle (admin)
+ */
+export const runLearning = async ( options?: RequestInit): Promise<LearningCycleResult> => {
+
+  return customFetch<LearningCycleResult>(getRunLearningUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRunLearningMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runLearning>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runLearning>>, TError,void, TContext> => {
+
+const mutationKey = ['runLearning'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runLearning>>, void> = () => {
+
+
+          return  runLearning(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunLearningMutationResult = NonNullable<Awaited<ReturnType<typeof runLearning>>>
+
+    export type RunLearningMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Run a self-learning cycle (admin)
+ */
+export const useRunLearning = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runLearning>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runLearning>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRunLearningMutationOptions(options));
+    }
+
+export const getContributionDecisionUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/learning/contributions/${id}/decision`
+}
+
+/**
+ * @summary Approve/reject a flagged or quarantined contribution (admin)
+ */
+export const contributionDecision = async (id: number,
+    contributionDecisionInput: ContributionDecisionInput, options?: RequestInit): Promise<LearningContribution> => {
+
+  return customFetch<LearningContribution>(getContributionDecisionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      contributionDecisionInput,)
+  }
+);}
+
+
+
+
+export const getContributionDecisionMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof contributionDecision>>, TError,{id: number;data: BodyType<ContributionDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof contributionDecision>>, TError,{id: number;data: BodyType<ContributionDecisionInput>}, TContext> => {
+
+const mutationKey = ['contributionDecision'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof contributionDecision>>, {id: number;data: BodyType<ContributionDecisionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  contributionDecision(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ContributionDecisionMutationResult = NonNullable<Awaited<ReturnType<typeof contributionDecision>>>
+    export type ContributionDecisionMutationBody = BodyType<ContributionDecisionInput>
+    export type ContributionDecisionMutationError = ErrorType<Error>
+
+    /**
+ * @summary Approve/reject a flagged or quarantined contribution (admin)
+ */
+export const useContributionDecision = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof contributionDecision>>, TError,{id: number;data: BodyType<ContributionDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof contributionDecision>>,
+        TError,
+        {id: number;data: BodyType<ContributionDecisionInput>},
+        TContext
+      > => {
+      return useMutation(getContributionDecisionMutationOptions(options));
+    }
 
 export const getListSignalsUrl = () => {
 

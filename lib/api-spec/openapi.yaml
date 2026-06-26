@@ -29,6 +29,101 @@ tags:
   - name: analytics
     description: 접속 분석(방문자/세션/메뉴/위치 추적)
 paths:
+  /learning/overview:
+    get:
+      operationId: learningOverview
+      tags: [learning]
+      summary: Global synthetic-population accuracy overview (trend + stats + domains)
+      responses:
+        "200":
+          description: Overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningOverview"
+  /learning/contributions:
+    get:
+      operationId: listContributions
+      tags: [learning]
+      summary: List learning contributions (admin sees all; users see global + own)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Contributions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LearningContribution"
+    post:
+      operationId: createContribution
+      tags: [learning]
+      summary: Submit a learning contribution (auto-evaluated immediately)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContributionInput"
+      responses:
+        "200":
+          description: Created contribution + cycle result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContributionSubmitResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /admin/learning/run:
+    post:
+      operationId: runLearning
+      tags: [learning]
+      summary: Run a self-learning cycle (admin)
+      responses:
+        "200":
+          description: Cycle result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningCycleResult"
+  /admin/learning/contributions/{id}/decision:
+    post:
+      operationId: contributionDecision
+      tags: [learning]
+      summary: Approve/reject a flagged or quarantined contribution (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContributionDecisionInput"
+      responses:
+        "200":
+          description: Updated contribution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningContribution"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /signals:
     get:
       operationId: listSignals
@@ -1359,6 +1454,134 @@ paths:
 
 components:
   schemas:
+    CreateContributionInput:
+      type: object
+      required: [domain, title, observedValue, sampleSize]
+      properties:
+        domain: { type: string, enum: [political, commercial, policy] }
+        title: { type: string, minLength: 1 }
+        observedValue: { type: number }
+        sampleSize: { type: integer, minimum: 0 }
+    ContributionDecisionInput:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string, enum: [approve, reject] }
+    LearningContribution:
+      type: object
+      required:
+        - id
+        - userId
+        - domain
+        - product
+        - title
+        - observedValue
+        - predictedValue
+        - bias
+        - proposedOffset
+        - sampleSize
+        - status
+        - qualityScore
+        - createdAt
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        domain: { type: string }
+        product: { type: string }
+        title: { type: string }
+        observedValue: { type: number }
+        predictedValue: { type: number }
+        bias: { type: number }
+        proposedOffset: { type: number }
+        sampleSize: { type: integer }
+        status: { type: string }
+        qualityScore: { type: number }
+        accuracyDelta: { type: number, nullable: true }
+        decidedBy: { type: string, nullable: true }
+        flagReason: { type: string, nullable: true }
+        createdAt: { type: string }
+        evaluatedAt: { type: string, nullable: true }
+    AccuracyTrendPoint:
+      type: object
+      required: [cycle, accuracy, rawError, calibratedError, createdAt]
+      properties:
+        cycle: { type: integer }
+        accuracy: { type: number }
+        rawError: { type: number }
+        calibratedError: { type: number }
+        createdAt: { type: string }
+    DomainAccuracy:
+      type: object
+      required: [domain, product, error, accuracy]
+      properties:
+        domain: { type: string }
+        product: { type: string }
+        error: { type: number }
+        accuracy: { type: number }
+    LearningOverview:
+      type: object
+      required:
+        - accuracy
+        - accuracyDelta
+        - rawError
+        - calibratedError
+        - populationSize
+        - cycles
+        - totalContributions
+        - autoApplied
+        - manualApplied
+        - flaggedPending
+        - quarantined
+        - contributors
+        - trend
+        - domains
+      properties:
+        accuracy: { type: number }
+        accuracyDelta: { type: number }
+        rawError: { type: number }
+        calibratedError: { type: number }
+        populationSize: { type: integer }
+        cycles: { type: integer }
+        totalContributions: { type: integer }
+        autoApplied: { type: integer }
+        manualApplied: { type: integer }
+        flaggedPending: { type: integer }
+        quarantined: { type: integer }
+        contributors: { type: integer }
+        trend:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccuracyTrendPoint"
+        domains:
+          type: array
+          items:
+            $ref: "#/components/schemas/DomainAccuracy"
+    LearningCycleResult:
+      type: object
+      required:
+        - cycle
+        - promoted
+        - quarantined
+        - flagged
+        - rawError
+        - accuracy
+        - message
+      properties:
+        cycle: { type: integer }
+        promoted: { type: integer }
+        quarantined: { type: integer }
+        flagged: { type: integer }
+        rawError: { type: number }
+        accuracy: { type: number }
+        message: { type: string }
+    ContributionSubmitResult:
+      type: object
+      required: [contribution, cycle]
+      properties:
+        contribution:
+          $ref: "#/components/schemas/LearningContribution"
+        cycle:
+          $ref: "#/components/schemas/LearningCycleResult"
     HealthStatus:
       type: object
       properties:

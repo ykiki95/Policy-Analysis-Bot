@@ -9,6 +9,160 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Global synthetic-population accuracy overview (trend + stats + domains)
+ */
+export const LearningOverviewResponse = zod.object({
+  "accuracy": zod.number(),
+  "accuracyDelta": zod.number(),
+  "rawError": zod.number(),
+  "calibratedError": zod.number(),
+  "populationSize": zod.number(),
+  "cycles": zod.number(),
+  "totalContributions": zod.number(),
+  "autoApplied": zod.number(),
+  "manualApplied": zod.number(),
+  "flaggedPending": zod.number(),
+  "quarantined": zod.number(),
+  "contributors": zod.number(),
+  "trend": zod.array(zod.object({
+  "cycle": zod.number(),
+  "accuracy": zod.number(),
+  "rawError": zod.number(),
+  "calibratedError": zod.number(),
+  "createdAt": zod.string()
+})),
+  "domains": zod.array(zod.object({
+  "domain": zod.string(),
+  "product": zod.string(),
+  "error": zod.number(),
+  "accuracy": zod.number()
+}))
+})
+
+
+/**
+ * @summary List learning contributions (admin sees all; users see global + own)
+ */
+export const ListContributionsQueryParams = zod.object({
+  "status": zod.coerce.string().optional()
+})
+
+export const ListContributionsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "domain": zod.string(),
+  "product": zod.string(),
+  "title": zod.string(),
+  "observedValue": zod.number(),
+  "predictedValue": zod.number(),
+  "bias": zod.number(),
+  "proposedOffset": zod.number(),
+  "sampleSize": zod.number(),
+  "status": zod.string(),
+  "qualityScore": zod.number(),
+  "accuracyDelta": zod.number().nullish(),
+  "decidedBy": zod.string().nullish(),
+  "flagReason": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "evaluatedAt": zod.string().nullish()
+})
+export const ListContributionsResponse = zod.array(ListContributionsResponseItem)
+
+
+/**
+ * @summary Submit a learning contribution (auto-evaluated immediately)
+ */
+
+export const createContributionBodySampleSizeMin = 0;
+
+
+
+export const CreateContributionBody = zod.object({
+  "domain": zod.enum(['political', 'commercial', 'policy']),
+  "title": zod.string().min(1),
+  "observedValue": zod.number(),
+  "sampleSize": zod.number().min(createContributionBodySampleSizeMin)
+})
+
+export const CreateContributionResponse = zod.object({
+  "contribution": zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "domain": zod.string(),
+  "product": zod.string(),
+  "title": zod.string(),
+  "observedValue": zod.number(),
+  "predictedValue": zod.number(),
+  "bias": zod.number(),
+  "proposedOffset": zod.number(),
+  "sampleSize": zod.number(),
+  "status": zod.string(),
+  "qualityScore": zod.number(),
+  "accuracyDelta": zod.number().nullish(),
+  "decidedBy": zod.string().nullish(),
+  "flagReason": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "evaluatedAt": zod.string().nullish()
+}),
+  "cycle": zod.object({
+  "cycle": zod.number(),
+  "promoted": zod.number(),
+  "quarantined": zod.number(),
+  "flagged": zod.number(),
+  "rawError": zod.number(),
+  "accuracy": zod.number(),
+  "message": zod.string()
+})
+})
+
+
+/**
+ * @summary Run a self-learning cycle (admin)
+ */
+export const RunLearningResponse = zod.object({
+  "cycle": zod.number(),
+  "promoted": zod.number(),
+  "quarantined": zod.number(),
+  "flagged": zod.number(),
+  "rawError": zod.number(),
+  "accuracy": zod.number(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Approve/reject a flagged or quarantined contribution (admin)
+ */
+export const ContributionDecisionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ContributionDecisionBody = zod.object({
+  "action": zod.enum(['approve', 'reject'])
+})
+
+export const ContributionDecisionResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "domain": zod.string(),
+  "product": zod.string(),
+  "title": zod.string(),
+  "observedValue": zod.number(),
+  "predictedValue": zod.number(),
+  "bias": zod.number(),
+  "proposedOffset": zod.number(),
+  "sampleSize": zod.number(),
+  "status": zod.string(),
+  "qualityScore": zod.number(),
+  "accuracyDelta": zod.number().nullish(),
+  "decidedBy": zod.string().nullish(),
+  "flagReason": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "evaluatedAt": zod.string().nullish()
+})
+
+
+/**
  * @summary List all signal ingest batches (global, collectedAt desc)
  */
 export const ListSignalsResponseItem = zod.object({

@@ -4,3 +4,4 @@ pnpm install --frozen-lockfile
 pnpm --filter db push
 pnpm --filter @workspace/scripts run seed:surveys
 pnpm --filter @workspace/scripts run seed:elections
+pnpm --filter @workspace/scripts run seed:learning

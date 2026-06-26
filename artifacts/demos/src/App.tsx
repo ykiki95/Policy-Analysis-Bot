@@ -22,6 +22,7 @@ import Simulations from "@/pages/simulations";
 import NewSimulation from "@/pages/simulations/new";
 import SimulationDetail from "@/pages/simulations/detail";
 import Signals from "@/pages/signals";
+import Learning from "@/pages/learning";
 import Admin from "@/pages/admin";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ function ProtectedApp() {
         <Route path="/simulations/new" component={NewSimulation} />
         <Route path="/simulations/:id" component={SimulationDetail} />
         <Route path="/signals" component={Signals} />
+        <Route path="/learning" component={Learning} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

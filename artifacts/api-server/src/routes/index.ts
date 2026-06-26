@@ -11,6 +11,7 @@ import dashboardRouter from "./dashboard";
 import budgetRouter from "./budget";
 import profileRouter from "./profile";
 import signalsRouter from "./signals";
+import learningRouter from "./learning";
 import trackRouter from "./track";
 import adminRouter from "./admin";
 import { requireAuth } from "../lib/auth";
@@ -40,6 +41,7 @@ router.use(dashboardRouter);
 router.use(budgetRouter);
 router.use(profileRouter);
 router.use(signalsRouter);
+router.use(learningRouter);
 
 // adminRouter 는 자기서비스(테넌트 스코프) 라우트와 관리자 전용 라우트를 함께 담는다.
 // 자기서비스(데이터 출처·설문 업로드·보정 설정·검증 이벤트·인구 재생성)는 모든 로그인

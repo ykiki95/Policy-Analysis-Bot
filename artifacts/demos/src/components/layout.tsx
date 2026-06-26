@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { Users, Activity, BarChart3, Database, Box, Beaker, Radio, Menu, X, Settings, LogOut, Wallet, ChevronDown, Check, UserCog } from "lucide-react";
+import { Users, Activity, BarChart3, Database, Box, Beaker, Radio, Menu, X, Settings, LogOut, Wallet, ChevronDown, Check, UserCog, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfileDialog } from "@/components/profile-dialog";
@@ -208,7 +208,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
     },
     {
       label: "검증 & 학습",
-      items: [{ href: "/calibration", label: "정확도 검증", icon: BarChart3 }],
+      items: [
+        { href: "/calibration", label: "정확도 검증", icon: BarChart3 },
+        { href: "/learning", label: "자가학습 루프", icon: Sparkles },
+      ],
     },
     {
       label: "플랫폼",
