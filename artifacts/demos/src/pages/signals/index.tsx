@@ -10,6 +10,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSwitcher } from "@/hooks/use-account-switcher";
 import { sectorLabel } from "@/lib/sector";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -543,6 +544,9 @@ export default function Signals() {
   const { data: signals, isLoading } = useListSignals();
   const { data: settings } = useGetSignalSettings();
   const { isAdmin } = useAuth();
+  const { selectedAccountId } = useAccountSwitcher();
+  // 관리자 '계정 보기 전환' 중(특정 사용자 보기)에는 관리 전용 컨트롤을 숨겨 사용자 화면과 동일하게.
+  const canAdmin = isAdmin && selectedAccountId == null;
   const [selected, setSelected] = useState<SignalBatch | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const applyToPrediction = settings?.applyToPrediction ?? true;
@@ -651,7 +655,7 @@ export default function Signals() {
             뉴스·검색트렌드·SNS를 배치로 수집해 합성 여론의 변화를 추적합니다.
           </p>
         </div>
-        {isAdmin && <NewBatchDialog />}
+        {canAdmin && <NewBatchDialog />}
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -849,7 +853,7 @@ export default function Signals() {
         </CardContent>
       </Card>
 
-      <DetailDialog batch={selected} open={detailOpen} onOpenChange={setDetailOpen} isAdmin={isAdmin} />
+      <DetailDialog batch={selected} open={detailOpen} onOpenChange={setDetailOpen} isAdmin={canAdmin} />
     </div>
   );
 }

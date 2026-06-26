@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSwitcher } from "@/hooks/use-account-switcher";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,10 @@ function pct(v: number) {
 
 export default function Learning() {
   const { isAdmin } = useAuth();
+  const { selectedAccountId } = useAccountSwitcher();
+  // 관리자가 '계정 보기 전환'으로 특정 사용자를 보는 중이면(=selectedAccountId 지정)
+  // 관리 전용 컨트롤(학습 사이클 실행/검토 큐 승인·기각)을 숨겨 사용자 화면과 동일하게 보여준다.
+  const canAdmin = isAdmin && selectedAccountId == null;
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -219,7 +224,7 @@ export default function Learning() {
                 기여가 검증 게이트를 통과하면 자동으로 전역 인구 기준선에 반영됩니다.
               </p>
             </div>
-            {isAdmin && (
+            {canAdmin && (
               <Button onClick={runCycle} disabled={runLearning.isPending} className="shrink-0">
                 <RefreshCw className={`h-4 w-4 mr-2 ${runLearning.isPending ? "animate-spin" : ""}`} />
                 학습 사이클 실행
@@ -354,7 +359,7 @@ export default function Learning() {
           </CardContent>
         </Card>
 
-        {isAdmin && (
+        {canAdmin && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -431,7 +436,7 @@ export default function Learning() {
                   <TableHead className="text-right">편향</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>결정</TableHead>
-                  {isAdmin && <TableHead className="text-right">작업</TableHead>}
+                  {canAdmin && <TableHead className="text-right">작업</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -451,7 +456,7 @@ export default function Learning() {
                     <TableCell className="text-xs text-muted-foreground">
                       {c.decidedBy === "auto" ? "자동" : c.decidedBy === "admin" ? "관리자" : "—"}
                     </TableCell>
-                    {isAdmin && (
+                    {canAdmin && (
                       <TableCell className="text-right">
                         {c.status === "rejected" && (
                           <Button

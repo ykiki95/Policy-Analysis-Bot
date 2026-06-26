@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSwitcher } from "@/hooks/use-account-switcher";
 
 const PRODUCT_META: { key: string; product: string; label: string; track: string }[] = [
   { key: "Dynamo", product: "Dynamo", label: "정치", track: "정치성향 기준선" },
@@ -203,6 +204,9 @@ function AppliedOffsetPanel() {
 function CalibrationLoopHub({ calibrations }: { calibrations: Calibration[] }) {
   const { data: settings } = useGetCalibrationSettings();
   const { isAdmin } = useAuth();
+  const { selectedAccountId } = useAccountSwitcher();
+  // 관리자 '계정 보기 전환' 중에는 관리 전용 컨트롤을 숨겨 사용자 화면과 동일하게.
+  const canAdmin = isAdmin && selectedAccountId == null;
   const queryClient = useQueryClient();
   const update = useUpdateCalibrationSettings({
     mutation: {
@@ -287,7 +291,7 @@ function CalibrationLoopHub({ calibrations }: { calibrations: Calibration[] }) {
               <Label htmlFor="apply-to-pop" className="text-sm">
                 {applyToPopulation ? "켜짐" : "꺼짐"}
               </Label>
-              {isAdmin ? (
+              {canAdmin ? (
                 <Switch
                   id="apply-to-pop"
                   checked={applyToPopulation}

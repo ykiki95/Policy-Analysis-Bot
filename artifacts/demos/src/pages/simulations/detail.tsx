@@ -4,6 +4,7 @@ import { runErrorMessage } from "@/lib/utils";
 import { formatCost } from "@/lib/cost";
 import { sectorLabel } from "@/lib/sector";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSwitcher } from "@/hooks/use-account-switcher";
 import { useParams, Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -79,6 +80,9 @@ export default function SimulationDetail() {
   const learnMut = useLearnFromSimulation();
   const { data: budget } = useGetBudget();
   const { isAdmin } = useAuth();
+  const { selectedAccountId } = useAccountSwitcher();
+  // 관리자 '계정 보기 전환' 중에는 관리 전용 컨트롤을 숨겨 사용자 화면과 동일하게.
+  const canAdmin = isAdmin && selectedAccountId == null;
   const [runError, setRunError] = useState<string | null>(null);
   const [actualInput, setActualInput] = useState("");
   const [actualMetricInput, setActualMetricInput] = useState("");
@@ -603,7 +607,7 @@ export default function SimulationDetail() {
                           <GraduationCap className="h-3.5 w-3.5" />
                           {sim.learnedAt && new Date(sim.learnedAt).toLocaleString("ko-KR")} 학습됨
                         </p>
-                      ) : hasActual && isAdmin ? (
+                      ) : hasActual && canAdmin ? (
                         <Button size="sm" variant="secondary" className="w-full mt-2" onClick={handleLearn} disabled={learnMut.isPending}>
                           {learnMut.isPending ? (
                             <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> 학습 중…</>
