@@ -103,6 +103,35 @@ export interface ContributionSubmitResult {
   cycle: LearningCycleResult;
 }
 
+/**
+ * 한 도메인의 기준선 이동량 분해(auto 자가학습 + manual 입력보정 = combined, 한도 clamp 적용).
+ */
+export interface OffsetAxis {
+  /** 자가학습 누적 offset */
+  auto: number;
+  /** 입력 보정(Lever 1) offset (applyToPopulation ON 일 때만) */
+  manual: number;
+  /** clamp 전 단순 합(auto+manual) */
+  sum: number;
+  /** 실제 인구에 적용되는 clamp 후 합 */
+  combined: number;
+  /** 합산 한도(±) */
+  limit: number;
+  /** clamp 로 잘렸는지 여부(같은 방향 누적 경고) */
+  clamped: boolean;
+}
+
+/**
+ * 전역 합성 인구에 현재 적용 중인 도메인별 총 기준선 이동량.
+ */
+export interface OffsetBreakdown {
+  /** 입력 보정(Lever 1) 인구 반영 토글 상태(전역 설정). */
+  applyToPopulation: boolean;
+  political: OffsetAxis;
+  consumer: OffsetAxis;
+  policy: OffsetAxis;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -538,6 +567,15 @@ export const SignalAutoInputSource = {
   'SNS·커뮤니티': 'SNS·커뮤니티',
 } as const;
 
+export type SignalAutoInputLinkedProduct = typeof SignalAutoInputLinkedProduct[keyof typeof SignalAutoInputLinkedProduct];
+
+
+export const SignalAutoInputLinkedProduct = {
+  Lumen: 'Lumen',
+  Seraph: 'Seraph',
+  Dynamo: 'Dynamo',
+} as const;
+
 export interface SignalAutoInput {
   /**
      * @minimum 1
@@ -545,6 +583,9 @@ export interface SignalAutoInput {
      */
   count?: number;
   source?: SignalAutoInputSource;
+  linkedProduct?: SignalAutoInputLinkedProduct;
+  /** 실시간 뉴스 검색어(미지정 시 제품 기본 주제 로테이션) */
+  query?: string;
 }
 
 export interface SurveyDriver {

@@ -61,26 +61,37 @@ function normalizeStance(value: unknown, score: number): AgentVerdict["stance"] 
   return "neutral";
 }
 
+/**
+ * 에이전트 1명당 LLM 호출의 상한 시간(ms). 무의미·악성 입력으로 추론 모델이
+ * 응답을 못 끝내거나 네트워크가 hang 해도 tick 이 영영 멈추지 않도록 한다.
+ * 타임아웃 시 SDK 가 throw → batchProcess 의 catch 가 중립 fallback 을 기록하므로
+ * 진행률은 계속 전진한다. (SDK 자체 재시도는 끄고 batchProcess 재시도만 사용)
+ */
+const AGENT_CALL_TIMEOUT_MS = 45_000;
+
 async function evaluateAgent(
   agent: Agent,
   sim: Simulation,
 ): Promise<{ verdict: AgentVerdict; promptTokens: number; completionTokens: number }> {
-  const response = await openai.chat.completions.create({
-    model: sim.model,
-    // gpt-5 계열은 추론 모델이라 max_completion_tokens 에 "추론 토큰"이 포함된다.
-    // 값이 작으면(예: 600) 추론에 전부 소진돼 finish_reason='length' + content=''가 되어
-    // 모든 응답이 빈 JSON → 기본값(neutral/50)으로 떨어진다. 충분히 크게 둔다.
-    max_completion_tokens: 8192,
-    messages: [
-      {
-        role: "system",
-        content:
-          "당신은 합성 유권자 시뮬레이션 엔진입니다. 주어진 페르소나의 관점을 충실히 반영하여 반드시 유효한 JSON 객체 하나만 출력하세요.",
-      },
-      { role: "user", content: buildPrompt(agent, sim) },
-    ],
-    response_format: { type: "json_object" },
-  });
+  const response = await openai.chat.completions.create(
+    {
+      model: sim.model,
+      // gpt-5 계열은 추론 모델이라 max_completion_tokens 에 "추론 토큰"이 포함된다.
+      // 값이 작으면(예: 600) 추론에 전부 소진돼 finish_reason='length' + content=''가 되어
+      // 모든 응답이 빈 JSON → 기본값(neutral/50)으로 떨어진다. 충분히 크게 둔다.
+      max_completion_tokens: 8192,
+      messages: [
+        {
+          role: "system",
+          content:
+            "당신은 합성 유권자 시뮬레이션 엔진입니다. 주어진 페르소나의 관점을 충실히 반영하여 반드시 유효한 JSON 객체 하나만 출력하세요.",
+        },
+        { role: "user", content: buildPrompt(agent, sim) },
+      ],
+      response_format: { type: "json_object" },
+    },
+    { timeout: AGENT_CALL_TIMEOUT_MS, maxRetries: 0 },
+  );
 
   const content = response.choices[0]?.message?.content ?? "{}";
   let parsed: Record<string, unknown> = {};
@@ -644,6 +655,33 @@ export async function processSimulationBatch(
       .from(simulationResponsesTable)
       .where(eq(simulationResponsesTable.simulationId, simulationId));
     const nowDone = after.length;
+    // 진행불가(stall) 가드: 정상 동작에선 batchProcess 의 catch 가 실패 에이전트도
+    // 중립 fallback 으로 반드시 insert 하므로 비어있지 않은 slice 를 처리한 뒤엔
+    // nowDone 이 반드시 alreadyDone 보다 커야 한다. 그대로면(0건 영속) DB insert
+    // 자체가 체계적으로 실패하는 비정상 상태 → 무한 tick 루프를 끊고 failed 처리한다.
+    if (slice.length > 0 && nowDone <= alreadyDone) {
+      logger.error(
+        { simulationId, alreadyDone, nowDone, sliceSize: slice.length },
+        "Simulation stalled: batch persisted no new responses; marking failed",
+      );
+      await db
+        .update(simulationsTable)
+        .set({
+          status: "failed",
+          lastError:
+            "배치가 새 응답을 하나도 저장하지 못했습니다(진행 불가). 다시 실행해주세요.",
+          lockedBy: null,
+          lockedAt: null,
+          heartbeatAt: null,
+        })
+        .where(
+          and(
+            eq(simulationsTable.id, simulationId),
+            eq(simulationsTable.lockedBy, TICK_WORKER_ID),
+          ),
+        );
+      return;
+    }
     if (nowDone >= agents.length) {
       await finalizeSimulation(sim, 0, 0, false, TICK_WORKER_ID);
     } else {

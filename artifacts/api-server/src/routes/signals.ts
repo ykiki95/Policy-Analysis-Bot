@@ -21,11 +21,14 @@ import {
 } from "@workspace/api-zod";
 import {
   mockSignalEffect,
-  AUTO_SCENARIOS,
   RESET_SCENARIOS,
-  type SignalSource,
-  type SignalProduct,
 } from "../lib/signalMock";
+import {
+  ingestNewsSignal,
+  pickNewsTopics,
+  defaultQueryForProduct,
+  type IngestProduct,
+} from "../lib/signalIngest";
 
 const router: IRouter = Router();
 
@@ -174,12 +177,32 @@ router.post(
       res.status(400).json({ error: `비활성화된 소스(${d.source})로는 신호를 수집할 수 없습니다.` });
       return;
     }
-    const effect = mockSignalEffect(
-      d.source as SignalSource,
-      d.linkedProduct as SignalProduct,
-      d.title ?? null,
-      weightForSource(settings, d.source),
-    );
+    // 실시간 실제 수집은 'Google 뉴스 RSS' 소스만 지원한다(가짜 fallback 금지).
+    if (d.source !== "뉴스") {
+      res.status(400).json({
+        error: `실시간 실제 수집은 현재 '뉴스'(Google 뉴스 RSS) 소스만 지원합니다. 선택: ${d.source}`,
+      });
+      return;
+    }
+    const product = d.linkedProduct as IngestProduct;
+    const query =
+      d.title && d.title.trim().length > 0
+        ? d.title.trim()
+        : defaultQueryForProduct(product);
+    let effect;
+    try {
+      effect = await ingestNewsSignal(
+        query,
+        product,
+        weightForSource(settings, d.source),
+      );
+    } catch (err) {
+      req.log.warn({ err, query, product }, "signal ingest failed");
+      res.status(502).json({
+        error: `실시간 신호 수집 실패: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      return;
+    }
     const [created] = await db
       .insert(signalBatchesTable)
       .values({
@@ -188,7 +211,7 @@ router.post(
         title:
           d.title && d.title.trim().length > 0 ? d.title.trim() : effect.title,
         collectedAt: new Date(),
-        itemCount: d.itemCount ?? effect.itemCount,
+        itemCount: effect.itemCount,
         sentimentPos: effect.sentimentPos,
         sentimentNeu: effect.sentimentNeu,
         sentimentNeg: effect.sentimentNeg,
@@ -218,33 +241,54 @@ router.post(
     const uid = GLOBAL_LEARNING_USER_ID;
     const settings = await getGlobalSettings();
     const count = parsed.data.count ?? 1;
-    const requestedSource = parsed.data.source as SignalSource | undefined;
+    const requestedSource = parsed.data.source;
 
-    // 활성 소스만 후보로. 특정 소스 요청 시 해당 소스로 한정.
-    let pool = AUTO_SCENARIOS.filter((s) => enabledForSource(settings, s.source));
-    if (requestedSource) pool = pool.filter((s) => s.source === requestedSource);
-    if (pool.length === 0) {
+    // 실시간 실제 수집은 'Google 뉴스 RSS' 소스만 지원한다(가짜 fallback 금지).
+    if (requestedSource && requestedSource !== "뉴스") {
       res.status(400).json({
-        error: "선택 가능한 활성 소스가 없습니다. 소스 설정을 확인해 주세요.",
+        error: `실시간 실제 수집은 현재 '뉴스'(Google 뉴스 RSS) 소스만 지원합니다. 선택: ${requestedSource}`,
+      });
+      return;
+    }
+    if (!enabledForSource(settings, "뉴스")) {
+      res.status(400).json({
+        error: "'뉴스' 소스가 비활성화되어 있습니다. 소스 설정을 확인해 주세요.",
       });
       return;
     }
 
+    // 수집 주제 선정: query+product 가 오면 그 단일 주제를 count 번, 아니면 기본 주제 로테이션.
+    const explicitProduct = parsed.data.linkedProduct as
+      | IngestProduct
+      | undefined;
+    const explicitQuery = parsed.data.query?.trim();
+    const topics =
+      explicitQuery && explicitProduct
+        ? Array.from({ length: count }, () => ({
+            product: explicitProduct,
+            query: explicitQuery,
+          }))
+        : pickNewsTopics(count);
+
+    const weight = weightForSource(settings, "뉴스");
     const now = Date.now();
-    const offset = Math.floor(Math.random() * pool.length);
+    // fail-fast: 한 주제라도 수집 실패하면 DB 쓰기 없이 즉시 502(가짜·부분성공 은폐 금지).
     const rows = [];
-    for (let i = 0; i < count; i++) {
-      const pick = pool[(offset + i) % pool.length];
-      const effect = mockSignalEffect(
-        pick.source,
-        pick.product,
-        null,
-        weightForSource(settings, pick.source),
-        pick,
-      );
+    for (let i = 0; i < topics.length; i++) {
+      const t = topics[i]!;
+      let effect;
+      try {
+        effect = await ingestNewsSignal(t.query, t.product, weight);
+      } catch (err) {
+        req.log.warn({ err, topic: t }, "auto signal ingest failed");
+        res.status(502).json({
+          error: `실시간 신호 수집 실패(${t.query}): ${err instanceof Error ? err.message : String(err)}`,
+        });
+        return;
+      }
       rows.push({
         userId: uid,
-        source: pick.source,
+        source: "뉴스",
         title: effect.title,
         // 동일 시각 충돌 방지: 몇 초씩 어긋나게.
         collectedAt: new Date(now + i * 1000),
@@ -253,7 +297,7 @@ router.post(
         sentimentNeu: effect.sentimentNeu,
         sentimentNeg: effect.sentimentNeg,
         summary: effect.summary,
-        linkedProduct: pick.product,
+        linkedProduct: t.product,
         linkedSimulationId: null,
         metric: effect.metric,
         valueBefore: effect.valueBefore,

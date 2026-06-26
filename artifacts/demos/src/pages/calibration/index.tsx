@@ -3,8 +3,10 @@ import {
   useGetElectionCalibration,
   useGetCalibrationSettings,
   useUpdateCalibrationSettings,
+  useLearningOffsets,
   getGetCalibrationSettingsQueryKey,
   type Calibration,
+  type OffsetAxis,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -91,6 +93,109 @@ function AccuracyTrendLearning() {
 }
 
 /**
+ * 현재 전역 합성 인구에 적용 중인 도메인별 총 기준선 이동량 패널.
+ * auto(자가학습 누적) + manual(입력 보정) = combined(한도 clamp 후). 두 레버가
+ * 같은 방향으로 누적돼 한도에서 잘리면(clamped) 경고를 띄운다.
+ */
+function AppliedOffsetPanel() {
+  const { data, isLoading } = useLearningOffsets();
+
+  const AXES: { key: "political" | "consumer" | "policy"; label: string; track: string }[] = [
+    { key: "political", label: "정치 (Dynamo)", track: "정치성향 기준선" },
+    { key: "consumer", label: "비즈니스 (Lumen)", track: "소비 성향 기준선" },
+    { key: "policy", label: "정부 (Seraph)", track: "정책 태도 기준선" },
+  ];
+
+  const fmt = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)}%p`;
+  const anyClamped =
+    !!data &&
+    (data.political.clamped || data.consumer.clamped || data.policy.clamped);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <ArrowUpDown className="h-4 w-4 text-primary" />
+          현재 적용 중인 총 기준선 이동
+        </CardTitle>
+        <CardDescription>
+          전역 합성 인구에 실제 반영되는 도메인별 누적 offset입니다. 자가학습(auto)과
+          입력 보정(manual)의 합이며, 같은 방향으로 과도하게 누적되면 한도에서 잘립니다(clamp).
+          {data ? (
+            <> 입력 보정 인구 반영: <strong>{data.applyToPopulation ? "켜짐" : "꺼짐"}</strong>
+            {!data.applyToPopulation && " (manual=0 — 토글을 켜야 합산)"}.</>
+          ) : null}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading || !data ? (
+          <div className="grid gap-3 md:grid-cols-3">
+            {AXES.map((a) => (
+              <Skeleton key={a.key} className="h-28 w-full" />
+            ))}
+          </div>
+        ) : (
+          <>
+            {anyClamped ? (
+              <Alert variant="destructive" className="mb-3">
+                <Info className="h-4 w-4" />
+                <AlertTitle>한도 초과(clamp) 발생</AlertTitle>
+                <AlertDescription>
+                  자가학습과 입력 보정이 같은 방향으로 누적되어 합이 한도를 넘었습니다.
+                  실제 적용값(combined)은 한도에서 잘립니다 — 두 레버가 중복 보정 중일 수 있으니
+                  입력 보정 강도나 토글을 점검하세요.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            <div className="grid gap-3 md:grid-cols-3">
+              {AXES.map((a) => {
+                const ax = data[a.key] as OffsetAxis;
+                return (
+                  <div
+                    key={a.key}
+                    className={`rounded-lg border bg-card p-3 ${ax.clamped ? "border-destructive/50" : ""}`}
+                  >
+                    <div className="text-sm font-medium">{a.label}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{a.track}</div>
+                    <div className="mt-2 flex items-baseline gap-1">
+                      <span
+                        className={`text-2xl font-bold ${ax.combined !== 0 ? "text-primary" : "text-muted-foreground"}`}
+                      >
+                        {fmt(ax.combined)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">적용값</span>
+                    </div>
+                    <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>자가학습 (auto)</span>
+                        <span className="tabular-nums">{fmt(ax.auto)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>입력 보정 (manual)</span>
+                        <span className="tabular-nums">{fmt(ax.manual)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-0.5">
+                        <span>합 (clamp 전)</span>
+                        <span className="tabular-nums">{fmt(ax.sum)}</span>
+                      </div>
+                      {ax.clamped ? (
+                        <div className="text-destructive">한도 ±{ax.limit}%p 초과 → 잘림</div>
+                      ) : (
+                        <div>한도 ±{ax.limit}%p</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
  * 보정 루프 허브 — 두 레버(출력 보정·입력 보정)와 4단계 피드백 루프를
  * 한눈에 보여주고, 입력 보정 토글(applyToPopulation)을 제어한다.
  * 제품별 평균 편향(actual-raw)을 클라이언트에서 계산해 기준선 이동 방향을 미리 보여준다.
@@ -143,6 +248,7 @@ function CalibrationLoopHub({ calibrations }: { calibrations: Calibration[] }) {
 
   return (
     <div className="space-y-4">
+      <AppliedOffsetPanel />
       <Card>
         <CardHeader>
           <CardTitle>보정 피드백 루프</CardTitle>

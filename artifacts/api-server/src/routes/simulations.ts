@@ -41,6 +41,12 @@ import {
   buildOutputCalibrationModel,
   applyOutputCalibration,
 } from "../lib/calibrationModel";
+import {
+  hasMeaningfulContent,
+  isMeaningfulTitle,
+  POLICY_TEXT_ERROR,
+  TITLE_ERROR,
+} from "../lib/contentValidation";
 
 const router: IRouter = Router();
 
@@ -97,6 +103,16 @@ router.post("/simulations", async (req, res): Promise<void> => {
   const parsed = CreateSimulationBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  // 의미성 가드 — 프런트 검증을 우회한 무의미 입력(무작위 문자·반복)을 차단해
+  // 쓸모없는 LLM 실행에 비용이 새는 것을 막는다. 422 = 형식은 맞으나 내용 부적합.
+  if (!isMeaningfulTitle(parsed.data.title)) {
+    res.status(422).json({ error: TITLE_ERROR });
+    return;
+  }
+  if (!hasMeaningfulContent(parsed.data.policyText)) {
+    res.status(422).json({ error: POLICY_TEXT_ERROR });
     return;
   }
   const model =

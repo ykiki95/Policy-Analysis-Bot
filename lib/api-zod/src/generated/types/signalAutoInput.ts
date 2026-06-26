@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SignalAutoInputLinkedProduct } from './signalAutoInputLinkedProduct';
 import type { SignalAutoInputSource } from './signalAutoInputSource';
 
 export interface SignalAutoInput {
@@ -14,4 +15,7 @@ export interface SignalAutoInput {
      */
   count?: number;
   source?: SignalAutoInputSource;
+  linkedProduct?: SignalAutoInputLinkedProduct;
+  /** 실시간 뉴스 검색어(미지정 시 제품 기본 주제 로테이션) */
+  query?: string;
 }

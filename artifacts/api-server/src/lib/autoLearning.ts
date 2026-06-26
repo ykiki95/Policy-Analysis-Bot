@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, or, type SQL, sql } from "drizzle-orm";
 import {
   db,
   agentsTable,
@@ -7,12 +7,15 @@ import {
   learningContributionsTable,
   accuracySnapshotsTable,
   contributorReputationTable,
+  calibrationsTable,
+  calibrationSettingsTable,
   type Agent,
   type LearningContribution,
 } from "@workspace/db";
 import { GLOBAL_LEARNING_USER_ID } from "./tenant";
 import { buildGenerationInputs, NATIONAL_SCOPE } from "./populationData";
 import { generateAgents } from "./agentGenerator";
+import { buildOutputCalibrationModel } from "./calibrationModel";
 import { logger } from "./logger";
 
 /**
@@ -42,6 +45,8 @@ const GATE_EPSILON = 0.05;
 /** 전역 인구 재생성에 쓰는 고정 시드 — 사이클 간 offset 변화만 정확도에 반영되도록 일정 유지. */
 const GLOBAL_SEED = 1234;
 const DEFAULT_POP = 500;
+/** 'processing' 으로 선점된 후보가 이 시간(ms)을 넘기면 좀비로 보고 candidate 로 회수. */
+const PROCESSING_STALE_MS = 5 * 60 * 1000;
 
 export function productForDomain(d: string): "Dynamo" | "Lumen" | "Seraph" {
   if (d === "commercial") return "Lumen";
@@ -105,12 +110,18 @@ export function proposedOffsetFor(domain: LearningDomain, bias: number): number 
   return round1(clamp(bias, -STANCE_LIMIT, STANCE_LIMIT));
 }
 
-/** 선거 ground-truth 대비 평균 원시 오차(%p)를 정치성향 delta 가산 가정 하에 계산. */
+/**
+ * 선거 ground-truth 대비 평균 오차(%p)를 계산한다.
+ * - `deltaPolitical`: 입력 보정(Lever 1) — 정치성향 기준선 이동 가산.
+ * - `consShareCorrection`: 출력 보정(Lever 2) — 예측한 보수 득표율(%)에 사후 가산.
+ *   (보정 모델의 shrinkage*meanBias). 0 이면 원시 오차.
+ */
 function evaluateGlobalError(
   agents: Agent[],
   elections: { regionCode: string; leaning: string; actualValue: number }[],
   regionNameByCode: Map<string, string>,
   deltaPolitical: number,
+  consShareCorrection = 0,
 ): number {
   const byRegion = new Map<string, { num: number; den: number }>();
   for (const a of agents) {
@@ -126,12 +137,38 @@ function evaluateGlobalError(
     const regionName = regionNameByCode.get(e.regionCode) ?? e.regionCode;
     const acc = byRegion.get(regionName);
     if (!acc || acc.den === 0) continue;
-    const consShare = (acc.num / acc.den) * 100;
+    const consShare = clamp((acc.num / acc.den) * 100 + consShareCorrection, 0, 100);
     const raw = e.leaning === "progressive" ? 100 - consShare : consShare;
     sum += Math.abs(raw - e.actualValue);
     n += 1;
   }
   return n === 0 ? 0 : sum / n;
+}
+
+/**
+ * 전역(0) Dynamo 검증 이벤트로 만든 출력 보정 모델의 보수 득표율 보정량(%p).
+ * 이벤트가 부족(<2)하면 모델 미적용 → null(보정 = 원시).
+ */
+async function globalOutputCalibrationCorrection(): Promise<number | null> {
+  const [events, [settings]] = await Promise.all([
+    db
+      .select()
+      .from(calibrationsTable)
+      .where(
+        and(
+          eq(calibrationsTable.userId, GLOBAL_LEARNING_USER_ID),
+          eq(calibrationsTable.product, "Dynamo"),
+        ),
+      ),
+    db
+      .select()
+      .from(calibrationSettingsTable)
+      .where(eq(calibrationSettingsTable.userId, GLOBAL_LEARNING_USER_ID))
+      .limit(1),
+  ]);
+  const model = buildOutputCalibrationModel(events, settings?.shrinkageFactor ?? 0.4);
+  if (!model.applied) return null;
+  return model.shrinkage * model.meanBias;
 }
 
 type Weighted = { c: LearningContribution; weight: number };
@@ -314,7 +351,22 @@ async function applyOffsetsAndSnapshot(
       0,
     ),
   );
-  const calibratedError = round1(rawError * 0.6);
+  // 보정 오차: 전역 Dynamo 검증 이벤트로 학습한 출력 보정 모델(Lever 2)을
+  // 재생성 인구의 보수 득표율 예측에 적용해 선거 대비 실제 오차를 측정한다.
+  // 검증 이벤트가 부족하면 모델 미적용 → 보정 오차 = 원시 오차(정직하게 동일).
+  const correction = await globalOutputCalibrationCorrection();
+  const calibratedError =
+    correction === null
+      ? rawError
+      : round1(
+          evaluateGlobalError(
+            freshAgents as Agent[],
+            elections,
+            regionNameByCode,
+            0,
+            correction,
+          ),
+        );
   const accuracy = round1(clamp(100 - rawError, 0, 100));
   const politicalError = rawError;
   // 소비/정책은 현실 정답이 없어 누적 학습량 기반 예시 지표(학습할수록 감소).
@@ -348,12 +400,32 @@ export type LearningCycleResult = {
 
 /** 후보 기여를 평가해 승격/격리/플래그하고 전역 인구·정확도 스냅샷을 갱신한다. */
 export async function runLearningCycle(): Promise<LearningCycleResult> {
+  // 좀비 회수: 이전 사이클이 후보를 'processing' 으로 선점한 뒤 도중에 크래시하면
+  // 그 행은 영영 'processing' 으로 남아 다시 평가되지 못한다(좀비). 선점 시 찍어둔
+  // evaluatedAt 이 임계(PROCESSING_STALE_MS)보다 오래됐거나 비어있는 'processing'
+  // 행을 'candidate' 로 되돌려 이번 사이클이 다시 집어가게 한다. 방금 선점된(신선한
+  // evaluatedAt) 행은 건드리지 않아 동시 사이클의 중복 선점은 막는다.
+  const staleCutoff = new Date(Date.now() - PROCESSING_STALE_MS);
+  await db
+    .update(learningContributionsTable)
+    .set({ status: "candidate", evaluatedAt: null })
+    .where(
+      and(
+        eq(learningContributionsTable.status, "processing"),
+        or(
+          isNull(learningContributionsTable.evaluatedAt),
+          lt(learningContributionsTable.evaluatedAt, staleCutoff),
+        ) as SQL,
+      ),
+    );
+
   // 동시 사이클이 같은 후보 집합을 중복 평가·승격하지 못하도록 단일 원자적
-  // UPDATE 로 candidate → processing 선점(claim)한다. 0건을 선점한 동시 호출은
-  // 아래 빈 분기로 빠져 스냅샷을 추가 생성하지 않는다(cycle 번호 중복 방지).
+  // UPDATE 로 candidate → processing 선점(claim)한다. 선점 시각을 evaluatedAt 에
+  // 찍어 두면(좀비 회수 기준) 크래시로 남은 행을 다음 사이클이 회수할 수 있다.
+  // 0건을 선점한 동시 호출은 아래 빈 분기로 빠져 스냅샷을 추가 생성하지 않는다.
   const candidates = (await db
     .update(learningContributionsTable)
-    .set({ status: "processing" })
+    .set({ status: "processing", evaluatedAt: sql`now()` })
     .where(eq(learningContributionsTable.status, "candidate"))
     .returning()) as LearningContribution[];
   candidates.sort(

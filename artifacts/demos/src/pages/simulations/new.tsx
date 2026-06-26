@@ -16,16 +16,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Calculator, PlayCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatCost } from "@/lib/cost";
+import {
+  hasMeaningfulContent,
+  isMeaningfulTitle,
+  POLICY_TEXT_ERROR,
+  TITLE_ERROR,
+} from "@/lib/contentValidation";
 
 const formSchema = z.object({
-  title: z.string().min(2, { message: "제목은 2자 이상이어야 합니다." }),
+  title: z
+    .string()
+    .min(2, { message: "제목은 2자 이상이어야 합니다." })
+    .refine(isMeaningfulTitle, { message: TITLE_ERROR }),
   product: z.string().min(1, { message: "제품 라인을 선택해주세요." }),
   model: z.string().min(1),
   sampleSize: z.coerce
     .number({ message: "표본 크기를 입력해주세요." })
     .int()
     .min(1, { message: "표본 크기는 1명 이상이어야 합니다." }),
-  policyText: z.string().min(10, { message: "내용은 최소 10자 이상 입력해주세요." }),
+  policyText: z
+    .string()
+    .min(10, { message: "내용은 최소 10자 이상 입력해주세요." })
+    .refine(hasMeaningfulContent, { message: POLICY_TEXT_ERROR }),
 });
 
 /** 제품 라인이 트랙·대상을 결정한다 (audience는 설명용 라벨). */

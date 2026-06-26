@@ -14,8 +14,10 @@ import {
   DOMAINS,
   type LearningDomain,
 } from "../lib/autoLearning";
+import { getAppliedOffsetBreakdown } from "../lib/populationData";
 import {
   LearningOverviewResponse,
+  LearningOffsetsResponse,
   ListContributionsResponse,
   CreateContributionBody,
   CreateContributionResponse,
@@ -31,6 +33,12 @@ const router: IRouter = Router();
 router.get("/learning/overview", async (_req, res): Promise<void> => {
   const overview = await getOverview();
   res.json(LearningOverviewResponse.parse(jsonReady(overview)));
+});
+
+/** 전역 합성인구에 현재 적용 중인 도메인별 총 기준선 이동량(auto+manual=combined, clamp). */
+router.get("/learning/offsets", async (_req, res): Promise<void> => {
+  const breakdown = await getAppliedOffsetBreakdown();
+  res.json(LearningOffsetsResponse.parse(jsonReady(breakdown)));
 });
 
 /** 학습 기여 목록. 관리자는 전체(또는 ?status= 필터), 일반 사용자는 전역+본인. */

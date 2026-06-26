@@ -41,6 +41,38 @@ export const LearningOverviewResponse = zod.object({
 
 
 /**
+ * @summary Current applied baseline-shift breakdown (auto + manual = combined, post-clamp)
+ */
+export const LearningOffsetsResponse = zod.object({
+  "applyToPopulation": zod.boolean().describe('입력 보정(Lever 1) 인구 반영 토글 상태(전역 설정).'),
+  "political": zod.object({
+  "auto": zod.number().describe('자가학습 누적 offset'),
+  "manual": zod.number().describe('입력 보정(Lever 1) offset (applyToPopulation ON 일 때만)'),
+  "sum": zod.number().describe('clamp 전 단순 합(auto+manual)'),
+  "combined": zod.number().describe('실제 인구에 적용되는 clamp 후 합'),
+  "limit": zod.number().describe('합산 한도(±)'),
+  "clamped": zod.boolean().describe('clamp 로 잘렸는지 여부(같은 방향 누적 경고)')
+}).describe('한 도메인의 기준선 이동량 분해(auto 자가학습 + manual 입력보정 = combined, 한도 clamp 적용).'),
+  "consumer": zod.object({
+  "auto": zod.number().describe('자가학습 누적 offset'),
+  "manual": zod.number().describe('입력 보정(Lever 1) offset (applyToPopulation ON 일 때만)'),
+  "sum": zod.number().describe('clamp 전 단순 합(auto+manual)'),
+  "combined": zod.number().describe('실제 인구에 적용되는 clamp 후 합'),
+  "limit": zod.number().describe('합산 한도(±)'),
+  "clamped": zod.boolean().describe('clamp 로 잘렸는지 여부(같은 방향 누적 경고)')
+}).describe('한 도메인의 기준선 이동량 분해(auto 자가학습 + manual 입력보정 = combined, 한도 clamp 적용).'),
+  "policy": zod.object({
+  "auto": zod.number().describe('자가학습 누적 offset'),
+  "manual": zod.number().describe('입력 보정(Lever 1) offset (applyToPopulation ON 일 때만)'),
+  "sum": zod.number().describe('clamp 전 단순 합(auto+manual)'),
+  "combined": zod.number().describe('실제 인구에 적용되는 clamp 후 합'),
+  "limit": zod.number().describe('합산 한도(±)'),
+  "clamped": zod.boolean().describe('clamp 로 잘렸는지 여부(같은 방향 누적 경고)')
+}).describe('한 도메인의 기준선 이동량 분해(auto 자가학습 + manual 입력보정 = combined, 한도 clamp 적용).')
+}).describe('전역 합성 인구에 현재 적용 중인 도메인별 총 기준선 이동량.')
+
+
+/**
  * @summary List learning contributions (admin sees all; users see global + own)
  */
 export const ListContributionsQueryParams = zod.object({
@@ -306,7 +338,9 @@ export const autoCollectSignalsBodyCountMax = 8;
 
 export const AutoCollectSignalsBody = zod.object({
   "count": zod.number().min(1).max(autoCollectSignalsBodyCountMax).optional(),
-  "source": zod.enum(['뉴스', '검색트렌드', 'SNS·커뮤니티']).optional()
+  "source": zod.enum(['뉴스', '검색트렌드', 'SNS·커뮤니티']).optional(),
+  "linkedProduct": zod.enum(['Lumen', 'Seraph', 'Dynamo']).optional(),
+  "query": zod.string().optional().describe('실시간 뉴스 검색어(미지정 시 제품 기본 주제 로테이션)')
 })
 
 

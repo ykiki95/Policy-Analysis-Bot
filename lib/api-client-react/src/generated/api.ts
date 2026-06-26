@@ -57,6 +57,7 @@ import type {
   ListContributionsParams,
   LoginInput,
   ManualElectionInput,
+  OffsetBreakdown,
   OkResult,
   Product,
   RegeneratePopulationInput,
@@ -164,6 +165,83 @@ export function useLearningOverview<TData = Awaited<ReturnType<typeof learningOv
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getLearningOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getLearningOffsetsUrl = () => {
+
+
+
+
+  return `/api/learning/offsets`
+}
+
+/**
+ * @summary Current applied baseline-shift breakdown (auto + manual = combined, post-clamp)
+ */
+export const learningOffsets = async ( options?: RequestInit): Promise<OffsetBreakdown> => {
+
+  return customFetch<OffsetBreakdown>(getLearningOffsetsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getLearningOffsetsQueryKey = () => {
+    return [
+    `/api/learning/offsets`
+    ] as const;
+    }
+
+
+export const getLearningOffsetsQueryOptions = <TData = Awaited<ReturnType<typeof learningOffsets>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof learningOffsets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLearningOffsetsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof learningOffsets>>> = ({ signal }) => learningOffsets({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof learningOffsets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type LearningOffsetsQueryResult = NonNullable<Awaited<ReturnType<typeof learningOffsets>>>
+export type LearningOffsetsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Current applied baseline-shift breakdown (auto + manual = combined, post-clamp)
+ */
+
+export function useLearningOffsets<TData = Awaited<ReturnType<typeof learningOffsets>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof learningOffsets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getLearningOffsetsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

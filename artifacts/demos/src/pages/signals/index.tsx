@@ -163,17 +163,19 @@ function NewBatchDialog() {
   const qc = useQueryClient();
   const createSignal = useCreateSignal();
   const { data: simulations } = useListSimulations();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [collecting, setCollecting] = useState(false);
-  const [source, setSource] = useState<Source | "">("");
+  // 실시간 실제 수집은 Google 뉴스 RSS 기반이라 소스는 '뉴스' 고정.
+  const source: Source = "뉴스";
   const [product, setProduct] = useState<Product | "">("");
   const [simId, setSimId] = useState<string>("none");
   const [title, setTitle] = useState("");
 
-  const canSubmit = source !== "" && product !== "" && !collecting;
+  const canSubmit = product !== "" && !collecting;
 
   const handleSubmit = async () => {
-    if (source === "" || product === "") return;
+    if (product === "") return;
     setCollecting(true);
     try {
       await createSignal.mutateAsync({
@@ -184,14 +186,20 @@ function NewBatchDialog() {
           linkedSimulationId: simId === "none" ? undefined : Number(simId),
         },
       });
-      // '수집중' 연출: 짧은 로딩 후 목록/차트/KPI 갱신
-      await new Promise((r) => setTimeout(r, 1500));
       await qc.invalidateQueries({ queryKey: getListSignalsQueryKey() });
       setOpen(false);
-      setSource("");
       setProduct("");
       setSimId("none");
       setTitle("");
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error ?? "실시간 신호 수집에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+      toast({
+        variant: "destructive",
+        title: "신호 수집 실패",
+        description: msg,
+      });
     } finally {
       setCollecting(false);
     }
@@ -208,24 +216,17 @@ function NewBatchDialog() {
         <DialogHeader>
           <DialogTitle>새 신호 배치 수집</DialogTitle>
           <DialogDescription>
-            소스와 부문을 선택하면 신호 배치를 수집합니다.
+            검색어와 부문을 지정하면 Google 뉴스 RSS에서 실제 기사를 수집해
+            LLM으로 감성·요약을 분석합니다.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label>신호 소스</Label>
-            <Select value={source} onValueChange={(v) => setSource(v as Source)}>
-              <SelectTrigger>
-                <SelectValue placeholder="소스 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {SOURCES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+              <Newspaper className="h-4 w-4 text-muted-foreground" />
+              뉴스 (Google 뉴스 RSS · 실시간)
+            </div>
           </div>
           <div className="space-y-2">
             <Label>연결 부문</Label>
@@ -259,9 +260,9 @@ function NewBatchDialog() {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>제목 (선택)</Label>
+            <Label>검색어 (선택)</Label>
             <Input
-              placeholder="예: 청년 월세지원 관련 보도 급증"
+              placeholder="예: 청년 월세지원 / 비워두면 부문 기본 주제로 수집"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />

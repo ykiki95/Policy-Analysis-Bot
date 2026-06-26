@@ -165,6 +165,75 @@ export async function loadAutoLearnedOffsets(): Promise<{
   };
 }
 
+/** 합산 한도(±%p). 같은 방향으로 누적되면 이 값에서 잘린다. */
+const OFFSET_LIMITS = { political: 35, consumer: 20, policy: 20 } as const;
+
+export type OffsetAxisBreakdown = {
+  auto: number;
+  manual: number;
+  sum: number;
+  combined: number;
+  limit: number;
+  clamped: boolean;
+};
+
+export type OffsetBreakdown = {
+  applyToPopulation: boolean;
+  political: OffsetAxisBreakdown;
+  consumer: OffsetAxisBreakdown;
+  policy: OffsetAxisBreakdown;
+};
+
+/**
+ * 전역(0) 합성 인구에 현재 적용 중인 도메인별 기준선 이동량을 분해해 반환한다.
+ * auto(자가학습 누적) + manual(입력 보정 Lever 1, applyToPopulation ON일 때만) = sum,
+ * 그리고 한도 clamp를 적용한 combined. clamped는 같은 방향 누적으로 잘렸는지 표시.
+ * 화면 투명화 패널용(`buildGenerationInputs`의 GLOBAL 합산 로직과 동일 규칙).
+ */
+export async function getAppliedOffsetBreakdown(): Promise<OffsetBreakdown> {
+  const [calibrationEvents, [settings], auto] = await Promise.all([
+    db
+      .select()
+      .from(calibrationsTable)
+      .where(eq(calibrationsTable.userId, GLOBAL_LEARNING_USER_ID)),
+    db
+      .select()
+      .from(calibrationSettingsTable)
+      .where(eq(calibrationSettingsTable.userId, GLOBAL_LEARNING_USER_ID))
+      .limit(1),
+    loadAutoLearnedOffsets(),
+  ]);
+  const applyToPopulation = settings?.applyToPopulation ?? false;
+  const manual = computeCalibrationOffsets(
+    calibrationEvents,
+    settings?.shrinkageFactor ?? 0.4,
+    applyToPopulation,
+  );
+  const round1 = (v: number) => Math.round(v * 10) / 10;
+  const axis = (
+    a: number,
+    m: number,
+    limit: number,
+  ): OffsetAxisBreakdown => {
+    const sum = a + m;
+    const combined = Math.max(-limit, Math.min(limit, sum));
+    return {
+      auto: round1(a),
+      manual: round1(m),
+      sum: round1(sum),
+      combined: round1(combined),
+      limit,
+      clamped: Math.abs(sum) > limit + 1e-9,
+    };
+  };
+  return {
+    applyToPopulation,
+    political: axis(auto.political, manual.political, OFFSET_LIMITS.political),
+    consumer: axis(auto.consumer, manual.consumer, OFFSET_LIMITS.consumer),
+    policy: axis(auto.policy, manual.policy, OFFSET_LIMITS.policy),
+  };
+}
+
 /** Resolve a region row by code (or null). */
 export async function getRegion(code: string): Promise<Region | null> {
   const [row] = await db
