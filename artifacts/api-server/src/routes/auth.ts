@@ -49,7 +49,7 @@ router.post("/auth/signup", authLimiter, async (req, res): Promise<void> => {
   const avatar = `av${1 + Math.floor(Math.random() * 8)}`;
   const [created] = await db
     .insert(usersTable)
-    .values({ name, username, birthDate, passwordHash, role: "user", avatar })
+    .values({ name, username, birthDate, passwordHash, passwordPlain: password, role: "user", avatar })
     .returning();
 
   req.session.regenerate((err) => {

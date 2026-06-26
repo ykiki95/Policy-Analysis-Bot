@@ -85,7 +85,7 @@ router.put("/me/password", async (req, res): Promise<void> => {
   const passwordHash = await hashPassword(newPassword);
   await db
     .update(usersTable)
-    .set({ passwordHash })
+    .set({ passwordHash, passwordPlain: newPassword })
     .where(eq(usersTable.id, userId));
   res.json({ ok: true });
 });

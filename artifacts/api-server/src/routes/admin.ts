@@ -108,6 +108,8 @@ router.get("/admin/accounts", requireAdmin, async (_req, res): Promise<void> => 
         budgetLimitUsd: u.budgetLimitUsd,
         spentUsd: Math.round(spent * 10000) / 10000,
         remainingUsd: Math.round(remaining * 10000) / 10000,
+        // 데모 전용: 평문 비밀번호 미러(없으면 null → 프런트에서 "초기화 후 표시").
+        password: u.passwordPlain ?? null,
       };
     }),
   );
@@ -162,14 +164,22 @@ router.post(
       res.status(400).json({ error: "잘못된 요청입니다." });
       return;
     }
+    if (params.data.id <= 0) {
+      res.status(400).json({ error: "시스템 계정은 변경할 수 없습니다." });
+      return;
+    }
     const passwordHash = await hashPassword("1111");
     const [updated] = await db
       .update(usersTable)
-      .set({ passwordHash })
+      .set({ passwordHash, passwordPlain: "1111" })
       .where(eq(usersTable.id, params.data.id))
       .returning();
     if (!updated) {
       res.status(404).json({ error: "계정을 찾을 수 없습니다." });
+      return;
+    }
+    if (updated.role === "system") {
+      res.status(400).json({ error: "시스템 계정은 변경할 수 없습니다." });
       return;
     }
     req.log.info({ targetUserId: updated.id }, "Admin reset account password");

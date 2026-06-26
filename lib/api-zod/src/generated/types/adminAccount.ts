@@ -19,4 +19,6 @@ export interface AdminAccount {
   budgetLimitUsd: number;
   spentUsd: number;
   remainingUsd: number;
+  /** 데모 전용 평문 비밀번호 미러(없으면 null) */
+  password?: string | null;
 }

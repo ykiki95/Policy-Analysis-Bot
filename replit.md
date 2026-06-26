@@ -10,6 +10,7 @@ Aaru 스타일 합성 인구 시뮬레이션 SaaS. 서울 거주 합성 시민 5
 - `pnpm --filter @workspace/demos run typecheck` — typecheck just the frontend
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate hooks + Zod from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- 프로덕션 DB는 외부 Neon(배포 Autoscale 앱이 사용). 스키마 변경(raw DDL) 적용은 `lib/db` 디렉터리에서 `pg`로 직접 연결 — connection string은 `PROD_NEON_PASSWORD`로 조립(`postgresql://neondb_owner:<PROD_NEON_PASSWORD>@ep-autumn-mouse-aokb8kk0.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`). **주의**: `PROD_DATABASE_URL` 환경변수는 표준 postgres URL이 아닌 불투명 토큰이라 직접 연결 불가. dev DDL과 별도로 prod에 직접 적용해야 한다(post-merge `pnpm --filter db push`는 dev만).
 - Required env: `DATABASE_URL`, `AI_INTEGRATIONS_OPENAI_BASE_URL`, `AI_INTEGRATIONS_OPENAI_API_KEY`
 - 선거 데이터 연동 env(선택): `DATA_GO_KR_API_KEY` (공공데이터포털 — 실제 개표결과 import 시 필요)
 
@@ -63,6 +64,8 @@ Aaru 스타일 합성 인구 시뮬레이션 SaaS. 서울 거주 합성 시민 5
 - **시뮬레이션 결과 보존**: `simulation_responses`는 `district/ageBracket/gender/politicalLeaning`을 응답 시점에 스냅샷으로 저장한다. `GET /simulations/:id` 집계는 절대 라이브 `agents` 테이블과 조인하지 않는다 — 그래야 인구 재생성(해당 user agents 교체) 후에도 과거 시뮬레이션 집계가 변하지 않는다. 새 `politicalLeaning` 컬럼 추가 시 기존 행은 agents에서 백필했다.
 - 인구 재생성은 단일 트랜잭션에서 **해당 user의 agents만** 삭제 → `generateAgents(count)` 재삽입으로 원자적으로 수행한다(글로벌 `agents_id_seq` 리셋 없음 — 멀티테넌시 때문). count 범위 50~5000.
 - **인증/인가**: 커스텀 express-session(Clerk 아님, `lib/tenant.ts`). 관리자 라우트(`/api/admin/*`)는 `routes/index.ts`에서 `requireAdmin` 미들웨어로 보호한다. 인구 생성/설문 업로드/검증 이벤트 등 자기서비스 기능은 인증 사용자 본인 스코프; admin은 `?accountId`로 임의 계정 대상 가능. 회원가입/과금 UI는 향후 범위.
+- **관리자 "계정 보기 전환"(view-as)**: 상단 `AccountSwitcher`(`use-account-switcher.tsx`의 `selectedAccountId`)로 admin이 다른 계정 관점으로 데이터·UI를 본다. 프런트 UI 게이팅은 `isAdmin && selectedAccountId==null`로 계산 — `layout.tsx`는 `effectiveIsAdmin`(좌측 메뉴 "관리자"↔"설정"·`ViewAsBanner`), `admin/index.tsx`는 같은 식으로 `isAdmin`을 섀도잉(관리자 전용 탭 signals/accounts/analytics 숨김). Admin 탭은 controlled(`activeTab` state)라 전환으로 탭이 사라지면 `population`으로 폴백. **이는 UI 편의일 뿐, 백엔드 인가는 그대로 `requireAdmin` — 전환해도 admin 세션은 admin**. 스위처는 본인·id≤0·role=system 제외. 시스템 sentinel은 테넌트 스코프(`withTenant`가 `accountId>0`만 적용) 밖이라 전환 대상이 아님.
+- **데모용 평문 비밀번호 미러**: `users.passwordPlain`(nullable). signup(`auth.ts`)·admin reset(`admin.ts`, "1111")·profile change-password(`profile.ts`)가 해시와 함께 평문도 기록. GET `/admin/accounts`가 `password`(평문 or null) 반환 → `admin/index.tsx` AccountRow가 초기화 버튼 옆에 표시(없으면 "초기화 후 표시"). 기존 가입자(평문 미보유)는 null. reset 라우트는 `id≤0`/`role=system` 거부. **데모 전용 — 프로덕션 안전하지 않음**.
 
 ## Product
 

@@ -1624,6 +1624,7 @@ components:
         budgetLimitUsd: { type: number }
         spentUsd: { type: number }
         remainingUsd: { type: number }
+        password: { type: string, nullable: true, description: "데모 전용 평문 비밀번호 미러(없으면 null)" }
 
     UpdateAccountBudgetInput:
       type: object

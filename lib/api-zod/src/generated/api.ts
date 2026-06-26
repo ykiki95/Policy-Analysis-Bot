@@ -1143,7 +1143,8 @@ export const ListAdminAccountsResponseItem = zod.object({
   "createdAt": zod.string(),
   "budgetLimitUsd": zod.number(),
   "spentUsd": zod.number(),
-  "remainingUsd": zod.number()
+  "remainingUsd": zod.number(),
+  "password": zod.string().nullish().describe('데모 전용 평문 비밀번호 미러(없으면 null)')
 }).describe('예산 금액은 실제 LLM 실비(USD)다. 화면 표시 배수는 프런트가 적용한다.')
 export const ListAdminAccountsResponse = zod.array(ListAdminAccountsResponseItem)
 
@@ -1172,7 +1173,8 @@ export const UpdateAccountBudgetResponse = zod.object({
   "createdAt": zod.string(),
   "budgetLimitUsd": zod.number(),
   "spentUsd": zod.number(),
-  "remainingUsd": zod.number()
+  "remainingUsd": zod.number(),
+  "password": zod.string().nullish().describe('데모 전용 평문 비밀번호 미러(없으면 null)')
 }).describe('예산 금액은 실제 LLM 실비(USD)다. 화면 표시 배수는 프런트가 적용한다.')
 
 

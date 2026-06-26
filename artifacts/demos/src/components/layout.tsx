@@ -48,8 +48,11 @@ function AccountSwitcher() {
   const { user } = useAuth();
   if (!accounts) return null;
 
-  // 본인 계정은 "내 계정" 옵션으로 이미 표현되므로 목록에서 제외(중복 방지).
-  const otherAccounts = accounts.filter((a) => a.id !== user?.id);
+  // 본인 계정은 "내 계정" 옵션으로 이미 표현되므로 제외(중복 방지).
+  // 시스템 sentinel(id<=0, role=system)은 로그인 불가·테넌트 스코프 대상이 아니라 전환 목록에서 제외.
+  const otherAccounts = accounts.filter(
+    (a) => a.id !== user?.id && a.id > 0 && a.role !== "system",
+  );
   const current = accounts.find((a) => a.id === selectedAccountId);
   const label = current
     ? `${current.name} (@${current.username})`
@@ -88,6 +91,29 @@ function AccountSwitcher() {
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function ViewAsBanner() {
+  const { selectedAccountId, selectAccount } = useAccountSwitcher();
+  const { data: accounts } = useListAdminAccounts();
+  if (selectedAccountId == null) return null;
+  const acct = accounts?.find((a) => a.id === selectedAccountId);
+  return (
+    <div className="no-print flex items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/15 px-4 md:px-8 py-2 text-sm">
+      <span className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+        <UserCog className="h-4 w-4 shrink-0" />
+        관리자 보기 — {acct ? `${acct.name} (@${acct.username})` : `계정 #${selectedAccountId}`} 계정으로 보는 중입니다.
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7 shrink-0"
+        onClick={() => selectAccount(null)}
+      >
+        내 계정으로 돌아가기
+      </Button>
+    </div>
   );
 }
 
@@ -153,6 +179,9 @@ function AccountMenu() {
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { isAdmin } = useAuth();
+  const { selectedAccountId } = useAccountSwitcher();
+  // 관리자가 다른 계정으로 보는 중이면 좌측 메뉴를 그 사용자 관점("설정")으로 보여준다.
+  const effectiveIsAdmin = isAdmin && selectedAccountId == null;
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navSections: {
@@ -185,7 +214,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "플랫폼",
       items: [
         { href: "/products", label: "제품 라인업", icon: Box },
-        { href: "/admin", label: isAdmin ? "관리자" : "설정", icon: Settings },
+        { href: "/admin", label: effectiveIsAdmin ? "관리자" : "설정", icon: Settings },
       ],
     },
   ];
@@ -194,10 +223,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
       <aside className="w-full md:w-64 border-r border-border bg-card flex flex-col shrink-0 no-print">
         <div className="p-6 border-b border-border flex items-center justify-between md:block">
-          <div>
-            <h1 className="font-bold text-lg tracking-tight text-foreground">AI Analytics Platform</h1>
+          <Link href="/" onClick={() => setMobileOpen(false)} className="block group">
+            <h1 className="font-bold text-lg tracking-tight text-foreground group-hover:text-primary transition-colors">AI Analytics Platform</h1>
             <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Synthetic Electorate</p>
-          </div>
+          </Link>
           <Button
             variant="ghost"
             size="icon"
@@ -248,6 +277,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {isAdmin && <AccountSwitcher />}
           <AccountMenu />
         </header>
+        {isAdmin && <ViewAsBanner />}
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="mx-auto max-w-6xl">
             {children}

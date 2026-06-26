@@ -85,6 +85,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Users, Database, Upload, SlidersHorizontal, ExternalLink, FileSpreadsheet, Loader2, Download, Plus, Trash2, CheckCircle2, Sparkles, TrendingUp, Pencil, RotateCcw, Vote, Wallet, KeyRound, Radio, RefreshCw, Box, Building2, ChevronLeft, ChevronRight, Activity, Smartphone, Monitor, Globe, Clock, MousePointerClick } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from "recharts";
 import { useAuth } from "@/hooks/use-auth";
+import { useAccountSwitcher } from "@/hooks/use-account-switcher";
 
 const CALIBRATION_METHODS = [
   "베이지안 축소 (Bayesian Shrinkage)",
@@ -550,6 +551,7 @@ function AccountRow({ account }: { account: AdminAccount }) {
   const resetPw = async () => {
     try {
       await resetPassword.mutateAsync({ id: account.id });
+      await queryClient.invalidateQueries({ queryKey: getListAdminAccountsQueryKey() });
       toast({ title: "비밀번호 초기화 완료", description: `${account.name}의 비밀번호를 "1111"로 초기화했습니다.` });
     } catch {
       toast({ title: "초기화 실패", description: "잠시 후 다시 시도해 주세요.", variant: "destructive" });
@@ -618,6 +620,10 @@ function AccountRow({ account }: { account: AdminAccount }) {
       <TableCell className="tabular-nums text-muted-foreground">{formatCost(account.spentUsd)}</TableCell>
       <TableCell className="tabular-nums font-medium">{formatCost(account.remainingUsd)}</TableCell>
       <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-3">
+          <span className="font-mono text-sm" title="데모 전용 — 사용자 비밀번호">
+            {account.password ? account.password : <span className="italic text-muted-foreground">초기화 후 표시</span>}
+          </span>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button size="sm" variant="outline" disabled={resetPassword.isPending}>
@@ -643,6 +649,7 @@ function AccountRow({ account }: { account: AdminAccount }) {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        </div>
       </TableCell>
     </TableRow>
   );
@@ -693,7 +700,17 @@ function AccountsSection() {
 export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isAdmin } = useAuth();
+  const { isAdmin: realIsAdmin } = useAuth();
+  const { selectedAccountId } = useAccountSwitcher();
+  // 관리자가 상단 전환기로 다른 계정을 보는 중이면 그 사용자 관점("설정")으로 렌더한다.
+  const isAdmin = realIsAdmin && selectedAccountId == null;
+
+  // 탭은 controlled — 보기 전환으로 관리자 전용 탭이 사라지면 사용자 탭으로 폴백(빈 패널 방지).
+  const [activeTab, setActiveTab] = useState("population");
+  const adminOnlyTabs = ["signals", "accounts", "analytics"];
+  useEffect(() => {
+    if (!isAdmin && adminOnlyTabs.includes(activeTab)) setActiveTab("population");
+  }, [isAdmin, activeTab]);
 
   const { data: summary } = useGetAgentSummary();
   const { data: dataSources, isLoading: dsLoading } = useListDataSources();
@@ -743,7 +760,7 @@ export default function Admin() {
         </p>
       </div>
 
-      <Tabs defaultValue="population">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className={`grid w-full h-auto gap-1 grid-cols-2 sm:grid-cols-3 ${isAdmin ? "lg:grid-cols-8" : "lg:grid-cols-5"}`}>
           <TabsTrigger value="population"><Users className="h-4 w-4 mr-1.5" />인구 구성</TabsTrigger>
           <TabsTrigger value="sources"><Database className="h-4 w-4 mr-1.5" />데이터 출처</TabsTrigger>

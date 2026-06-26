@@ -20,6 +20,10 @@ export const usersTable = pgTable("users", {
   // 프로필 아바타 프리셋 키(예: "av1"). null 이면 프런트에서 id 기반 기본 아바타 표시.
   avatar: text("avatar"),
   passwordHash: text("password_hash").notNull(),
+  // 데모 전용: 관리자 화면에서 사용자 비밀번호를 그대로 보여주기 위한 평문 미러.
+  // 운영 서비스에서는 절대 저장하지 않는다(bcrypt 해시만 사용). signup·비밀번호 변경·
+  // admin 초기화 시 함께 기록한다. 기존 행(컬럼 추가 이전)은 null.
+  passwordPlain: text("password_plain"),
   role: text("role").notNull().default("user"),
   // LLM 지출 한도(실제 USD). 화면 표시는 ×10 (기본 $1 실비 = 화면 $10).
   budgetLimitUsd: doublePrecision("budget_limit_usd").notNull().default(1),
