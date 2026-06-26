@@ -52,6 +52,7 @@ import {
   AlertTriangle,
   Sparkles,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 
 const DOMAIN_OPTIONS = [
@@ -153,11 +154,19 @@ export default function Learning() {
     }
   }
 
-  async function decide(c: LearningContribution, action: "approve" | "reject") {
+  async function decide(
+    c: LearningContribution,
+    action: "approve" | "reject" | "requeue",
+  ) {
     try {
       await decision.mutateAsync({ id: c.id, data: { action } });
       toast({
-        title: action === "approve" ? "승인 — 전역 인구에 반영" : "기각됨",
+        title:
+          action === "approve"
+            ? "승인 — 전역 인구에 반영"
+            : action === "requeue"
+              ? "검토 큐로 되돌림"
+              : "기각됨",
         description: c.title,
       });
       invalidate();
@@ -422,6 +431,7 @@ export default function Learning() {
                   <TableHead className="text-right">편향</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>결정</TableHead>
+                  {isAdmin && <TableHead className="text-right">작업</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -441,6 +451,21 @@ export default function Learning() {
                     <TableCell className="text-xs text-muted-foreground">
                       {c.decidedBy === "auto" ? "자동" : c.decidedBy === "admin" ? "관리자" : "—"}
                     </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-right">
+                        {c.status === "rejected" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => decide(c, "requeue")}
+                            disabled={decision.isPending}
+                          >
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                            다시 큐로
+                          </Button>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

@@ -634,6 +634,31 @@ export async function rejectContribution(
   return updated ?? null;
 }
 
+/**
+ * 관리자가 실수로 기각한 기여를 검토 큐로 되돌린다(rejected → flagged).
+ * rejected 상태였던 건만 대상으로 하는 조건부 UPDATE 라 전역 인구는 건드리지 않는다.
+ */
+export async function requeueContribution(
+  id: number,
+): Promise<LearningContribution | null> {
+  const [updated] = await db
+    .update(learningContributionsTable)
+    .set({
+      status: "flagged",
+      decidedBy: null,
+      flagReason: "관리자가 검토 큐로 되돌림 — 재검토 대기.",
+      evaluatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(learningContributionsTable.id, id),
+        eq(learningContributionsTable.status, "rejected"),
+      ),
+    )
+    .returning();
+  return updated ?? null;
+}
+
 export type LearningOverview = {
   accuracy: number;
   accuracyDelta: number;

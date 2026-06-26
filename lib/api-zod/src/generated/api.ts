@@ -138,7 +138,7 @@ export const ContributionDecisionParams = zod.object({
 })
 
 export const ContributionDecisionBody = zod.object({
-  "action": zod.enum(['approve', 'reject'])
+  "action": zod.enum(['approve', 'reject', 'requeue'])
 })
 
 export const ContributionDecisionResponse = zod.object({

@@ -10,6 +10,7 @@ import {
   runLearningCycle,
   approveContribution,
   rejectContribution,
+  requeueContribution,
   DOMAINS,
   type LearningDomain,
 } from "../lib/autoLearning";
@@ -101,7 +102,9 @@ router.post(
     const updated =
       body.data.action === "approve"
         ? await approveContribution(id)
-        : await rejectContribution(id);
+        : body.data.action === "requeue"
+          ? await requeueContribution(id)
+          : await rejectContribution(id);
     if (!updated) {
       res.status(404).json({ error: "기여를 찾을 수 없습니다." });
       return;

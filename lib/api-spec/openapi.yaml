@@ -1466,7 +1466,7 @@ components:
       type: object
       required: [action]
       properties:
-        action: { type: string, enum: [approve, reject] }
+        action: { type: string, enum: [approve, reject, requeue] }
     LearningContribution:
       type: object
       required:

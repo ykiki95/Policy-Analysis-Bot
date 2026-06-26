@@ -29,6 +29,7 @@ export type ContributionDecisionInputAction = typeof ContributionDecisionInputAc
 export const ContributionDecisionInputAction = {
   approve: 'approve',
   reject: 'reject',
+  requeue: 'requeue',
 } as const;
 
 export interface ContributionDecisionInput {
