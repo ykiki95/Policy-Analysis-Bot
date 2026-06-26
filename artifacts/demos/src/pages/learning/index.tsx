@@ -359,7 +359,7 @@ export default function Learning() {
           </CardContent>
         </Card>
 
-        {canAdmin && (
+        {isAdmin && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -393,20 +393,24 @@ export default function Learning() {
                         </div>
                         <StatusBadge status={c.status} />
                       </div>
-                      <div className="flex gap-2 mt-3">
-                        <Button size="sm" onClick={() => decide(c, "approve")} disabled={decision.isPending}>
-                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                          승인
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => decide(c, "reject")}
-                          disabled={decision.isPending}
-                        >
-                          기각
-                        </Button>
-                      </div>
+                      {canAdmin ? (
+                        <div className="flex gap-2 mt-3">
+                          <Button size="sm" onClick={() => decide(c, "approve")} disabled={decision.isPending}>
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                            승인
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => decide(c, "reject")}
+                            disabled={decision.isPending}
+                          >
+                            기각
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground mt-3">관리자 검토 대기 중입니다.</p>
+                      )}
                     </div>
                   ))}
                 </div>
